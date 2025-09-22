@@ -216,7 +216,7 @@ public class ShipmentOrderService {
 
 		return items;
 	}
-	
+
 	// 출하 품목 목록 조회
 	public List<Map<String, Object>> getShipmentItemList (Integer head_id){
 

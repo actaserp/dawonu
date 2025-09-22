@@ -6,6 +6,7 @@ import java.sql.Timestamp;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
@@ -16,18 +17,17 @@ import javax.transaction.Transactional;
 import mes.app.MailService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.InsufficientAuthenticationException;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.authentication.*;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.crypto.password.PasswordEncoder;
+
 import org.springframework.security.web.authentication.logout.SecurityContextLogoutHandler;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.ModelAndView;
+import org.springframework.security.core.GrantedAuthority;
 
 import mes.domain.entity.User;
 import mes.domain.model.AjaxResult;
@@ -182,6 +182,57 @@ public class AccountController {
 
 		HttpSession session = request.getSession(true);
 		session.setAttribute("SPRING_SECURITY_CONTEXT", sc);
+
+		return result;
+	}
+
+	/**
+	 * pda 로그인할때 쓰는거
+	 * **/
+	@PostMapping(value = "/pda/login", produces = "application/json; charset=UTF-8")
+	public Map<String, Object> pdaLogin(@RequestParam String username,
+										@RequestParam String password,
+										HttpServletRequest request) {
+		Map<String, Object> result = new HashMap<>();
+
+		try {
+			// 인증 시도
+			Authentication auth = authManager.authenticate(
+					new UsernamePasswordAuthenticationToken(username, password));
+
+			if (auth != null && auth.isAuthenticated()) {
+				User user = (User) auth.getPrincipal();
+
+				SecurityContext sc = SecurityContextHolder.getContext();
+				sc.setAuthentication(auth);
+
+				HttpSession session = request.getSession(true);
+				session.setAttribute("SPRING_SECURITY_CONTEXT", sc);
+
+				result.put("code", "OK");
+				result.put("userid", user.getUsername());
+				result.put("username", user.getFirst_name());  // 필요 시 lastName 도 추가
+				result.put("email", user.getEmail());
+				result.put("active", user.getActive());
+				result.put("roles", auth.getAuthorities()
+						.stream()
+						.map(GrantedAuthority::getAuthority)
+						.collect(Collectors.toList()));
+
+				result.put("sessionId", session.getId());
+			} else {
+				result.put("code", "NOUSER");
+			}
+		} catch (BadCredentialsException e) {
+			result.put("code", "BAD_CREDENTIALS");
+			result.put("message", "아이디 또는 비밀번호가 올바르지 않습니다.");
+		} catch (DisabledException e) {
+			result.put("code", "DISABLED");
+			result.put("message", "비활성화된 계정입니다.");
+		} catch (Exception e) {
+			result.put("code", "ERROR");
+			result.put("message", "로그인 처리 중 오류 발생: " + e.getMessage());
+		}
 
 		return result;
 	}

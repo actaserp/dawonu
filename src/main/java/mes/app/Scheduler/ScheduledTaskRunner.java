@@ -35,7 +35,7 @@ public class ScheduledTaskRunner {
     private final Job apiTimeLogProcesserJob;
 
     //@Scheduled(cron = "0 5 * * * *")
-    @Scheduled(cron = "0 0 * * * *") //5분주기
+    //@Scheduled(cron = "0 0 * * * *") //5분주기
     public void runScheduledTasks() {
         //TODO: 작업 추가할거면 SchedulerThreadPoolConfig 에서 쓰레드풀 조정해주삼 지금 작업하나밖에 없어서 2개로 해놨삼
 
@@ -46,7 +46,7 @@ public class ScheduledTaskRunner {
     }
 
     //@Scheduled(cron = "0 0 3 * * *")
-    @Scheduled(cron = "0 29 * * * *")
+    //@Scheduled(cron = "0 29 * * * *")
     public void runLogProcessorBatchTasks(){
 
         JobParameters jobParameters = new JobParametersBuilder()

@@ -45,11 +45,13 @@ public class SecurityConfiguration {
         //http.csrf().disable();
         http.csrf().ignoringAntMatchers("/api/files/upload/**");
         http.csrf().ignoringAntMatchers("/popbill/webhook");
+        http.csrf().ignoringAntMatchers("/pda/**");
+
         
-        http.authorizeRequests().mvcMatchers("/login","/logout" ,"/useridchk/**","/user-auth/save", "/popbill/webhook", "/api/transaction/input/**").permitAll()
+        http.authorizeRequests().mvcMatchers("/login","/logout" , "/pda/login", "/useridchk/**","/user-auth/save", "/popbill/webhook", "/api/transaction/input/**").permitAll()
         .mvcMatchers("/authentication/**","/user-auth/**").permitAll()
         .mvcMatchers("/setup").hasAuthority("admin")		// hasRole -> hasAuthority로 수정
-        .anyRequest().authenticated();
+                .anyRequest().authenticated();
 
         http.formLogin()
         .loginPage("/login")
