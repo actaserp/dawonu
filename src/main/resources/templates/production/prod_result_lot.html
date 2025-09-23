@@ -2543,7 +2543,7 @@
                         + "      </tr>                                                           "
                         + "      <tr>                                                            "
                         + "          <td colspan='4' class='barcode_td'>                         "
-                        + "              <svg id='svgBarcodeLotNumber'></svg>                    "
+                        + "              <svg class='svgBarcodeLotNumber'></svg>                    "
                         + "          </td>                                                       "
                         + "      </tr>                                                           "
                         + "  </table>                                                            "
@@ -2603,7 +2603,7 @@
 
                     if (select_chasu.length > 0) {
                         barcodeLabelText = select_chasu[i].lot_no + "(" + select_jr_array[i].mat_name + ")";
-                        $content.find("#svgBarcodeLotNumber").eq(i).JsBarcode(select_chasu[i].lot_no, {
+                        $content.find(".svgBarcodeLotNumber").eq(i).JsBarcode(select_chasu[i].lot_no, {
                             format: 'code128', // 바코드 포맷 / default: code128 / options: EAN, UPC, CODE39, ITF-14, MSI, Pharmacode, Codabar (각 옵션들에 대한 설명은 사이트 참조)
                             width: 2, // 너비 / default: 2
                             height: 100, // 높이 / default: 100
