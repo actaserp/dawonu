@@ -24,10 +24,10 @@ public class MaterialCurrentStockController {
 	// 재고 현황 조회
 	@GetMapping("/read")
 	public AjaxResult getMaterialCurrentStockList(
-			@RequestParam(value="mat_type", required=false) String mat_type,
-			@RequestParam(value="mat_grp_pk", required=false) Integer mat_grp_pk,
-			@RequestParam(value="mat_name", required=false) String mat_name,
-			@RequestParam(value="store_house_id", required=false) Integer store_house_id,
+			@RequestParam(value="mat_type", required=false) String mat_type, //품목유형
+			@RequestParam(value="mat_grp_pk", required=false) Integer mat_grp_pk, //품목그룹
+			@RequestParam(value="mat_name", required=false) String mat_name, // 품목명(코드)
+			@RequestParam(value="store_house_id", required=false) Integer store_house_id, //창고
 			@RequestParam(value="spjangcd", required=false) String spjangcd,
 			HttpServletRequest request) {
 		
