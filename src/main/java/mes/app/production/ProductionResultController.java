@@ -653,7 +653,7 @@ public class ProductionResultController {
             result.message = "저장된 투입내역이 없습니다. \n 투입내역을 저장해주세요.";
             return result;
         }
-        List<MaterialProduce> mp = this.matProduceRepository.findByJobResponseIdAndMaterialId(jrPk, prod_mat_id);
+        List<MaterialProduce> mp = this.matProduceRepository.findByJobResponseId(jrPk);
         if (mp.isEmpty()) {
             result.success = false;
             result.message = "저장된 차수내역이 없습니다. \n 차수내역을 저장해주세요.";

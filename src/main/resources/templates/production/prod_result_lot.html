@@ -3167,7 +3167,7 @@
             // 투입로트 조회
             showInputLotList(jr_pk) {
                 let _this = this;
-                // let jr_pk = this.jobres.id;
+                jr_pk = jr_pk || this.jobres?.id || $('#tabBasic #id').val();
                 let mat_code = $('#txtInputCode').val();
 
                 let param = {
