@@ -80,4 +80,44 @@ public class ShipmentApiService {
 
         return items;
     }
+
+
+
+	public List<Map<String, Object>> getShipmentList (Integer shipment_header_id) {
+
+		MapSqlParameterSource paramMap = new MapSqlParameterSource();
+		paramMap.addValue("shipment_header_id", shipment_header_id);
+
+		String sql = """
+	       select
+	        s."ShipmentHead_id" as sh_id
+	        , s.id as shipment_id
+	        , sh."State"
+	        , s."Material_id"
+	        , mg."Name" as mat_grp_name
+	        , m."Name" as mat_name
+	        , m."Code" as mat_code
+	        , s."UnitPrice" as unit_price
+	        , s."Price" as price
+	        , s."Vat" as vat
+	        , (s."Price" + s."Vat") as total_price
+	        , m."VatExemptionYN" as vat_ex_yn
+	        , u."Name" as unit_name 
+	        , s."OrderQty"
+	        , s."Qty"
+	        , s."Description" as description
+	        , m."Standard1" as stan_dard --규격
+	        , (select coalesce(sum(mlc."OutputQty" ), 0) as lot_qty from mat_lot_cons mlc where mlc."SourceDataPk" = s.id and mlc."SourceTableName"='shipment') as lot_qty
+	        from shipment s 
+	            inner join shipment_head sh on sh.id = s."ShipmentHead_id" 
+	            inner join material m on m.id = s."Material_id" 
+	            left join mat_grp mg on mg.id = m."MaterialGroup_id" 
+	            left join unit u on u.id = m."Unit_id" 
+	        where sh.id = :shipment_header_id	
+		        		 """;
+
+		List<Map<String, Object>> items = this.sqlRunner.getRows(sql, paramMap);
+
+		return items;
+	}
 }

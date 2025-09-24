@@ -289,6 +289,7 @@
                     isReadOnly: false,
                     columns: [
 
+                        {binding: 'id', header: '출하번호', width: 100, align: 'right'},
                         {binding: 'company_id', header: '판매처id', width: 0, align: 'right', visible: false},
                         {binding: 'company_name', header: '판매처', width: '*', align: 'left', isReadOnly: true},
                         {binding: 'ship_date', header: '출고일', width: '*', align: 'center', isReadOnly: true},
@@ -379,6 +380,7 @@
                     showMarquee: true,
                     isReadOnly: false,
                     columns: [
+                        {binding: 'shipment_id', header: '출하상세번호', maxWidth: 170, align: 'left', isReadOnly: true},
                         {binding: 'mat_grp_name', header: '제품그룹', maxWidth: 170, align: 'left', isReadOnly: true},
                         {binding: 'mat_code', header: '제품코드', maxWidth: 140, align: 'center', isReadOnly: true},
                         {binding: 'mat_name', header: '제품명', maxWidth: 200, align: 'left', isReadOnly: true},

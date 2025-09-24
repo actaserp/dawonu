@@ -222,6 +222,7 @@ public class AccountController {
 				result.put("sessionId", session.getId());
 			} else {
 				result.put("code", "NOUSER");
+				result.put("message", "해당 사용자가 없습니다.");
 			}
 		} catch (BadCredentialsException e) {
 			result.put("code", "BAD_CREDENTIALS");

@@ -2,14 +2,12 @@ package mes.app.pda.controller;
 
 import lombok.extern.slf4j.Slf4j;
 import mes.app.pda.service.ShipmentApiService;
+import mes.app.shipment.service.ShipmentDoBService;
 import mes.app.shipment.service.ShipmentOrderService;
 import mes.app.util.UtilClass;
 import mes.domain.model.AjaxResult;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import javax.servlet.http.HttpServletRequest;
 import java.util.Collections;
@@ -63,6 +61,19 @@ public class ShipmentApiController {
             result.data = null;
             result.message = "서버에러 발생";
         }
+
+        return result;
+    }
+
+    @GetMapping("/shipment_list")
+    public AjaxResult getShipmentList(
+            @RequestParam(value = "header_id", required = false) Integer shipment_header_id,
+            HttpServletRequest request) {
+
+        List<Map<String, Object>> items = this.shipmentApiService.getShipmentList(shipment_header_id);
+
+        AjaxResult result = new AjaxResult();
+        result.data = items;
 
         return result;
     }

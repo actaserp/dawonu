@@ -3,9 +3,13 @@ package mes.app.shipment;
 import java.sql.Timestamp;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import javax.servlet.http.HttpServletRequest;
 
+import mes.app.shipment.enums.ShipmentStatus;
+import mes.domain.entity.*;
+import mes.domain.repository.ShipmentHeadRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -23,10 +27,6 @@ import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import mes.app.shipment.service.ShipmentDoBService;
-import mes.domain.entity.MatLotCons;
-import mes.domain.entity.Material;
-import mes.domain.entity.Shipment;
-import mes.domain.entity.User;
 import mes.domain.model.AjaxResult;
 import mes.domain.repository.MatLotConsRepository;
 import mes.domain.repository.MaterialRepository;
@@ -51,8 +51,10 @@ public class ShipmentDoBController {
 	ShipmentRepository shipmentRepository;
 
 	@Autowired
-	MaterialRepository materialRepository; 
-	
+	MaterialRepository materialRepository;
+    @Autowired
+    ShipmentHeadRepository shipmentHeadRepository;
+
 	// 출하지시헤더 조회
 	@GetMapping("/read")
 	public AjaxResult getShipmentHeaderList(
@@ -216,7 +218,7 @@ public class ShipmentDoBController {
 		// Validation 체크 - 출하처리시 Material.currentStock 값과 Shipment.Qty(처리량)을 비교하여 값이 '-'인 경우 출하가 되지않도록 처리
 		List<Shipment> shipmentList = this.shipmentRepository.findByShipmentHeadId(sh_id);
 		
-		if (shipmentList != null) {			
+		if (shipmentList != null){
 			for (int i = 0; i < shipmentList.size(); i++) {				
 				Integer materialId = shipmentList.get(i).getMaterialId();
 				Material material = this.materialRepository.getMaterialById(materialId);
@@ -241,15 +243,21 @@ public class ShipmentDoBController {
 			// Shipment 테이블의 상태값 변경시 트리거 사용하여 "a"로 설정시 트리거를 통해 mat_inout 테이블에 출고데이터가 추가됨
 			List<Shipment> smList = this.shipmentRepository.findByShipmentHeadId(sh_id);
 			
-			if (smList != null) {			
+			if (smList != null) {
+
+				int orderSum = 0;
 				for (int i = 0; i < smList.size(); i++) {				
 					Shipment sm = smList.get(i);
 					
-					if (sm != null) {                      
+					if (sm != null) {
+						Double orderQty = sm.getOrderQty();
 						sm.set_status("a");                
 						sm.set_audit(user);
+						sm.setQty(orderQty);
 						
-						this.shipmentRepository.save(sm);  
+						this.shipmentRepository.save(sm);
+
+						orderSum += orderQty;
 					}                                      
 				}
 			}
