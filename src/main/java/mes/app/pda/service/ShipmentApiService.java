@@ -20,65 +20,93 @@ public class ShipmentApiService {
 
     public List<Map<String, Object>> ApigetShipmentOrderList(String date_from, String date_to, String state, Integer comp_pk, Integer mat_grp_pk, Integer mat_pk, String keyword) {
 
-        MapSqlParameterSource paramMap = new MapSqlParameterSource();
-        paramMap.addValue("date_from", Date.valueOf(date_from));
-        paramMap.addValue("date_to", Date.valueOf(date_to));
-        paramMap.addValue("state", state);
-        paramMap.addValue("comp_pk", comp_pk);
-        paramMap.addValue("mat_grp_pk", mat_grp_pk);
-        paramMap.addValue("mat_pk", mat_pk);
-        paramMap.addValue("keyword", "%" + UtilClass.getStringSafe(keyword) + "%");
+		MapSqlParameterSource paramMap = new MapSqlParameterSource();
+		paramMap.addValue("date_from", Date.valueOf(date_from));
+		paramMap.addValue("date_to", Date.valueOf(date_to));
+		paramMap.addValue("state", state);
+		paramMap.addValue("comp_pk", comp_pk);
+		paramMap.addValue("mat_grp_pk", mat_grp_pk);
+		paramMap.addValue("mat_pk", mat_pk);
+		paramMap.addValue("keyword", keyword);
 
-        String sql = """
-				select --sh.id
-				  sh.id
-				 ,su."JumunNumber" as jumun_number
+		String sql = """
+				with sg as (
+				SELECT\s
+				    s."ShipmentHead_id",
+				    SUM(s."Qty") AS total_qty,
+				    MIN(m."Name") ||\s
+				      CASE\s
+				        WHEN COUNT(DISTINCT m."Name") > 1\s
+				        THEN ' 외 ' || (COUNT(DISTINCT m."Name") - 1) || '건'
+				        ELSE ''
+				      END AS item_names
+				FROM shipment s
+				JOIN material m ON m.id = s."Material_id"
+				GROUP BY s."ShipmentHead_id"
+				)
+				    
+				select sh.id
+				, sh."Company_id" as company_id
 				, c."Name" as company_name
-				--, s."Material_id" as material_id
-					
-				,(min(m."Name") ||\s
-				 case when count(distinct m."Name") > 1\s
-				      then ' 외 ' || (count(distinct m."Name") - 1) || '건'\s
-				      else '' end
-				) as material_name_summary
-				, sum(s."OrderQty") ::int as total_qty
-				, sum(s."Qty") ::int 		as qty
-				, sh."OrderDate" as order_date
-				, su."DueDate"  as due_date -- 납기일
-				--, sh."ShipDate" as ship_date  --출하일
+				, sh."ShipDate" as ship_date
+				, sh."TotalQty" as total_qty
+				, sh."TotalPrice" as total_price
+				, sh."TotalVat" as total_vat
+				, sh."Description" as description
 				, sh."State" as state
-                from shipment s 
-                
-                left outer join shipment_head sh
-				on sh.id = s."ShipmentHead_id"   
-                
-                left outer join suju su
-				on su.id = s."SourceDataPk"
-				
-				inner join material m
-				on s."Material_id" = m.id
-				
+				, fn_code_name('shipment_state', sh."State") as state_name
+				, to_char(coalesce(sh."OrderDate",sh."_created") ,'yyyy-mm-dd') as order_date
+				, sh."StatementIssuedYN" as issue_yn
+				, sh."StatementNumber" as stmt_number\s
+				, sh."IssueDate" as issue_date
+				, sh."DeliveryName" as delivery_name
+				, sg."item_names" as material_name_summary
+				from shipment_head sh\s
 				join company c on c.id = sh."Company_id"
-				
-				where sh."OrderDate" between :date_from and :date_to
-				and c."Name" like :keyword
-				""";
+				join sg on sg."ShipmentHead_id" = sh.id
+                where sh."ShipDate"  between :date_from and :date_to
+				         """;
+		if (comp_pk != null) {
+			sql += " and sh.\"Company_id\" = :comp_pk ";
+		}
 
-				if(StringUtils.isEmpty(state) == false){
-					sql += "  and sh.\"State\" = :state ";
-				}
+		if (StringUtils.isEmpty(state) == false) {
+			sql += "  and sh.\"State\" = :state ";
+		}
 
+		if (mat_pk != null || mat_grp_pk != null || StringUtils.isEmpty(keyword) == false) {
+			sql += """
+					and exists ( select 1
+            		    from shipment s 
+                        inner join material m on m.id = s."Material_id" 
+                        left join mat_grp mg on mg.id = m."MaterialGroup_id"
+                        where s."ShipmentHead_id" = sh.id 
+					""";
+
+			if (mat_pk != null) {
+				sql += " and s.\"Material_id\" = :mat_pk ";
+			}
+
+			if (mat_grp_pk != null) {
+				sql += " and mg.id = :mat_grp_pk ";
+			}
+
+			if (StringUtils.isEmpty(keyword) == false) {
 				sql += """
-						group by sh.id, su."JumunNumber", c."Name", sh."OrderDate", su."DueDate", sh."State"
-						order by su."JumunNumber"
+						 and ( m."Name" ilike concat('%%', :keyword,'%%')
+						       or m."Code" ilike concat('%%', :keyword,'%%'))
 						""";
+			}
 
+			sql += """
+					)
+					       order by sh."ShipDate", c."Name", sh.id
+					""";
+		}
 
+		List<Map<String, Object>> items = this.sqlRunner.getRows(sql, paramMap);
 
-
-        List<Map<String, Object>> items = this.sqlRunner.getRows(sql, paramMap);
-
-        return items;
+		return items;
     }
 
 
@@ -97,6 +125,7 @@ public class ShipmentApiService {
 	        , mg."Name" as mat_grp_name
 	        , m."Name" as mat_name
 	        , m."Code" as mat_code
+	        , m."id" as item_code
 	        , s."UnitPrice" as unit_price
 	        , s."Price" as price
 	        , s."Vat" as vat
@@ -115,6 +144,27 @@ public class ShipmentApiService {
 	            left join unit u on u.id = m."Unit_id" 
 	        where sh.id = :shipment_header_id	
 		        		 """;
+
+		List<Map<String, Object>> items = this.sqlRunner.getRows(sql, paramMap);
+
+		return items;
+	}
+
+	public List<Map<String, Object>> getByLotNumber (String LotNum) {
+
+		MapSqlParameterSource paramMap = new MapSqlParameterSource();
+		paramMap.addValue("lotNumber", LotNum);
+
+		String sql = """
+				SELECT ml.id,
+				               ml.*,
+				               m."Name" as material_name,
+				               m.id as item_code
+				        FROM mat_lot ml
+				        JOIN material m
+				          ON ml."Material_id" = m.id
+				        WHERE ml."LotNumber" = :lotNumber
+				""";
 
 		List<Map<String, Object>> items = this.sqlRunner.getRows(sql, paramMap);
 

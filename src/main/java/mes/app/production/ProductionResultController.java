@@ -911,7 +911,6 @@ public class ProductionResultController {
                     mir.set_audit(user);
                     mir = this.matProcInputReqRepository.save(mir);
                     jr.setMaterialProcessInputRequestId(mir.getId());
-
                 } else {
                     mir = this.matProcInputReqRepository.getMatProcInputReqById(jr.getMaterialProcessInputRequestId());
                 }
@@ -1133,7 +1132,9 @@ public class ProductionResultController {
 
         for (int i = 0; i < bomMatItems.size(); i++) {
             Map<String, Object> bomMap = bomMatItems.get(i);
+
             float chasuBomQty = Float.parseFloat(bomMap.get("chasu_bom_qty").toString());
+
             int consumeMatPk = (int) bomMap.get("mat_pk");
             String matName = bomMap.get("mat_name").toString();
             Material consMat = this.materialRepository.getMaterialById(consumeMatPk);

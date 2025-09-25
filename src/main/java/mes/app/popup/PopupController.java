@@ -285,7 +285,7 @@ public class PopupController {
 		AjaxResult result = new AjaxResult();
 
 		String cte = """
-        with bom1 as (
+        with bom1 as ( --bom
             select
                 b1.id as bom_pk
               , b1."Material_id" as prod_pk
@@ -299,7 +299,7 @@ public class PopupController {
             where b1."BOMType" = 'manufacturing'
               and jr."ProductionDate" between b1."StartDate" and b1."EndDate"
         ),
-        BT as (
+        BT as ( --bom상세
             select
                 bc."Material_id" as mat_pk
               ,round(bc."Amount"::numeric, 0) as quantity
@@ -309,7 +309,7 @@ public class PopupController {
             inner join bom1 on bom1.bom_pk = bc."BOM_id"
             where bom1.g_idx = 1
         ),
-        llc as (
+        llc as (  --작업지시
             select
                 sum(mlc."OutputQty") as consumed_qty
               , ml."Material_id"

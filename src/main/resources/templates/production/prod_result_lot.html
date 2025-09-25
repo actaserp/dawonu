@@ -3050,7 +3050,9 @@
 
                 try {
                     const {lot, message} = await this.fetchLotInfo(lot_number, jr_pk, mpi_id);
+
                     console.log('lot', lot);
+
                     if (message) {
                         Alert.alert('', message);
                     }
