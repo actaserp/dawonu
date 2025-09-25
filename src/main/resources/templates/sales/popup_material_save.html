@@ -1,0 +1,169 @@
+<th:block th:fragment="popup_material_new_save">
+  <script type="text/x-tmpl" id="popup_MatSaveTemplate">
+    <style>
+    .CompSave input,
+    .CompSave select {
+      width: 250px;
+      box-sizing: border-box;
+    }
+    </style>
+    <div class="content_wrap popup" id="div_excel_upload">
+       <div class="table-wrap">
+         <form id="MaterialSaveForm">
+           <table class="write-table">
+             <caption>거래처 등록 테이블</caption>
+             <tbody class="CompSave">
+               <tr>
+                 <th>
+                    <label for="MaterialGroup_id"><span class="eq">*</span>품목그룹</label>
+                 </th>
+                 <td>
+                    <select id="MaterialGroup_id" name="MaterialGroup_id"
+                               required></select>
+                 </td>
+                  <th>
+                  </th>
+                  <td>
+                  </td>
+               </tr>
+               <tr>
+                 <th>
+                     <label for="Name"><span class="eq">*</span>품목명</label>
+                 </th>
+                 <td >
+                     <input type="text"  id="Name"
+                            name="Name" required>
+                 </td>
+                 <th>
+                     <label for="Unit_id"><span class="eq">*</span>단위<br></label>
+                 </th>
+                 <td>
+                     <select  id="Unit_id"
+                             name="Unit_id" required></select>
+                 </td>
+               </tr>
+               <tr>
+                   <th>
+                       <label for="Standard">규격</label>
+                   </th>
+                   <td>
+                       <input type="text" id="Standard" name="Standard"/>
+                   </td>
+                   <th>
+                       <label for="Factory_id"><span class="eq">*</span>공장</label>
+                   </th>
+                   <td>
+                      <select type="text" id="Factory_id" name="Factory_id" > </select>
+                   </td>
+               </tr>
+             </tbody>
+           </table>
+         </form>
+       </div>
+       <div class="popup-button">
+         <button type="button" class="btn-popup y_write_auth" id="btnPopMatSave">저장</button>
+         <button type="button" class="btn-popup" id="modal-close-button">닫기</button>
+       </div>
+     </div>
+  </script>
+  <script type="text/javascript">
+    class PopMatSaveComponent {
+      static currentInstance = null;
+
+      constructor({ saveUrl = '/api/sales/suju/save_material' } = {}) {
+        if (PopMatSaveComponent.currentInstance) {
+          PopMatSaveComponent.currentInstance.close();
+        }
+        PopMatSaveComponent.currentInstance = this;
+
+        this.saveUrl = saveUrl;
+        this.modalContainer = new PopupDraggable('품목 등록');
+        this._escHandler = null;
+        this.focusAfterClose = null;
+      }
+
+      show({ onSaved = null, focusAfterClose = null } = {}) {
+        this.onSaved = onSaved;
+        this.focusAfterClose = focusAfterClose || document.activeElement;
+
+        const $content = $(tmpl('popup_MatSaveTemplate', {}));
+        this.modalContainer.open({ width: 900, height: 300, $content });
+
+        const $form = $content.find('#MaterialSaveForm');
+        const $matGroup = $content.find('#MaterialGroup_id');
+        const $unitSel  = $content.find('#Unit_id');
+        const $factory  = $content.find('#Factory_id');
+
+        AjaxUtil.fillSelectOptions($matGroup, 'material_group', '', false);
+        AjaxUtil.fillSelectOptions($unitSel,  'unit','', false);
+        AjaxUtil.fillSelectOptions($factory,  'factory','', false);
+
+        // 닫기
+        const doClose = () => this.close();
+        $content.find('#modal-close-button').on('click', doClose);
+
+        // 저장
+        $content.find('#btnPopMatSave').on('click', () => {
+          let $MaterialSaveForm = $content.find('#MaterialSaveForm');
+          let data = FormUtil.extractForm($MaterialSaveForm);
+          // FormData 직렬화 (프로젝트 공통 유틸이 없을 경우 대비)
+          $form.serializeArray().forEach(({ name, value }) => {
+            data[name] = (value ?? '').trim();
+          });
+          data.spjangcd = (sessionStorage.getItem('spjangcd') || '').trim();
+          // 필수값 검사
+          const required = [
+            ['#MaterialGroup_id', '품목그룹'],
+            ['#Name', '품목명'],
+            ['#Unit_id', '단위'],
+            ['#Factory_id', '공장']
+          ];
+          for (const [sel, label] of required) {
+            const $el = $content.find(sel);
+            if (!$el.val()) {
+              Alert.alert('', `${label}을(를) 입력해 주세요.`);
+              $el.focus();
+              return;
+            }
+          }
+
+          AjaxUtil.postAsyncData(this.saveUrl, data, (res) => {
+            if (res && res.success) {
+              Notify.success('저장되었습니다.');
+              if (typeof this.onSaved === 'function') this.onSaved(res.data);
+              doClose();
+            } else {
+              Alert.alert('', (res && res.message) ? res.message : '저장에 실패했습니다.');
+            }
+          });
+        });
+
+        // ESC 닫기
+        this._escHandler = (e) => {
+          if (e.key === 'Escape' || e.keyCode === 27) doClose();
+        };
+        $(document).on('keydown.popupesc', this._escHandler);
+
+        // 닫힘 후 포커스 복원 & 이벤트 해제
+        this.modalContainer.onClose = () => {
+          $(document).off('keydown.popupesc', this._escHandler);
+          if (this.focusAfterClose && document.body.contains(this.focusAfterClose)) {
+            setTimeout(() => this.focusAfterClose.focus(), 50);
+          }
+        };
+      }
+
+      close() {
+        this.modalContainer.close();
+        if (this.modalContainer.$content) {
+          this.modalContainer.$content.remove();
+          this.modalContainer.$content = null;
+        }
+        $(document).off('keydown.popupesc', this._escHandler);
+        if (PopMatSaveComponent.currentInstance === this) {
+          PopMatSaveComponent.currentInstance = null;
+        }
+      }
+    }
+  </script>
+</th:block>

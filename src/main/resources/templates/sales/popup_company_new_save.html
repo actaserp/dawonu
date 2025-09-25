@@ -1,0 +1,165 @@
+<th:block th:fragment="popup_company_new_save">
+  <script type="text/x-tmpl" id="popup_compSaveTemplate">
+    <style>
+    .CompSave input,
+    .CompSave select {
+      width: 250px;
+      box-sizing: border-box;
+    }
+    </style>
+    <div class="content_wrap popup" id="div_excel_upload">
+       <div class="table-wrap">
+         <form id="CompSaveForm">
+           <table class="write-table">
+             <caption>거래처 등록 테이블</caption>
+             <tbody class="CompSave">
+               <tr>
+                 <th style="text-align: center">
+                   <label for="cboCompanyType"><span class="eq">*</span>업체구분</label>
+                 </th>
+                 <td>
+                   <select id="cboCompanyType" name="cboCompanyType"></select>
+                 </td>
+                  <th style="text-align: center">
+                     <label for="name"><span class="eq">*</span>업체명</label>
+                  </th>
+                  <td>
+                     <input id="name" name="name" />
+                  </td>
+               </tr>
+               <tr>
+                   <th style="text-align: center">
+                       <label for="TelNumber">연락처</label>
+                   </th>
+                   <td>
+                       <input id="TelNumber" name="TelNumber" />
+                   </td>
+                   <th style="text-align: center">
+                       <label for="business_number"><span class="eq">*</span>사업자번호</label>
+                   </th>
+                   <td>
+                       <input type="text" id="business_number" name="business_number"
+                       placeholder="개인일 경우 전화번호를 입력하세요">
+                   </td>
+               </tr>
+               <tr>
+                   <th style="text-align: center">
+                       <label for="business_type">업태</label>
+                   </th>
+                   <td>
+                       <input id="business_type" name="business_type">
+                   </td>
+                   <th style="text-align: center">
+                       <label for="business_item">종목</label>
+                   </th>
+                   <td>
+                       <input type="text" id="business_item" name="business_item" >
+                   </td>
+               </tr>
+             </tbody>
+           </table>
+         </form>
+       </div>
+       <div class="popup-button">
+         <button type="button" class="btn-popup y_write_auth" id="btnPopCompanySave">저장</button>
+         <button type="button" class="btn-popup" id="modal-close-button">닫기</button>
+       </div>
+     </div>
+  </script>
+  <script type="text/javascript">
+    class PopCompSaveComponent {
+      static currentInstance = null;
+
+      constructor({ saveUrl = '/api/sales/suju/save_Comp' } = {}) {
+        if (PopCompSaveComponent.currentInstance) {
+          PopCompSaveComponent.currentInstance.close();
+        }
+        PopCompSaveComponent.currentInstance = this;
+
+        this.saveUrl = saveUrl;
+        this.modalContainer = new PopupDraggable('업체 등록');
+        this._escHandler = null;
+        this.focusAfterClose = null;
+      }
+
+      show({ onSaved = null, focusAfterClose = null } = {}) {
+        this.onSaved = onSaved;
+        this.focusAfterClose = focusAfterClose || document.activeElement;
+
+        const $content = $(tmpl('popup_compSaveTemplate', {}));
+        this.modalContainer.open({ width: 900, height: 300, $content });
+
+        const $form = $content.find('#CompSaveForm');
+
+        // select 옵션 바인딩 (유지)
+        AjaxUtil.fillSelectOptions($content.find('#cboCompanyType'),
+          'system_code', 'choose', 'sale', 'company_type');
+
+        // 닫기
+        const doClose = () => this.close();
+        $content.find('#modal-close-button').on('click', doClose);
+
+        // 저장
+        $content.find('#btnPopCompanySave').on('click', () => {
+          let $CompSaveForm = $content.find('#CompSaveForm');
+          let data = FormUtil.extractForm($CompSaveForm);
+          // FormData 직렬화 (프로젝트 공통 유틸이 없을 경우 대비)
+          $form.serializeArray().forEach(({ name, value }) => {
+            data[name] = (value ?? '').trim();
+          });
+          data.spjangcd = (sessionStorage.getItem('spjangcd') || '').trim();
+          // 필수값 검사
+          const required = [
+            ['#cboCompanyType', '업체구분'],
+            ['#name', '업체명'],
+            ['#business_number', '사업자번호']
+          ];
+          for (const [sel, label] of required) {
+            const $el = $content.find(sel);
+            if (!$el.val()) {
+              Alert.alert('', `${label}을(를) 입력해 주세요.`);
+              $el.focus();
+              return;
+            }
+          }
+
+          AjaxUtil.postAsyncData(this.saveUrl, data, (res) => {
+            if (res && res.success) {
+              Notify.success('저장되었습니다.');
+              if (typeof this.onSaved === 'function') this.onSaved(res.data);
+              doClose();
+            } else {
+              Alert.alert('', (res && res.message) ? res.message : '저장에 실패했습니다.');
+            }
+          });
+        });
+
+        // ESC 닫기
+        this._escHandler = (e) => {
+          if (e.key === 'Escape' || e.keyCode === 27) doClose();
+        };
+        $(document).on('keydown.popupesc', this._escHandler);
+
+        // 닫힘 후 포커스 복원 & 이벤트 해제
+        this.modalContainer.onClose = () => {
+          $(document).off('keydown.popupesc', this._escHandler);
+          if (this.focusAfterClose && document.body.contains(this.focusAfterClose)) {
+            setTimeout(() => this.focusAfterClose.focus(), 50);
+          }
+        };
+      }
+
+      close() {
+        this.modalContainer.close();
+        if (this.modalContainer.$content) {
+          this.modalContainer.$content.remove();
+          this.modalContainer.$content = null;
+        }
+        $(document).off('keydown.popupesc', this._escHandler);
+        if (PopCompSaveComponent.currentInstance === this) {
+          PopCompSaveComponent.currentInstance = null;
+        }
+      }
+    }
+  </script>
+</th:block>

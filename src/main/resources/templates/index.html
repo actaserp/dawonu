@@ -381,6 +381,44 @@
 
         nthTabs = $('#main-tabs').nthTabs();
 
+        //-------페이지 이동
+        //전역에 공유 + 준비 플래그 세팅
+        window.nthTabs = nthTabs;
+        window.__nthTabsReady = true;
+        window.__nthOpenQueue = window.__nthOpenQueue || [];
+
+        // 준비 완료 이벤트 (옵션)
+        window.dispatchEvent(new Event('nthTabsReady'));
+
+        //대기열 처리 (초기화 전에 열린 요청들 실행)
+        const queue = window.__nthOpenQueue.splice(0);
+        queue.forEach(args => window.openTabInMain(args));
+
+        //탭 열기 함수는 그대로 사용
+        window.openTabInMain = function ({ id, title, url, isbookmark=false, allowClose=true }) {
+            if (!id) return;
+            url = url || ('/gui/' + id + '/default');
+
+            if (!window.__nthTabsReady || !window.nthTabs || typeof window.nthTabs.addTab !== 'function') {
+                window.__nthOpenQueue.push({ id, title, url, isbookmark, allowClose });
+                return;
+            }
+
+            if (window.nthTabs.isExistsTab('#' + id)) {
+                window.nthTabs.toggleTab('#' + id);
+            } else {
+                window.nthTabs.addTab({
+                    id,
+                    title: title || id,
+                    url,
+                    active: true,
+                    allowClose,
+                    isbookmark: isbookmark ? 'true' : 'false'
+                });
+            }
+        };
+        //------- 페이지 이동 끝
+
         const dep2Mappings = {
             1: '#dep2-monitoring',
             2: '#dep2-information',

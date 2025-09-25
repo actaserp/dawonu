@@ -1,45 +1,42 @@
 package mes.app.sales;
 
+import lombok.extern.slf4j.Slf4j;
+import mes.app.definition.service.material.UnitPriceService;
+import mes.app.sales.service.SujuService;
+import mes.app.sales.service.SujuUploadService;
+import mes.config.Settings;
+import mes.domain.entity.*;
+import mes.domain.model.AjaxResult;
+import mes.domain.repository.*;
+import mes.domain.services.CommonUtil;
+import mes.domain.services.SqlRunner;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
+import org.springframework.security.core.Authentication;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
+import org.springframework.util.StringUtils;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.multipart.MultipartHttpServletRequest;
+
+import javax.servlet.http.HttpServletRequest;
+import javax.transaction.Transactional;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.sql.Date;
+import java.sql.Timestamp;
 import java.text.SimpleDateFormat;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
-import java.sql.Date;
-import java.sql.Timestamp;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-
-import javax.servlet.http.HttpServletRequest;
-import javax.transaction.Transactional;
-
-import lombok.extern.slf4j.Slf4j;
-import mes.app.definition.service.material.UnitPriceService;
-import mes.app.sales.service.SujuUploadService;
-import mes.config.Settings;
-import mes.domain.entity.*;
-import mes.domain.repository.*;
-import mes.domain.services.SqlRunner;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
-import org.springframework.jdbc.core.namedparam.SqlParameterSource;
-import org.springframework.security.core.Authentication;
-import org.springframework.util.LinkedMultiValueMap;
-import org.springframework.util.MultiValueMap;
-import org.springframework.util.StringUtils;
-import org.springframework.web.bind.annotation.*;
-
-import mes.app.sales.service.SujuService;
-import mes.domain.model.AjaxResult;
-import mes.domain.services.CommonUtil;
-import org.springframework.web.multipart.MultipartFile;
-import org.springframework.web.multipart.MultipartHttpServletRequest;
 
 @Slf4j
 @RestController
@@ -81,13 +78,13 @@ public class SujuController {
 
 	@Autowired
 	UnitRepository unitRepository;
-    @Autowired
-    private SujuRepository sujuRepository;
+
+	@Autowired
+	private SujuRepository sujuRepository;
 
 	// 수주 목록 조회 
 	@GetMapping("/read")
 	public AjaxResult getSujuList(
-			@RequestParam(value="date_kind", required=false) String date_kind,
 			@RequestParam(value="start", required=false) String start_date,
 			@RequestParam(value="end", required=false) String end_date,
 			@RequestParam(value="spjangcd") String spjangcd,
@@ -99,7 +96,7 @@ public class SujuController {
 		Timestamp start = Timestamp.valueOf(start_date);
 		Timestamp end = Timestamp.valueOf(end_date);
 		
-		List<Map<String, Object>> items = this.sujuService.getSujuList(date_kind, start, end, spjangcd);
+		List<Map<String, Object>> items = this.sujuService.getSujuList(start, end, spjangcd);
 		
 		AjaxResult result = new AjaxResult();
 		result.data = items;
@@ -755,6 +752,135 @@ public class SujuController {
 		return result;
 	}
 
+	@PostMapping("/save_Comp")
+	public AjaxResult SaveComp(
+			@RequestParam(value="id", required=false) Integer id,   // ★ 신규일 땐 null 허용
+			@RequestParam("name") String name,
+			@RequestParam("cboCompanyType") String companyType,
+			@RequestParam("TelNumber") String telNumber,
+			@RequestParam("business_number") String businessNumber,
+			@RequestParam("business_type") String businessType,
+			@RequestParam("business_item") String businessItem,
+			@RequestParam("spjangcd") String spjangcd,
+			Authentication auth
+	){
+		AjaxResult result = new AjaxResult();
+		User user = (User)auth.getPrincipal();
+		try {
+			Company company;
 
+			if (id == null) {
+				company = new Company();
+				// 코드가 비어있으면 신규 코드 부여
+				String compCode = sujuService.getNextCompCode();
+				company.setCode(compCode);
+			} else {
+				company = this.companyRepository.getCompanyById(id);
+				if (company == null) {
+					result.success=false;
+					result.message="대상 회사가 존재하지 않습니다.";
+					return result;
+				}
+				// 수정 시 코드가 없으면 보정(Optional)
+				if (company.getCode() == null || company.getCode().isEmpty()) {
+					company.setCode(sujuService.getNextCompCode());
+				}
+			}
+
+			// 기본정보 세팅
+			company.setName(name);
+			company.setCompanyType(companyType);
+			company.setTelNumber(telNumber);
+			company.setBusinessNumber(businessNumber);
+			company.setBusinessType(businessType);
+			company.setBusinessItem(businessItem);
+			company.setRelyn("0");
+			company.setSpjangcd(spjangcd);
+			company.set_audit(user);
+
+			// 저장
+			Company saved = companyRepository.save(company);
+
+			// 프론트에서 바로 바인딩할 최소 데이터 제공
+			Map<String, Object> data = new HashMap<>();
+			data.put("id",   saved.getId());
+			data.put("name", saved.getName());
+
+			result.success =true;
+			result.message = "저장되었습니다.";
+			result.data= data;
+			return result;
+
+		} catch (Exception e) {
+			result.success=false;
+			result.message= "저장 실패: " + e.getMessage();
+			return result;
+		}
+	}
+
+	@PostMapping("/save_material")
+	public AjaxResult SaveMaterial(@RequestParam(value="id", required=false) Integer id,
+																 @RequestParam("MaterialGroup_id")Integer MaterialGroup_id,
+																 @RequestParam("Name")String Name,
+																 @RequestParam("Unit_id") Integer Unit_id,
+																 @RequestParam(value = "Standard", required=false) String Standard,
+																 @RequestParam("Factory_id") Integer Factory_id,
+																 @RequestParam("spjangcd") String spjangcd,
+																 Authentication auth
+																 ){
+		AjaxResult result = new AjaxResult();
+		User user = (User)auth.getPrincipal();
+		try{
+
+			Material material;
+
+			if (id == null) {
+				material = new Material();
+				// 코드가 비어있으면 신규 코드 부여
+				String matCode = sujuService.getNextMatCode();
+				material.setCode(matCode);
+			} else {
+				material = this.materialRepository.getMaterialById(id);
+				if (material == null) {
+					result.success = false;
+					result.message = "대상 품목이 존재하지 않습니다.";
+					return result;
+				}
+				if (material.getCode() == null || material.getCode().isEmpty()) {
+					material.setCode(sujuService.getNextMatCode());
+				}
+			}
+
+			material.setFactory_id(Factory_id);
+			material.setName(Name);
+			material.setMaterialGroupId(MaterialGroup_id);
+			material.setUnitId(Unit_id);
+			material.setStandard1(Standard);
+			material.setSpjangcd(spjangcd);
+			material.setUseyn("0");
+			material.set_audit(user);
+
+			// 저장
+			Material saved = materialRepository.save(material);
+
+			// 프론트에서 바로 바인딩할 최소 데이터 제공
+			Map<String, Object> data = new HashMap<>();
+			data.put("id",   saved.getId());
+			data.put("Code", saved.getCode());
+			data.put("name",   saved.getName());
+			data.put("standard", saved.getStandard1());
+			data.put("GroupId", saved.getMaterialGroupId());
+
+			result.success =true;
+			result.message = "저장되었습니다.";
+			result.data= data;
+			return result;
+
+		} catch (Exception e) {
+			result.success=false;
+			result.message= "저장 실패: " + e.getMessage();
+			return result;
+		}
+	}
 
 }

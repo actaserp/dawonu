@@ -27,10 +27,9 @@ public class SujuService {
 	
 	
 	// 수주 내역 조회 
-	public List<Map<String, Object>> getSujuList(String date_kind, Timestamp start, Timestamp end, String spjangcd) {
+	public List<Map<String, Object>> getSujuList(Timestamp start, Timestamp end, String spjangcd) {
 		
 		MapSqlParameterSource dicParam = new MapSqlParameterSource();
-		dicParam.addValue("date_kind", date_kind);
 		dicParam.addValue("start", start);
 		dicParam.addValue("end", end);
 		dicParam.addValue("spjangcd", spjangcd);
@@ -112,11 +111,7 @@ public class SujuService {
 			LEFT JOIN sys_code sc_ship ON sc_ship."Code" = ss.shipment_state AND sc_ship."CodeType" = 'shipment_state'
             where 1 = 1
             and sh.spjangcd = :spjangcd
-			""";
-
-		if (date_kind.equals("sales")) {
-			sql += """
-        		and sh."JumunDate" between :start and :end
+            and sh."JumunDate" between :start and :end
 				group by
 					 sh.id,
 					 sh."JumunNumber",
@@ -134,27 +129,6 @@ public class SujuService {
 					 sc_ship."Value"
 				order by sh."JumunDate" desc,  sh.id desc
 			""";
-		} else {
-			sql += """
-				and sh."DeliveryDate" between :start and :end
-				group by
-					 sh.id,
-					 sh."JumunNumber",
-					 sh."JumunDate",
-					 sh."DeliveryDate",
-					 sh."Company_id",
-					 c."Name",
-					 c."BusinessNumber",
-					 sh."TotalPrice",
-					 sh."Description",
-					 sh."SujuType",
-					 sss.summary_state,
-					 sc_state."Value",
-					 sc_type."Value",
-					 sc_ship."Value"
-				order by sh."DeliveryDate" desc,  sh.id desc
-			""";
-		}
 
 
 		List<Map<String, Object>> itmes = this.sqlRunner.getRows(sql, dicParam);
@@ -401,4 +375,31 @@ public class SujuService {
 		return items;
 	}
 
+	public String getNextCompCode() {
+		MapSqlParameterSource params = new MapSqlParameterSource();
+		String sql = """
+        SELECT (COALESCE(MAX("Code")::bigint, 0) + 1) AS next_code
+        FROM company
+    """;
+
+		Map<String, Object> row = sqlRunner.getRow(sql, params);
+		Object v = (row == null) ? null : row.get("next_code");
+		return (v == null) ? "1" : v.toString();   // "1"부터 시작
+	}
+
+	public String getNextMatCode() {
+		MapSqlParameterSource params = new MapSqlParameterSource();
+		String sql = """
+       SELECT COALESCE(MAX(
+								CASE WHEN btrim("Code") ~ '^[0-9]+$'
+										 THEN btrim("Code")::bigint
+								END
+							), 0) + 1 AS next_code
+			 FROM material;
+    """;
+
+		Map<String, Object> row = sqlRunner.getRow(sql, params);
+		Object v = (row == null) ? null : row.get("next_code");
+		return (v == null) ? "1" : v.toString();   // "1"부터 시작
+	}
 }
