@@ -1123,8 +1123,12 @@ let AjaxUtil = {
             },
             complete: function () {
                 AjaxUtil.hideLoading();
+            },
+            finally: function() {
+                AjaxUtil.hideLoading();
             }
-        });
+        })
+        ;
         return result;
     },
     postAsyncData: function (url, param_data, fn_success, fn_failure) {
@@ -1145,17 +1149,26 @@ let AjaxUtil = {
             url: url,
             data: param_data,
             success: function (res) {
+                console.log('asdas');
+
                 fn_success(res);
+
             },
             error: function (req, status, error) {
                 if (typeof fn_failure !== 'undefined') {
                     fn_failure(req, status, error);
+                    AjaxUtil.hideLoading();
                 } else {
 
                     AjaxUtil.failureCallback(req, status, error);
+                    AjaxUtil.hideLoading();
                 }
             },
             complete: function () {
+                AjaxUtil.hideLoading();
+            },
+            finally: function() {
+                console.log('asdasaaa');
                 AjaxUtil.hideLoading();
             }
         });
@@ -1190,6 +1203,9 @@ let AjaxUtil = {
             },
             complete: function () {
                 AjaxUtil.hideLoading();
+            },
+            finally: function() {
+                AjaxUtil.hideLoading();
             }
         });
     },
@@ -1222,6 +1238,9 @@ let AjaxUtil = {
                 }
             },
             complete: function () {
+                AjaxUtil.hideLoading();
+            },
+            finally: function() {
                 AjaxUtil.hideLoading();
             }
         });
@@ -1266,6 +1285,9 @@ let AjaxUtil = {
             },
             complete: function () {
                 AjaxUtil.hideLoading();
+            },
+            finally: function() {
+                AjaxUtil.hideLoading();
             }
         });
     },
@@ -1308,6 +1330,9 @@ let AjaxUtil = {
             },
             complete: function () {
                 AjaxUtil.hideLoading();
+            },
+            finally: function() {
+                AjaxUtil.hideLoading();
             }
         });
         return result;
@@ -1342,6 +1367,9 @@ let AjaxUtil = {
             },
             complete: function () {
                 AjaxUtil.hideLoading();
+            },
+            finally: function() {
+                AjaxUtil.hideLoading();
             }
         });
         return result;
@@ -1373,6 +1401,9 @@ let AjaxUtil = {
                 }
             },
             complete: function () {
+                AjaxUtil.hideLoading();
+            },
+            finally: function() {
                 AjaxUtil.hideLoading();
             }
         });

@@ -512,18 +512,18 @@
                 });
 
                 // LOT번호 일반 스캐너
-                this.$LotNumber.keydown(function (e) {
+                /*this.$LotNumber.keydown(function (e) {
                     if (e.keyCode == 9) {
                         _this.showLotMaterialDetail();
                     }
-                });
+                });*/
 
                 // LOT번호 PDA스캐너
-                this.$LotNumber.keyup(function (e) {
+                /*this.$LotNumber.keyup(function (e) {
                     if (e.keyCode == 0) {
                         _this.showLotMaterialDetail();
                     }
-                });
+                });*/
 
                 //LOT번호 입력 후 엔터키 입력
                 this.$LotNumber.keypress(function (e) {
@@ -548,86 +548,86 @@
             }
 
             // 로트입력 엔터키
-            showLotMaterialDetail() {
-
-
-                let _this = this;
-                let lot_number = this.$LotNumber.val();
-                let headerItems = this.shipmentHeaderGrid.selectedItems;
-                let sh_id = headerItems[0].id;
-
-
-                let fnsuccess = function (result) {
-
-                    if (result.data.length > 0) {
-                        console.log('1')
-
-                        let content = tmpl('lotDetailTemplate', {});
-                        let $content = $(content);
-                        let modalContainer = new PopupDraggable('LOT 지정 수량 입력');
-                        modalContainer.open({width: 800, height: 300, $content});
-                        console.log('2')
-
-                        let $lotDetailForm = $content.find('#lotDetailForm');
-                        let selectedItem = result.data[0];
-                        selectedItem.lot_use_quantity = selectedItem.CurrentStock;
-                        FormUtil.BindDataForm(selectedItem, $lotDetailForm);
-
-                        let $btnLotDetailSave = $content.find('#btnLotDetailSave');
-                        let $popLotUseQuantity = $content.find('#popLotUseQuantity');
-                        console.log('3')
-
-                        //스캔 팝업에서 저장
-                        $btnLotDetailSave.click(function (e) {
-                            let lot_use_quantity = $popLotUseQuantity.val();
-                            if (lot_use_quantity == "" || lot_use_quantity == 0) {
-                                Alert.alert('LOT 추가 오류', '출고 수량을 입력하십시요');
-                                return;
-                            }
-                            console.log('4')
-
-                            let fnOkCallback = function () {
-                                let items = [];
-                                let item = {
-                                    ml_id: selectedItem.ml_id,
-                                    material_id: selectedItem.Material_id,
-                                    quantity: lot_use_quantity,
-                                    shipment_id: selectedItem.shipment_id
-                                };
-                                items.push(item);
-
-                                let strItems = JSON.stringify(items);
-                                let data = {
-                                    sh_id: sh_id,
-                                    Q: strItems
-                                };
-
-                                let url = _this.url + '/save_mat_lot_cons';
-                                let fnsuccess = function (result) {
-                                    if (result.success) {
-                                        modalContainer.close();
-                                        _this.showShipmentList();
-                                        _this.showMatLotConsumeList();
-                                    }
-                                };
-
-                                AjaxUtil.postAsyncData(url, data, fnsuccess);
-                            };
-
-                            Alert.confirm('LOT 지정', '저장 하시겠습니까?', fnOkCallback);
-                        });
-                    } else {
-                        Alert.alert('LOT 정보 조회 오류', "적용할 수 있는 LOT 정보가 없습니다.");
-                        return;
-                    }
-                };
-
-                let data = {
-                    sh_id: sh_id,
-                    lot_number: lot_number
-                };
-                AjaxUtil.getAsyncData(this.url + '/mat_lot_search', data, fnsuccess);
-            }
+            // showLotMaterialDetail() {
+            //
+            //
+            //     let _this = this;
+            //     let lot_number = this.$LotNumber.val();
+            //     let headerItems = this.shipmentHeaderGrid.selectedItems;
+            //     let sh_id = headerItems[0].id;
+            //
+            //
+            //     let fnsuccess = function (result) {
+            //
+            //         if (result.data.length > 0) {
+            //             console.log('1')
+            //
+            //             let content = tmpl('lotDetailTemplate', {});
+            //             let $content = $(content);
+            //             let modalContainer = new PopupDraggable('LOT 지정 수량 입력');
+            //             modalContainer.open({width: 800, height: 300, $content});
+            //             console.log('2')
+            //
+            //             let $lotDetailForm = $content.find('#lotDetailForm');
+            //             let selectedItem = result.data[0];
+            //             selectedItem.lot_use_quantity = selectedItem.CurrentStock;
+            //             FormUtil.BindDataForm(selectedItem, $lotDetailForm);
+            //
+            //             let $btnLotDetailSave = $content.find('#btnLotDetailSave');
+            //             let $popLotUseQuantity = $content.find('#popLotUseQuantity');
+            //             console.log('3')
+            //
+            //             //스캔 팝업에서 저장
+            //             $btnLotDetailSave.click(function (e) {
+            //                 let lot_use_quantity = $popLotUseQuantity.val();
+            //                 if (lot_use_quantity == "" || lot_use_quantity == 0) {
+            //                     Alert.alert('LOT 추가 오류', '출고 수량을 입력하십시요');
+            //                     return;
+            //                 }
+            //                 console.log('4')
+            //
+            //                 let fnOkCallback = function () {
+            //                     let items = [];
+            //                     let item = {
+            //                         ml_id: selectedItem.ml_id,
+            //                         material_id: selectedItem.Material_id,
+            //                         quantity: lot_use_quantity,
+            //                         shipment_id: selectedItem.shipment_id
+            //                     };
+            //                     items.push(item);
+            //
+            //                     let strItems = JSON.stringify(items);
+            //                     let data = {
+            //                         sh_id: sh_id,
+            //                         Q: strItems
+            //                     };
+            //
+            //                     let url = _this.url + '/save_mat_lot_cons';
+            //                     let fnsuccess = function (result) {
+            //                         if (result.success) {
+            //                             modalContainer.close();
+            //                             _this.showShipmentList();
+            //                             _this.showMatLotConsumeList();
+            //                         }
+            //                     };
+            //
+            //                     AjaxUtil.postAsyncData(url, data, fnsuccess);
+            //                 };
+            //
+            //                 Alert.confirm('LOT 지정', '저장 하시겠습니까?', fnOkCallback);
+            //             });
+            //         } else {
+            //             Alert.alert('LOT 정보 조회 오류', "적용할 수 있는 LOT 정보가 없습니다.");
+            //             return;
+            //         }
+            //     };
+            //
+            //     let data = {
+            //         sh_id: sh_id,
+            //         lot_number: lot_number
+            //     };
+            //     AjaxUtil.getAsyncData(this.url + '/mat_lot_search', data, fnsuccess);
+            // }
 
             searchDataBind() {
 
@@ -701,13 +701,21 @@
 
                 let headerItems = this.shipmentHeaderGrid.selectedItems;
                 let shipmentItems = this.shipmentListGrid.selectedItems;
+                console.log('shipmentItems', shipmentItems);
 
                 if (headerItems.length === 0 || headerItems === undefined || headerItems === null) {
                     Alert.alert('로트 지정 오류', '출고 지시 항목을 선택해 주세요.');
                     return;
                 }
 
+                if (shipmentItems.length === 0 || shipmentItems === undefined || shipmentItems === null) {
+                    Alert.alert('알림 ', '출하상세정보를 선택하세요.');
+                    return;
+                }
+
                 let sh_id = headerItems[0].id;
+                let shipment_id = shipmentItems[0].shipment_id;
+
                 let material_id = null;
 
                 if (shipmentItems.length > 0) {
@@ -723,6 +731,7 @@
 
                 let lotSearchGrid = null;
                 let selectedItem = null;
+
                 lotSearchGrid = new wijmo.grid.FlexGrid('#theGrid4', {
                     selectionMode: wijmo.grid.SelectionMode.Row,
                     headersVisibility: wijmo.grid.HeadersVisibility.Column,
@@ -730,7 +739,7 @@
                     showMarquee: true,
                     isReadOnly: true,
                     columns: [
-                        {binding: 'LotNumber', header: 'LOT', width: '*', align: 'center'},
+                        {binding: 'LotNumber', header: 'LOT', width: 150, align: 'center'},
                         {binding: 'unit_name', header: '단위', width: '*', align: 'center'},
                         {binding: 'InputQty', header: '초기수량', width: '*', align: 'right'},
                         {binding: 'CurrentStock', header: '현재고량', width: '*', align: 'right'},
@@ -826,6 +835,7 @@
                         let strItems = JSON.stringify(items);
                         let data = {
                             sh_id: sh_id,
+                            shipment_id : shipment_id,
                             Q: strItems
                         };
 
@@ -835,6 +845,9 @@
                                 fnLotSearch();
                                 _this.showShipmentList();
                                 _this.showMatLotConsumeList();
+                            }else{
+                                Alert.alert('', result.message);
+
                             }
                         };
 
@@ -856,16 +869,16 @@
                 let shipmentItems = this.shipmentListGrid.selectedItems;
 
                 if (headerItems.length === 0 || headerItems === undefined || headerItems === null) {
+                    Alert.alert('', '출하정보를 선택해주세요.');
+                    return;
+                }
+                if (shipmentItems.length === 0 || shipmentItems === undefined || shipmentItems === null) {
+                    Alert.alert('', '출하상세정보를 선택해주세요.');
                     return;
                 }
 
                 let sh_id = headerItems[0].id;
-
-                // 출고 항목 없이 삭제할 수 있다.
-                let shipment_id = null;
-                if (shipmentItems.length > 0) {
-                    shipment_id = shipmentItems[0].shipment_id;
-                }
+                let shipment_id = shipmentItems[0].shipment_id;
 
                 let items = [];
                 $.each(selectedLotItems, function (idx, item) {
@@ -880,8 +893,10 @@
 
                 let fnSuccess = function (res) {
                     if (res.success) {
+                        AjaxUtil.hideLoading();
                         Notify.success("LOT지정 취소 완료.");
                         _this.showShipmentList();
+
                         if (shipment_id != null) {
                             _this.shipmentListGrid.select(shipmentItems[0].__index);
                         }
@@ -908,7 +923,7 @@
                         Notify.success("출고 처리 완료.");
                     } else {
                         if (result.message != '') {
-                            Notify.success(result.message);
+                            Alert.alert('', result.message);
                         } else {
                             Notify.success("출고 처리 실패.");
                         }

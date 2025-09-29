@@ -7,9 +7,10 @@ import java.util.Optional;
 
 import javax.servlet.http.HttpServletRequest;
 
+import lombok.extern.slf4j.Slf4j;
 import mes.app.shipment.enums.ShipmentStatus;
 import mes.domain.entity.*;
-import mes.domain.repository.ShipmentHeadRepository;
+import mes.domain.repository.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -28,15 +29,15 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import mes.app.shipment.service.ShipmentDoBService;
 import mes.domain.model.AjaxResult;
-import mes.domain.repository.MatLotConsRepository;
-import mes.domain.repository.MaterialRepository;
-import mes.domain.repository.ShipmentRepository;
 import mes.domain.services.CommonUtil;
 import mes.domain.services.DateUtil;
 
 @RestController
 @RequestMapping("/api/shipment/shipment_do_b")
+@Slf4j
 public class ShipmentDoBController {
+	@Autowired
+	private MatLotRepository matLotRepository;
 
 	@Autowired
 	private ShipmentDoBService shipmentDoBService;
@@ -46,7 +47,7 @@ public class ShipmentDoBController {
 
 	@Autowired
 	TransactionTemplate transactionTemplate;
-	
+
 	@Autowired
 	ShipmentRepository shipmentRepository;
 
@@ -86,7 +87,7 @@ public class ShipmentDoBController {
 	public AjaxResult getShipmentList(
 			@RequestParam(value = "header_id", required = false) Integer shipment_header_id,
 			HttpServletRequest request) {
-		
+
 		List<Map<String, Object>> items = this.shipmentDoBService.getShipmentList(shipment_header_id);
 
 		AjaxResult result = new AjaxResult();
@@ -100,7 +101,7 @@ public class ShipmentDoBController {
 	public AjaxResult getShipmentLotList(
 			@RequestParam(value = "sh_id", required = false) Integer sh_id,
 			@RequestParam(value = "shipment_id", required = false) Integer shipment_id, HttpServletRequest request) {
-		
+
 		List<Map<String, Object>> items = this.shipmentDoBService.getShipmentLotList(sh_id, shipment_id);
 
 		AjaxResult result = new AjaxResult();
@@ -109,13 +110,13 @@ public class ShipmentDoBController {
 		return result;
 	}
 
-	// lot 검색
+	// LOT지정 팝업 lot 검색
 	@GetMapping("/mat_lot_search")
 	public AjaxResult getMatLotSearch(
 			@RequestParam(value = "sh_id", required = false) Integer sh_id,
 			@RequestParam(value = "material_id", required = false) Integer material_id,
 			@RequestParam(value = "lot_number", required = false) String lot_number, HttpServletRequest request) {
-		
+
 		List<Map<String, Object>> items = this.shipmentDoBService.getMatLotSearch(sh_id, material_id, lot_number);
 
 		AjaxResult result = new AjaxResult();
@@ -124,35 +125,75 @@ public class ShipmentDoBController {
 		return result;
 	}
 
-	// lot 추가
+	// lot 추가, TODO: LOT추가하면 mat_lot_cons에는 추가되고 mat_lot의 현재고도 깎이는데 material은 현재고가 변함이 없음 --> 뭐지? 출하할때는 빠지나 확인필요.
 	@PostMapping("/save_mat_lot_cons")
 	public AjaxResult saveMatLotCons(
-			@RequestParam(value = "sh_id", required = false) Integer sh_id,
+			@RequestParam(value = "sh_id") Integer sh_id,
+			@RequestParam(value = "shipment_id") Integer shipment_id,
 			@RequestBody MultiValueMap<String,Object> Q,
 			HttpServletRequest request,
 			Authentication auth) {
 
 		AjaxResult result = new AjaxResult();
-		
+
 		User user = (User)auth.getPrincipal();
+
+		Optional<Shipment> shipment = shipmentRepository.findById(shipment_id);
+
+		if(shipment.isPresent()){
+			Shipment shipment1 = shipment.get();
+			if(shipment1.getQty() >= shipment1.getOrderQty()){
+				result.success = false;
+				result.message = "이미 지시량만큼 로트가 지정되었습니다.";
+				return result;
+			}
+
+		}else{
+			result.success = false;
+			result.message = "출하상세정보가 없습니다.";
+			return result;
+		}
 
 		List<Map<String, Object>> items = CommonUtil.loadJsonListMap(Q.getFirst("Q").toString());
 		Timestamp now = DateUtil.getNowTimeStamp();
-		
+
 		if (items.size() == 0) {
 			result.success = false;
 			return result;
 		}
-		
-		this.transactionTemplate.executeWithoutResult(status->{			
+
+		//validation check
+		for (int i = 0; i < items.size(); i++) {
+			Integer ml_id = (Integer) items.get(i).get("ml_id");
+			Optional<MaterialLot> mat_lot = matLotRepository.findById(ml_id);
+
+			if(mat_lot.isPresent()){
+				MaterialLot materialLot = mat_lot.get();
+				Float quantity = Float.valueOf((String)items.get(i).get("quantity"));
+				Float currentStock = materialLot.getCurrentStock();
+
+				if(quantity > currentStock){
+					result.success = false;
+					result.message = "현재고가 부족합니다.";
+					return result;
+				}
+
+			}else{
+				result.success = false;
+				result.message = "해당 lot에 대한 정보가 없습니다.";
+				return result;
+			}
+		}
+
+		this.transactionTemplate.executeWithoutResult(status->{
 			for (int i = 0; i < items.size(); i++) {
 	            Integer ml_id = (Integer) items.get(i).get("ml_id");
 	            Float quantity = Float.valueOf((String)items.get(i).get("quantity"));
 	            Integer mlc_id = (Integer) items.get(i).get("mlc_id");
-	            Integer shipment_id = (Integer) items.get(i).get("shipment_id");
-	            
+
 				MatLotCons matlotcons = null;
-				
+
+
 				if (mlc_id != null) {
 					matlotcons = this.matLotConsRepository.getMatLotConsById(mlc_id);
 				} else {
@@ -164,13 +205,12 @@ public class ShipmentDoBController {
 				matlotcons.setOutputDateTime(now);
 				matlotcons.setOutputQty(quantity);
 				matlotcons.set_audit(user);
-				
+
 				this.matLotConsRepository.save(matlotcons);
-				this.shipmentDoBService.updateShipmentQantityByLotConsume(sh_id, shipment_id);	
+				this.shipmentDoBService.updateShipmentQantityByLotConsume(sh_id, shipment_id);
 			}
-			//this.shipmentDoBService.updateShipmentQantityByLotConsume(sh_id, shipment_id);
 		});
-		
+
 		return result;
 	}
 
@@ -184,25 +224,34 @@ public class ShipmentDoBController {
 			Authentication auth) {
 
         AjaxResult result = new AjaxResult();
-		
-		List<Integer> mlc_ids = loadJsonList(Q.getFirst("Q").toString());			
-		
+
+		List<Integer> mlc_ids = loadJsonList(Q.getFirst("Q").toString());
+
 		if (mlc_ids != null && mlc_ids.size() > 0) {
-			this.transactionTemplate.executeWithoutResult(status->{
-				for (int i = 0; i < mlc_ids.size(); i++) {
-					Integer mlc_id = mlc_ids.get(i);
-					this.matLotConsRepository.deleteById(mlc_id);
+			this.transactionTemplate.executeWithoutResult(status -> {
+				try {
+					for (int i = 0; i < mlc_ids.size(); i++) {
+						Integer mlc_id = mlc_ids.get(i);
+						this.shipmentDoBService.deleteMatLotCons(mlc_id);
+					}
+					this.shipmentDoBService.updateShipmentQantityByLotConsume(sh_id, shipment_id);
+				} catch (Exception e) {
+					// 로그 출력
+					e.printStackTrace();  // 콘솔 출력
+					log.error("트랜잭션 처리 중 오류 발생: {}", e.getMessage(), e);
+					// 롤백 표시
+					status.setRollbackOnly();
+					throw e; // 다시 던져줘야 rollback 확실하게 됨
 				}
-				this.shipmentDoBService.updateShipmentQantityByLotConsume(sh_id, shipment_id);
 			});
 		} else {
 			result.success = false;
 			return result;
 		}
-		
+
 		return result;
 	}
-	
+
 	// 출하 처리
 	@PostMapping("/shipment_status_complete")
 	public AjaxResult shipmentStatusComplete(
@@ -212,53 +261,60 @@ public class ShipmentDoBController {
 			Authentication auth) {
 
         AjaxResult result = new AjaxResult();
-        
+
 		User user = (User)auth.getPrincipal();
-		
+
 		// Validation 체크 - 출하처리시 Material.currentStock 값과 Shipment.Qty(처리량)을 비교하여 값이 '-'인 경우 출하가 되지않도록 처리
 		List<Shipment> shipmentList = this.shipmentRepository.findByShipmentHeadId(sh_id);
-		
+
 		if (shipmentList != null){
-			for (int i = 0; i < shipmentList.size(); i++) {				
+			for (int i = 0; i < shipmentList.size(); i++) {
 				Integer materialId = shipmentList.get(i).getMaterialId();
 				Material material = this.materialRepository.getMaterialById(materialId);
-				
-				if (material != null) {				
+
+				if (material != null) {
 					Float currentStock = material.getCurrentStock() != null ? material.getCurrentStock() : 0;
 					Double shipQty = shipmentList.get(i).getQty() != null ? shipmentList.get(i).getQty() : 0;
+					Double orderQty = shipmentList.get(i).getOrderQty();
 
 					Float parsedShipQty = shipQty.floatValue();
 
 					if (Float.compare(currentStock, parsedShipQty) < 0) {
 						result.success = false;
 						result.message = "재고 수량이 부족합니다.";
-						return result; 
+						return result;
 					}
-				}				
+
+					if(orderQty > shipQty){
+						result.success = false;
+						result.message = "LOT가 지시량만큼 지정되지 않은 상세가 있습니다.";
+						return result;
+					}
+				}
 			}
 		}
-				
+
 		this.transactionTemplate.executeWithoutResult(status->{
-			
+
 			// Shipment 테이블의 상태값 변경시 트리거 사용하여 "a"로 설정시 트리거를 통해 mat_inout 테이블에 출고데이터가 추가됨
 			List<Shipment> smList = this.shipmentRepository.findByShipmentHeadId(sh_id);
-			
+
 			if (smList != null) {
 
 				int orderSum = 0;
-				for (int i = 0; i < smList.size(); i++) {				
+				for (int i = 0; i < smList.size(); i++) {
 					Shipment sm = smList.get(i);
-					
+
 					if (sm != null) {
 						Double orderQty = sm.getOrderQty();
-						sm.set_status("a");                
+						sm.set_status("a");
 						sm.set_audit(user);
 						sm.setQty(orderQty);
-						
+
 						this.shipmentRepository.save(sm);
 
 						orderSum += orderQty;
-					}                                      
+					}
 				}
 			}
 			// 수주헤더 기준으로 출하항목(shipment) 금액합산 정리
@@ -266,12 +322,12 @@ public class ShipmentDoBController {
             // 관련 수주를 찾아서 수주의 출하 상태를 변경한다.
 			this.shipmentDoBService.updateSujuShipmentState(sh_id);
 		});
-		
+
 		return result;
 	}
-	
+
 	private static List<Integer> loadJsonList(String strJson) {
-		
+
 		ObjectMapper objectMapper = new ObjectMapper();
 		List<Integer> result = null;
 		try {
@@ -281,7 +337,7 @@ public class ShipmentDoBController {
 		} catch (JsonProcessingException e) {
 			e.printStackTrace();
 		}
-		
+
 		return result;
 	}
 }

@@ -53,4 +53,7 @@ public class MatProcInput extends AbstractAuditModel{
 	
 	@Column(name = "\"MaterialLot_id\"")
 	Integer materialLotId;
+
+	@Column(name = "\"shipment_id\"")
+	int shipmentId;
 }

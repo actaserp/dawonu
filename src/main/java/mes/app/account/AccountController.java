@@ -187,7 +187,7 @@ public class AccountController {
 	}
 
 	/**
-	 * pda 로그인할때 쓰는거
+	 * pda 로그인할때 쓰는거 , flutter에서 받은 쿠키값이 spinrg_session값이다. 서로 다른 값을 가지는건 Base64로 인코딩 되서 그럼
 	 * **/
 	@PostMapping(value = "/pda/login", produces = "application/json; charset=UTF-8")
 	public Map<String, Object> pdaLogin(@RequestParam String username,
@@ -235,6 +235,25 @@ public class AccountController {
 			result.put("message", "로그인 처리 중 오류 발생: " + e.getMessage());
 		}
 
+		return result;
+	}
+
+	@PostMapping("/pda/logout")
+	public Map<String, Object> PdaLogout(HttpServletRequest request){
+		Map<String, Object> result = new HashMap<>();
+		try {
+
+			HttpSession session = request.getSession(false);
+			if(session != null) session.invalidate();
+
+			SecurityContextHolder.clearContext();
+
+            result.put("code", "OK");
+            result.put("message", "로그아웃 완료");
+		}catch (Exception e){
+			result.put("code", "ERROR");
+			result.put("message", "로그아웃 처리 중 오류: " + e.getMessage());
+		}
 		return result;
 	}
 

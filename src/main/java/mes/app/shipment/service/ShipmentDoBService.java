@@ -4,6 +4,7 @@ import java.sql.Date;
 import java.util.List;
 import java.util.Map;
 
+import mes.domain.repository.MatLotConsRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.stereotype.Service;
@@ -11,13 +12,16 @@ import org.springframework.stereotype.Service;
 import io.micrometer.core.instrument.util.StringUtils;
 import mes.domain.services.CommonUtil;
 import mes.domain.services.SqlRunner;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class ShipmentDoBService {
 
 	@Autowired
 	SqlRunner sqlRunner;
-	
+	@Autowired
+	private MatLotConsRepository matLotConsRepository;
+
 	// 출하지시헤더 조회
 	public List<Map<String, Object>> getShipmentHeaderList(String date_from, String date_to, String state, Integer comp_pk, Integer mat_grp_pk, Integer mat_pk) {
 		
@@ -173,40 +177,27 @@ public class ShipmentDoBService {
 	public List<Map<String, Object>> getMatLotSearch (Integer sh_id, Integer material_id, String lot_number) {
 
 		MapSqlParameterSource paramMap = new MapSqlParameterSource();      
-		paramMap.addValue("sh_id", sh_id);  
-		paramMap.addValue("material_id", material_id);  
+		paramMap.addValue("material_id", material_id);
 		paramMap.addValue("lot_number", lot_number);
 		
 		String sql = """
-			with A as (
-		        select 
-		        s."Material_id" 
-		        from shipment_head sh 
-		            inner join shipment s on s."ShipmentHead_id" = sh.id 
-		        where sh.id = :sh_id
-		        ), B as( select s.id as shipment_id, s."Material_id" from shipment s  where s."ShipmentHead_id" = :sh_id)
-			        select 
-			         ml.id as ml_id 
-			        , ml."LotNumber" 
-			        , ml."InputQty" 
-			        , ml."CurrentStock" 
-			        , ml."InputDateTime"         
-			        , ml."Material_id"
-			        , u."Name" as unit_name
-			        , mg."Name" as mat_grp_name
-			        , m."Code" as mat_code
-			        , m."Name" as mat_name
-			        , B.shipment_id
-		            , to_char(ml."EffectiveDate", 'YYYY-MM-DD HH24:MI:SS') as "EffectiveDate"
-		            , to_char(ml."InputDateTime", 'YYYY-MM-DD HH24:MI:SS') as "InputDateTime"
-		            , fn_code_name('mat_type', mg."MaterialType") as mat_type 
-	        from mat_lot ml 
-	            inner join A on A."Material_id" = ml."Material_id" 
-	            inner join material m on m.id = ml."Material_id" 
-	            left join mat_grp mg on mg.id= m."MaterialGroup_id" 
-	            left join unit u on u.id = m."Unit_id"
-	            left join B on B."Material_id"= A."Material_id"
-	        where ml."CurrentStock" > 0 
+				select\s
+				         ml.id as ml_id\s
+				        , ml."LotNumber"\s
+				        , ml."InputQty"\s
+				        , ml."CurrentStock"\s
+				        , ml."InputDateTime"        \s
+				        , ml."Material_id"
+				        , u."Name" as unit_name
+				        , m."Code" as mat_code
+				        , m."Name" as mat_name
+				        , to_char(ml."EffectiveDate", 'YYYY-MM-DD HH24:MI:SS') as "EffectiveDate"
+				        , to_char(ml."InputDateTime", 'YYYY-MM-DD HH24:MI:SS') as "InputDateTime"
+				from mat_lot ml\s
+				    inner join material m on m.id = ml."Material_id"\s
+				    left join mat_grp mg on mg.id= m."MaterialGroup_id"\s
+				    left join unit u on u.id = m."Unit_id"
+				where ml."CurrentStock" > 0\s
 		        		 """;
 		if (material_id != null) {
 			sql += " and ml.\"Material_id\" = :material_id ";
@@ -223,6 +214,16 @@ public class ShipmentDoBService {
         return items;
 	}
 
+	public void deleteMatLotCons(Integer mat_lot_cons_id){
+		MapSqlParameterSource paramMap = new MapSqlParameterSource();
+		paramMap.addValue("mat_lot_cons_id", mat_lot_cons_id);
+
+		String sql = """
+				delete from mat_lot_cons where id = :mat_lot_cons_id
+				""";
+		this.sqlRunner.execute(sql, paramMap);
+	}
+
 	public void updateShipmentQantityByLotConsume (Integer sh_id, Integer shipment_id) {
 
 		MapSqlParameterSource paramMap = new MapSqlParameterSource();
@@ -232,8 +233,8 @@ public class ShipmentDoBService {
 		String sql = """
 				with A as(
 	            select
-	            s.id, coalesce(sum(mlc."OutputQty"),0) as qty  
-	            from shipment s  
+	            s.id, coalesce(sum(mlc."OutputQty"),0) as qty
+	            from shipment s
 	            inner join shipment_head sh on sh.id = s."ShipmentHead_id" 
 	            left join mat_lot_cons mlc on mlc."SourceTableName" ='shipment' and mlc."SourceDataPk" = s.id
 	            where 1=1 
@@ -344,5 +345,7 @@ public class ShipmentDoBService {
 				""";
 		
         this.sqlRunner.execute(sql, paramMap); 
-	}	
+	}
+
+
 }

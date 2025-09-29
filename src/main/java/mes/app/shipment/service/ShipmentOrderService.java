@@ -1,6 +1,7 @@
 package mes.app.shipment.service;
 
 import java.sql.Date;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -25,10 +26,17 @@ public class ShipmentOrderService {
 	@Autowired
 	SujuRepository sujuRepository;
 	
-	public List<Map<String, Object>> getSujuList(String dateFrom, String dateTo, String notShip, String compPk,
-			String matGrpPk, String matPk, String keyword) {
+	public List<Map<String, Object>> getSujuList(String dateFrom, String dateTo, String notShip, String compPk,String matGrpPk, String matPk, String keyword) {
 		
 		MapSqlParameterSource paramMap = new MapSqlParameterSource();
+
+		if(dateFrom.isEmpty()){
+			dateFrom = LocalDate.now().toString();
+		}
+		if(dateTo.isEmpty()){
+			dateTo = LocalDate.now().toString();
+		}
+
 		paramMap.addValue("dateFrom", dateFrom);
 		paramMap.addValue("dateTo", dateTo);
 		paramMap.addValue("notShip", notShip);

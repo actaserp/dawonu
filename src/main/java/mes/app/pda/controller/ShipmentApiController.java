@@ -2,17 +2,18 @@ package mes.app.pda.controller;
 
 import lombok.extern.slf4j.Slf4j;
 import mes.app.pda.service.ShipmentApiService;
+import mes.app.shipment.enums.ShipmentStatus;
 import mes.app.util.UtilClass;
 import mes.domain.entity.*;
 import mes.domain.model.AjaxResult;
-import mes.domain.repository.MatLotRepository;
-import mes.domain.repository.MatProcInputRepository;
-import mes.domain.repository.MatProcInputReqRepository;
+import mes.domain.repository.*;
+import mes.domain.services.CommonUtil;
 import mes.domain.services.DateUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
+import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 import javax.transaction.Transactional;
 import java.sql.Timestamp;
@@ -36,6 +37,11 @@ public class ShipmentApiController {
     @Autowired
     MatProcInputReqRepository matProcInputReqRepository;
 
+    @Autowired
+    ShipmentHeadRepository shipmentHeadRepository;
+    @Autowired
+    private ShipmentRepository shipmentRepository;
+
     @PostMapping("/read")
     public AjaxResult getShipmentOrderList(
             @RequestParam(value="srchStartDt", required=false) String date_from,
@@ -49,6 +55,17 @@ public class ShipmentApiController {
 
         String state = "";
         AjaxResult result = new AjaxResult();
+
+        String cookieValue = null;
+        if (request.getCookies() != null) {
+            for (Cookie cookie : request.getCookies()) {
+                if ("shinwoo_jsessionid".equals(cookie.getName())) {
+                    cookieValue = cookie.getValue();
+                    break;
+                }
+            }
+        }
+        System.out.println("받은 쿠키 shinwoo_jsessionid = " + cookieValue);
 
         try{
             if("Y".equals(not_ship)) {
@@ -86,6 +103,16 @@ public class ShipmentApiController {
 
         List<Map<String, Object>> items = this.shipmentApiService.getShipmentList(shipment_header_id);
 
+        String cookieValue = null;
+        if (request.getCookies() != null) {
+            for (Cookie cookie : request.getCookies()) {
+                if ("shinwoo_jsessionid".equals(cookie.getName())) {
+                    cookieValue = cookie.getValue();
+                    break;
+                }
+            }
+        }
+        System.out.println("받은 쿠키 shinwoo_jsessionid = " + cookieValue);
         AjaxResult result = new AjaxResult();
         result.data = items;
 
@@ -97,133 +124,85 @@ public class ShipmentApiController {
     public AjaxResult getLotInfo(@RequestParam String lotNum, Authentication auth){
 
         AjaxResult result = new AjaxResult();
-        User user = (User) auth.getPrincipal();
-        Timestamp inoutTime = DateUtil.getNowTimeStamp();
 
         //lot번호로 lot 정보 로드
         List<Map<String, Object>> results  = shipmentApiService.getByLotNumber(lotNum);
 
-//        if(!results.isEmpty()){
-//
-//            MaterialLot ml = this.matLotRepository.getMatLotById((Integer) results.get(0).get("id"));
-//            if(ml != null){
-//                if(ml.getCurrentStock() <= 0){
-//                    result.message = "가용한 재고가 없는 LOT을 지정했습니다.(" + ml.getLotNumber() + ")";
-//                    result.success = false;
-//                    return result;
-//                }
-//                if (ml.getStoreHouseId() == null) {
-//                    result.message = "해당 품목의 기본창고가 지정되지 않았습니다(" + ml.getLotNumber() + ")";
-//                    result.success = false;
-//                    return result;
-//                }
-//
-//                //TODO: 이미 지정된 로트 처리
-////                List<MatProcInput> mpiList = this.matProcInputRepository.findByMaterialProcessInputRequestIdAndMaterialLotId(jr.getMaterialProcessInputRequestId(), ml.getId());
-////                Integer mpiCount = mpiList.size();
-////                if (mpiCount > 0) {
-////                    result.message = "이미 지정된 로트입니다.(" + ml.getLotNumber() + ")";
-////                    result.success = false;
-////                    return result;
-////                }
-//                MatProcInputReq mir = null;
-//                mir = new MatProcInputReq();
-//                mir.setRequestDate(inoutTime);
-//                mir.setRequesterId(user.getId());
-//                mir.set_audit(user);
-//                mir = this.matProcInputReqRepository.save(mir);
-//
-//            }else {
-//                result.success = false;
-//                result.message = lotNum + "에 대한 LOT 정보가 없습니다.";
-//                result.data = null;
-//            }
-//
-//            Map<String, Object> ml = results.get(0);
-//            if(ml != null){
-//                //if(ml.get(""))
-//            }
-//
-//        }else{
-//            result.success = false;
-//            result.message = lotNum + "에 대한 LOT 정보가 없습니다.";
-//            result.data = null;
-//        }
+        try{
+            result.data = results.get(0);
 
-
-        result.data = results.get(0);
+        }catch(Exception e){
+            result.data = null;
+        }
         return result;
     }
 
 
-    // lot 스캔
-    @PostMapping("/add_lot_input")
-    @Transactional
-    public AjaxResult addLotInput(@RequestParam String lot_num,
-                                  @RequestParam Float inputQty,
-                                  @RequestParam Integer shipment_head_Id,
-                                  Authentication authentication
-                                  ){
+    // 출고등록
+    @PostMapping("/shipment_save")
+    public AjaxResult ShipSave(@RequestBody Map<String, Object> request,
+                               Authentication auth){
+        //해당 로직은 부분출고는 안되며, 바코드를 찍으며 하나의 출고씩 나가는 로직임 (여러개의 shipment_head x)
+
+
+        /** init variables **/
+        AjaxResult result = new AjaxResult();
+
+        List<Map<String, Object>> BarcodeList = (List<Map<String, Object>>) request.get("results");
+        List<Map<String, Object>> shipmentList = (List<Map<String, Object>>) request.get("shipmentList");
+
+        Integer head_id = UtilClass.parseInteger(shipmentList.get(0).get("sh_id"));
+
+        ShipmentHead smh = this.shipmentHeadRepository.getShipmentHeadById(head_id);
+
+        //validation chk
+        if(smh == null) {result.success = false; result.message = "해당 출하정보가 없습니다.";}
+
+
+        // business logic
+        if(!smh.getState().equals(ShipmentStatus.SHIPPED.getLabel())){
+            List<Shipment> smList = shipmentRepository.findByShipmentHeadId(head_id);
+
+            AjaxResult innerResult = shipmentApiService.ShipmenSaveActionByLot(smList, head_id, BarcodeList, auth);
+
+            if(!innerResult.success) return  innerResult;
+        }
+        return result;
+    }
+
+    //출고현황 (내역)
+    @GetMapping("/shipped_list")
+    public AjaxResult getShipmentHeadList(
+            @RequestParam String dateFrom,
+            @RequestParam String dateTo,
+            @RequestParam String keyword,
+            @RequestParam String status
+    ){
 
         AjaxResult result = new AjaxResult();
-        User user = (User) authentication.getPrincipal();
 
-        Timestamp inoutTime = DateUtil.getNowTimeStamp();
-
-        MaterialLot ml = this.matLotRepository.getByLotNumber(lot_num);
-
-        if(ml != null){
-            if(ml.getCurrentStock() <= 0){
-                result.message = "가용한 재고가 없는 LOT을 지정했습니다.(" + ml.getLotNumber() + ")";
-                result.success = false;
-                return result;
-            }
-
-            if(ml.getStoreHouseId() == null){
-                result.message = "해당 품목의 기본창고가 지정되지 않았습니다(" + ml.getLotNumber() + ")";
-                result.success = false;
-                return result;
-            }
-
-            ///mat_proc_input
-            MatProcInputReq mir = null;
-
-            mir = new MatProcInputReq();
-            mir.setRequestDate(inoutTime);
-            mir.setRequesterId(user.getId());
-            mir.set_audit(user);
-            mir = this.matProcInputReqRepository.save(mir);
-
-            MatProcInput mpi = new MatProcInput();
-            mpi.setMaterialProcessInputRequestId(mir.getId());
-            mpi.setMaterialId(ml.getMaterialId());
-            mpi.setRequestQty(inputQty);
-            mpi.setInputQty((float) 0);
-            mpi.setMaterialLotId(ml.getId());
-            mpi.setMaterialStoreHouseId(ml.getStoreHouseId());
-            mpi.setState("requested");
-            mpi.setInputDateTime(inoutTime);
-            mpi.setActorId(user.getId());
-            mpi.set_audit(user);
-            mpi = this.matProcInputRepository.save(mpi);
-
-//            ///mat_lot_cons 출고
-//            Timestamp now = DateUtil.getNowTimeStamp();
-//
-//            MatLotCons mlc = new MatLotCons();
-//            mlc.setOutputDateTime(now);
-//            mlc.setSourceDataPk(shipment_head_Id);
-//            mlc.setSourceTableName("shipmet_head");
-//            mlc.setMaterialLotId(ml.getId());
-//            mlc.setCurrentStock(ml.getCurrentStock());
-//            mlc.setSpjangcd("ZZ");
-
-
-            result.success = true;
-            result.data = mpi;
-        }else{
-            result.success = false;
+        if(!dateFrom.contains("-")){
+            dateFrom = UtilClass.toContainsHyphenDateString(dateFrom);
         }
+        if(!dateTo.contains("-")){
+            dateTo = UtilClass.toContainsHyphenDateString(dateTo);
+        }
+
+        result.data = this.shipmentApiService.getShipmentHeadList(dateFrom, dateTo, keyword, status);
+
+        return result;
+    }
+
+    @GetMapping("/shipment_item_list")
+    public AjaxResult getShipmentDetailItemList(
+            @RequestParam String headId
+    ){
+
+        List<Map<String, Object>> items = this.shipmentApiService.getShipmentDetailItemList(headId, null);
+
+        AjaxResult result = new AjaxResult();
+        result.data = items;
+
         return result;
     }
 }
