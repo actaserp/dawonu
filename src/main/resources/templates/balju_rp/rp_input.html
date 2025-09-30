@@ -1918,11 +1918,11 @@
                         {binding: 'JumunNumber', header: '발주번호', width: 140, align: 'center', isReadOnly: true},
                         {binding: 'product_code', header: '제품코드', width: 100, align: 'left', isReadOnly: true},
                         {binding: 'product_name', header: '제품명', width: 150, align: 'left', isReadOnly: true},
-                        {binding: 'unit', header: '단위', width: 60, align: 'center', isReadOnly: true},
+                        {binding: 'unit', header: '단위', width: 70, align: 'center', isReadOnly: true},
                         {binding: 'SujuQty', header: '발주 수량', width: 80, align: 'right', format: 'n0', isReadOnly: true},
                         {binding: 'SujuQty2', header: '기입고 수량', width: 90, align: 'right', isReadOnly: true},
                         {binding: 'DueDate', header: '납기예정일', width: 100, align: 'center', isReadOnly: true},
-                        {binding: 'StoreHouse_id', header: '납품 창고', width: 90, align: 'center',dataMap: storeHouseMap, isReadOnly: false},
+                        {binding: 'StoreHouse_id', header: '납품 창고', width: 110, align: 'center',dataMap: storeHouseMap, isReadOnly: false},
                         {binding: 'inputQty', header: '입고 수량', width: 100, align: 'right', isReadOnly: false,
                             editor: new wijmo.input.InputNumber(document.createElement('div'), {
                                 format: 'n0', // 정수 형식
@@ -1995,8 +1995,15 @@
                     let fnsuccess = function (result) {
                         if (result.data !== null) {
                             result.data.forEach(item => {
+                                // if (!item.StoreHouse_id) {
+                                //     item.StoreHouse_id = _this.storeHouseOptions[5].value; // 첫 번째 옵션의 value
+                                // }
                                 if (!item.StoreHouse_id) {
-                                    item.StoreHouse_id = _this.storeHouseOptions[5].value; // 첫 번째 옵션의 value
+                                    const opts = Array.isArray(_this.storeHouseOptions) ? _this.storeHouseOptions : [];
+                                    // text가 'choose'이거나 value가 빈 값인 placeholder를 건너뛰고 첫 유효 옵션 선택
+                                    const valid = opts.find(o => o && o.value != null && o.value !== '' && (o.text || '').toLowerCase() !== 'choose')
+                                        ?? opts[0]; // 그래도 없으면 0번이라도
+                                    if (valid) item.StoreHouse_id = valid.value;
                                 }
                             });
                             _this.baljuInputGrid.itemsSource = new wijmo.collections.CollectionView(result.data);
