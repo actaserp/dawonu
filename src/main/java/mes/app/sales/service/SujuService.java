@@ -57,11 +57,12 @@ public class SujuService {
 					SUM(s."SujuQty") AS total_qty,
 					COALESCE(SUM(shp."shippedQty"), 0) AS total_shipped,
 					CASE
-					  WHEN COUNT(shp."shippedQty") = 0 THEN ''
-					  WHEN SUM(shp."shippedQty") >= SUM(s."SujuQty") THEN 'shipped'
-					  WHEN SUM(shp."shippedQty") < SUM(s."SujuQty") THEN 'partial'
-					ELSE ''
-					END AS shipment_state
+						WHEN COUNT(shp."SourceDataPk") = 0 THEN ''                             -- 조인 안 됨
+						WHEN COALESCE(SUM(shp."shippedQty"), 0) = 0 THEN 'ordered'             -- 조인 됐는데 출하량 0
+						WHEN SUM(shp."shippedQty") >= SUM(s."SujuQty") THEN 'shipped'          -- 전량 출하
+						WHEN SUM(shp."shippedQty") < SUM(s."SujuQty") THEN 'partial'           -- 일부 출하
+						ELSE ''
+				  	END AS shipment_state
 				  FROM suju s
 				  LEFT JOIN (
 					SELECT "SourceDataPk", SUM("Qty") AS "shippedQty"
