@@ -1,13 +1,13 @@
 package mes.app.definition;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
+import java.util.stream.Collectors;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.transaction.Transactional;
 
+import mes.domain.entity.UserCode;
+import mes.domain.repository.UserCodeRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContext;
@@ -57,6 +57,9 @@ public class MaterialController {
 
 	@Autowired
 	TestMastMatRepository testMastMatRepository;
+
+	@Autowired
+	UserCodeRepository userCodeRepository;
 
 	/**
 	 * @apiNote 품목조회
@@ -411,6 +414,32 @@ public class MaterialController {
 		AjaxResult result = new AjaxResult();
 		result.data = updateRow;
 
+		return result;
+	}
+
+	@GetMapping("/children")
+	public AjaxResult getChildren(@RequestParam("parentId") Integer parentId) {
+		AjaxResult result = new AjaxResult();
+		try {
+			List<UserCode> children = userCodeRepository.findByParentId(parentId);
+
+			// 필요한 데이터만 반환 (id, code, value 정도)
+			List<Map<String, Object>> items = children.stream()
+					.map(c -> {
+						Map<String, Object> map = new HashMap<>();
+						map.put("id", c.getId());
+						map.put("code", c.getCode());
+						map.put("value", c.getValue());
+						return map;
+					})
+					.collect(Collectors.toList());
+
+			result.success = true;
+			result.data = items;
+		} catch (Exception e) {
+			result.success = false;
+			result.message = "조회 실패: " + e.getMessage();
+		}
 		return result;
 	}
 }

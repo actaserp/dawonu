@@ -24,7 +24,7 @@
   "wm_yearamt": {"name": "매입매출년마감", "templates": { "default": "definition/yearamt.html" } },
   "wm_workplace": {"name": "사업장 정보", "templates": { "default": "definition/workplace.html" } },
   "wm_manage_credit_cards": {"name": "신용카드 등록", "templates": { "default": "definition/manage_credit_cards.html" } },
-
+  "wm_user_code": {"name": "품목분류관리", "templates": { "default": "definition/user_code.html" } },
   "wm_bom_proc_comp": { "name": "공정별BOM", "templates": { "default": "definition/bom_proc_comp.html" } },
   "wm_routing": { "name": "라우팅", "templates": { "default": "definition/routing.html" } },
 

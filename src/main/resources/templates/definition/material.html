@@ -92,6 +92,26 @@
                         </dl>
                         <dl>
                             <dt>
+                                <label>품목중분류</label>
+                            </dt>
+                            <dd>
+                                <select class="form-control2" id="cboMaterialMid" name="cboMaterialMid" style="width: 150px;"></select>
+                            </dd>
+                        </dl>
+                        <dl>
+                            <dt>
+                                <label>품목소분류</label>
+                            </dt>
+                            <dd>
+                                <select class="form-control2" id="cboMaterialRow" name="cboMaterialRow" style="width: 150px;"></select>
+                            </dd>
+                        </dl>
+
+
+                    </div>
+                    <div class="search-wrap" style="margin-top: -10px;">
+                        <dl>
+                            <dt>
                                 <label>품목명</label>
                             </dt>
                             <dd>
@@ -106,9 +126,6 @@
                                 <input class="form-control2" type="checkbox" id="useYn_flag" name="useYn_flag"/>
                             </dd>
                         </dl>
-
-                    </div>
-                    <div class="search-wrap" style="margin-top: -20px; margin-left: auto;">
                         <dl>
                             <dt><span class="eq"></span></dt>
                             <dd>
@@ -120,7 +137,7 @@
                                 </li>
                             </dd>
                         </dl>
-                        <dl>
+                        <dl style="margin-left: 175px;">
                             <dt><span class="eq"></span></dt>
                             <dd>
                                 <li>
@@ -229,6 +246,22 @@
                                                         style="width: 100%;" required></select>
                                             </td>
 
+                                            <th>
+                                                <label for="MaterialMidCode"><span class="eq">*</span>품목중분류</label>
+                                            </th>
+                                            <td>
+                                                <select id="MaterialMidCode" name="MaterialMidCode"
+                                                        style="width: 100%;" required></select>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <th>
+                                                <label for="MaterialRowCode"><span class="eq">*</span>품목소분류</label>
+                                            </th>
+                                            <td>
+                                                <select id="MaterialRowCode" name="MaterialRowCode"
+                                                        style="width: 100%;" required></select>
+                                            </td>
                                             <th>
                                                 <label for="Code"><span class="eq">*</span>품목코드<br>(바코드)</label>
                                             </th>
@@ -2591,6 +2624,9 @@
 
             page.searchDataBind();
             resetForms();
+            // ✅ 페이지 로딩 시 중분류부터 바인딩
+            loadMaterialMid();
+            loadMaterialMid2(); // 품목기본정보 바인드
         });
 
         // 1. 폼 리셋 유틸 함수
@@ -2628,6 +2664,110 @@
                 }
             });
         }
+
+
+        // ✅ 중분류 데이터 로딩
+        function loadMaterialMid() {
+            $.ajax({
+                url: '/api/definition/material/children',
+                type: 'GET',
+                data: { parentId: 138 },  // 중분류 기준 parent_id
+                dataType: 'json',
+                success: function (res) {
+                    let $mid = $('#cboMaterialMid');
+                    $mid.empty().append('<option value="">선택</option>');
+
+                    if (res && res.success && res.data && res.data.length > 0) {
+                        res.data.forEach(item => {
+                            $mid.append(`<option value="${item.id}">${item.value}</option>`);
+                        });
+                    } else {
+                        console.warn("⚠️ 중분류 데이터 없음", res);
+                    }
+
+                    // 소분류 초기화
+                    $('#cboMaterialRow').empty().append('<option value="">선택</option>');
+                },
+                error: function (xhr) {
+                    console.error("❌ 중분류 로딩 실패", xhr.responseText);
+                }
+            });
+        }
+
+        // ✅ 소분류 데이터 로딩 (중분류 선택 시)
+        $('#cboMaterialMid').on('change', function () {
+            let midId = $(this).val();
+            let $row = $('#cboMaterialRow');
+            $row.empty().append('<option value="">선택</option>');
+
+            if (!midId) {
+                return; // 선택 안 한 경우 초기화만
+            }
+
+            $.ajax({
+                url: '/api/definition/material/children',
+                type: 'GET',
+                data: { parentId: midId },
+                dataType: 'json',
+                success: function (res) {
+                    if (res && res.success && res.data && res.data.length > 0) {
+                        res.data.forEach(item => {
+                            $row.append(`<option value="${item.id}">${item.value}</option>`);
+                        });
+                    } else {
+                        console.warn("⚠️ 소분류 데이터 없음", res);
+                    }
+                },
+                error: function (xhr) {
+                    console.error("❌ 소분류 로딩 실패", xhr.responseText);
+                }
+            });
+        });
+
+        // ✅ 중분류 로딩 (2번째)
+        function loadMaterialMid2() {
+            $.ajax({
+                url: '/api/definition/material/children',
+                type: 'GET',
+                data: { parentId: 138 },
+                dataType: 'json',
+                success: function (res) {
+                    let $mid = $('#MaterialMidCode');
+                    $mid.empty().append('<option value="">선택</option>');
+
+                    if (res.success && res.data) {
+                        res.data.forEach(item => {
+                            $mid.append(`<option value="${item.id}">${item.value}</option>`);
+                        });
+                    }
+                    $('#MaterialRowCode').empty().append('<option value="">선택</option>');
+                }
+            });
+        }
+
+        // ✅ 소분류 로딩 (2번째)
+        $('#MaterialMidCode').on('change', function () {
+            let midId = $(this).val();
+            let $row = $('#MaterialRowCode');
+            $row.empty().append('<option value="">선택</option>');
+
+            if (!midId) return;
+
+            $.getJSON('/api/definition/material/children', { parentId: midId }, function (res) {
+                if (res.success && res.data) {
+                    res.data.forEach(item => {
+                        $row.append(`<option value="${item.id}">${item.value}</option>`);
+                    });
+                }
+            });
+        });
+
+        // ✅ 페이지 로딩 시 초기화
+        $(document).ready(function () {
+            loadMaterialMid2();
+        });
+
+
     </script>
 
 </th:block>

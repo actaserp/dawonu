@@ -1,13 +1,16 @@
 package mes.app.definition;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import javax.servlet.http.HttpServletRequest;
 
 import mes.domain.entity.SystemCode;
 import mes.domain.repository.SysCodeRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -178,5 +181,13 @@ public class UserCodeController {
 		return result;
 	}
 
-	
+	@GetMapping("/checkDuplicate")
+	public ResponseEntity<Map<String, Boolean>> checkDuplicate(@RequestParam String code) {
+		boolean exists = codeService.existsByCode(code);
+		Map<String, Boolean> response = new HashMap<>();
+		response.put("exists", exists);
+		return ResponseEntity.ok(response);
+	}
+
+
 }

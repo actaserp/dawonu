@@ -3,6 +3,7 @@ package mes.app.definition.service;
 import java.util.List;
 import java.util.Map;
 
+import mes.domain.repository.UserCodeRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.stereotype.Service;
@@ -14,6 +15,9 @@ public class UserCodeService {
 	
 	@Autowired 
 	SqlRunner sqlRunner;
+
+	@Autowired
+	private UserCodeRepository codeRepository;
 	
 	public List<Map<String, Object>> getCodeList(String txtCode){
 		
@@ -21,20 +25,52 @@ public class UserCodeService {
 		dicParam.addValue("txtCode", txtCode);
 		
 		String sql = """
-				select id
-                , "Parent_id" as parent_id
-                , "Code" as code
-                , "Value" as name
-                ,"Description" as description
-                from user_code
-                where "Value" ilike concat('%%',:txtCode,'%%')
-                order by "Value"
+				WITH AGroupTB AS (
+				    SELECT *
+				    FROM user_code A
+				    WHERE A."Parent_id" IS NULL
+				),
+				BGroupTB AS (
+				    SELECT A.*
+				    FROM user_code A
+				    JOIN AGroupTB B ON A."Parent_id" = B.id
+				),
+				CGroupTB AS (
+				    SELECT A.*
+				    FROM user_code A
+				    JOIN BGroupTB B ON A."Parent_id" = B.id
+				)
+				SELECT\s
+				    A.id AS aid,
+				    A."Code" AS agropcd,
+				    A."Value" AS agroupnm,
+				    A."_status" AS astatus,
+				    A."Description" AS adescription,
+				    B.id AS bid,
+				    B."Code" AS bgropcd,
+				    B."Value" AS bgroupnm,
+				    B."_status" AS bstatus,
+				    B."Description" AS bdescription,
+				    C.id AS cid,
+				    C."Code" AS cgropcd,
+				    C."Value" AS cgroupnm,
+				    C."_status" AS cstatus,
+				    C."Description" AS cdescription
+				FROM AGroupTB A
+				LEFT JOIN BGroupTB B ON A.id = B."Parent_id"
+				LEFT JOIN CGroupTB C ON B.id = C."Parent_id"
+				WHERE (:txtCode IS NULL OR LOWER(A."Value") LIKE '%' || LOWER(:txtCode) || '%')
+				ORDER BY A.id, A."Code", B."Code", C."Code";
+				
 				""";
 		List<Map<String, Object>> items = this.sqlRunner.getRows(sql, dicParam);
 		return items;
 	
 	}
 
+	public boolean existsByCode(String code) {
+		return codeRepository.countByCode(code) > 0;
+	}
 
 	public List<Map<String, Object>> getSystemCodeList(String txtCode,String txtCodeType, String spjangcd){
 
