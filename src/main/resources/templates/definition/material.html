@@ -2667,32 +2667,24 @@
 
 
         // ✅ 중분류 데이터 로딩
-        function loadMaterialMid() {
+        $('#cboMaterialGroup').on('change', function () {
+            let groupId = $(this).val(); // material_group.id
+
             $.ajax({
                 url: '/api/definition/material/children',
                 type: 'GET',
-                data: { parentId: 138 },  // 중분류 기준 parent_id
-                dataType: 'json',
+                data: { parentId: groupId },
                 success: function (res) {
                     let $mid = $('#cboMaterialMid');
                     $mid.empty().append('<option value="">선택</option>');
-
-                    if (res && res.success && res.data && res.data.length > 0) {
+                    if (res.success && res.data) {
                         res.data.forEach(item => {
                             $mid.append(`<option value="${item.id}">${item.value}</option>`);
                         });
-                    } else {
-                        console.warn("⚠️ 중분류 데이터 없음", res);
                     }
-
-                    // 소분류 초기화
-                    $('#cboMaterialRow').empty().append('<option value="">선택</option>');
-                },
-                error: function (xhr) {
-                    console.error("❌ 중분류 로딩 실패", xhr.responseText);
                 }
             });
-        }
+        });
 
         // ✅ 소분류 데이터 로딩 (중분류 선택 시)
         $('#cboMaterialMid').on('change', function () {
@@ -2725,25 +2717,24 @@
         });
 
         // ✅ 중분류 로딩 (2번째)
-        function loadMaterialMid2() {
+        $('#MaterialGroup_id').on('change', function () {
+            let groupId = $(this).val(); // material_group.id
+
             $.ajax({
                 url: '/api/definition/material/children',
                 type: 'GET',
-                data: { parentId: 138 },
-                dataType: 'json',
+                data: { parentId: groupId },
                 success: function (res) {
                     let $mid = $('#MaterialMidCode');
                     $mid.empty().append('<option value="">선택</option>');
-
                     if (res.success && res.data) {
                         res.data.forEach(item => {
                             $mid.append(`<option value="${item.id}">${item.value}</option>`);
                         });
                     }
-                    $('#MaterialRowCode').empty().append('<option value="">선택</option>');
                 }
             });
-        }
+        });
 
         // ✅ 소분류 로딩 (2번째)
         $('#MaterialMidCode').on('change', function () {

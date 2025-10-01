@@ -6,7 +6,8 @@ import java.util.stream.Collectors;
 import javax.servlet.http.HttpServletRequest;
 import javax.transaction.Transactional;
 
-import mes.domain.entity.UserCode;
+import mes.domain.entity.*;
+import mes.domain.repository.MaterialGroupRepository;
 import mes.domain.repository.UserCodeRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
@@ -25,9 +26,6 @@ import mes.app.definition.service.material.MaterialService;
 import mes.app.definition.service.material.RoutingByMatService;
 import mes.app.definition.service.material.TestByMatService;
 import mes.app.definition.service.material.UnitPriceService;
-import mes.domain.entity.Material;
-import mes.domain.entity.TestMastMat;
-import mes.domain.entity.User;
 import mes.domain.model.AjaxResult;
 import mes.domain.repository.MaterialRepository;
 import mes.domain.repository.TestMastMatRepository;
@@ -60,6 +58,9 @@ public class MaterialController {
 
 	@Autowired
 	UserCodeRepository userCodeRepository;
+
+	@Autowired
+	MaterialGroupRepository materialGroupRepository;
 
 	/**
 	 * @apiNote 품목조회
@@ -421,9 +422,29 @@ public class MaterialController {
 	public AjaxResult getChildren(@RequestParam("parentId") Integer parentId) {
 		AjaxResult result = new AjaxResult();
 		try {
-			List<UserCode> children = userCodeRepository.findByParentId(parentId);
+			// 1️⃣ parentId는 material_group.id 로 들어옴
+			Optional<MaterialGroup> matGrpOpt = materialGroupRepository.findById(parentId);
+			if (matGrpOpt.isEmpty()) {
+				result.success = false;
+				result.message = "해당 품목그룹을 찾을 수 없습니다.";
+				return result;
+			}
+			MaterialGroup matGrp = matGrpOpt.get();
 
-			// 필요한 데이터만 반환 (id, code, value 정도)
+			// 2️⃣ material_group.name = user_code.value 매핑
+			UserCode parentCode = userCodeRepository.findByCode(matGrp.getCode())
+					.stream().findFirst()
+					.orElse(null);
+
+			if (parentCode == null) {
+				result.success = false;
+				result.message = "대응되는 UserCode(대분류)가 없습니다.";
+				return result;
+			}
+
+			// 3️⃣ user_code.children 조회
+			List<UserCode> children = userCodeRepository.findByParentId(parentCode.getId());
+
 			List<Map<String, Object>> items = children.stream()
 					.map(c -> {
 						Map<String, Object> map = new HashMap<>();
@@ -436,10 +457,12 @@ public class MaterialController {
 
 			result.success = true;
 			result.data = items;
+
 		} catch (Exception e) {
 			result.success = false;
 			result.message = "조회 실패: " + e.getMessage();
 		}
 		return result;
 	}
+
 }
