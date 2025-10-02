@@ -18,43 +18,55 @@
                     <label for="MaterialGroup_id"><span class="eq">*</span>품목그룹</label>
                  </th>
                  <td>
-                    <select id="MaterialGroup_id" name="MaterialGroup_id"
-                               required></select>
+                    <select id="MaterialGroup_id" name="MaterialGroup_id" required>
+                    </select>
                  </td>
-                  <th>
-                  </th>
+                 <th>
+                  <label for="cboMaterialMid"><span class="eq">*</span>품목중분류</label>
+                 </th>
                   <td>
+                  <select id="cboMaterialMid" name="cboMaterialMid">
+                  </select>
                   </td>
                </tr>
                <tr>
+                  <th>
+                      <label for="cboMaterialRow"><span class="eq">*</span>품목소분류</label>
+                  </th>
+                  <td>
+                      <select id="cboMaterialRow" name="cboMaterialRow">
+                      </select>
+                  </td>
+
                  <th>
                      <label for="Name"><span class="eq">*</span>품목명</label>
                  </th>
                  <td >
-                     <input type="text"  id="Name"
-                            name="Name" required>
-                 </td>
-                 <th>
-                     <label for="Unit_id"><span class="eq">*</span>단위<br></label>
-                 </th>
-                 <td>
-                     <select  id="Unit_id"
-                             name="Unit_id" required></select>
+                     <input type="text"  id="Name" name="Name" required>
                  </td>
                </tr>
                <tr>
-                   <th>
-                       <label for="Standard">규격</label>
-                   </th>
-                   <td>
-                       <input type="text" id="Standard" name="Standard"/>
-                   </td>
-                   <th>
-                       <label for="Factory_id"><span class="eq">*</span>공장</label>
-                   </th>
-                   <td>
-                      <select type="text" id="Factory_id" name="Factory_id" > </select>
-                   </td>
+                  <th>
+                     <label for="Unit_id"><span class="eq">*</span>단위<br></label>
+                 </th>
+                 <td>
+                     <select  id="Unit_id" name="Unit_id" required>
+                     </select>
+                 </td>
+                 <th>
+                     <label for="Standard">규격</label>
+                 </th>
+                 <td>
+                     <input type="text" id="Standard" name="Standard"/>
+                 </td>
+               </tr>
+               <tr>
+                  <th>
+                     <label for="Factory_id"><span class="eq">*</span>공장</label>
+                  </th>
+                  <td>
+                    <select type="text" id="Factory_id" name="Factory_id" > </select>
+                  </td>
                </tr>
              </tbody>
            </table>
@@ -87,7 +99,7 @@
         this.focusAfterClose = focusAfterClose || document.activeElement;
 
         const $content = $(tmpl('popup_MatSaveTemplate', {}));
-        this.modalContainer.open({ width: 900, height: 300, $content });
+        this.modalContainer.open({ width: 900, height: 320, $content });
 
         const $form = $content.find('#MaterialSaveForm');
         const $matGroup = $content.find('#MaterialGroup_id');

@@ -1,13 +1,16 @@
 package mes.app.sales;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import mes.app.definition.service.material.UnitPriceService;
 import mes.app.sales.service.SujuService;
 import mes.app.sales.service.SujuUploadService;
 import mes.config.Settings;
 import mes.domain.entity.*;
+import mes.domain.entity.shinwoo.suju_detail;
 import mes.domain.model.AjaxResult;
 import mes.domain.repository.*;
+import mes.domain.repository.shinwoo.SuJuDetailRepository;
 import mes.domain.services.CommonUtil;
 import mes.domain.services.SqlRunner;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -82,6 +85,12 @@ public class SujuController {
 	@Autowired
 	private SujuRepository sujuRepository;
 
+	@Autowired
+	SuJuDetailRepository suJuDetailRepository;
+
+	@Autowired
+	private ObjectMapper objectMapper;
+
 	// 수주 목록 조회 
 	@GetMapping("/read")
 	public AjaxResult getSujuList(
@@ -146,12 +155,12 @@ public class SujuController {
 		Integer companyId = Integer.parseInt(payload.get("Company_id").toString());
 		String sujuType = (String) payload.get("SujuType");
 		String description = (String) payload.get("Description");
-		String projectId = (String) payload.get("projectHidden");
 		String spjangcd = (String) payload.get("spjangcd");
 		Integer order_id = Integer.parseInt(payload.get("order_id").toString()); //수주처
 		String SuJuOrderName = (String) payload.get("OrderName");
 		String DeliveryName = (String) payload.get("DeliveryName");	//납품처
 		String amountStr = payload.get("totalAmountSum").toString().replace(",", "");
+
 		double totalAmount = 0.0;
 		try {
 			if (amountStr != null && !amountStr.trim().isEmpty()) {
@@ -184,6 +193,8 @@ public class SujuController {
 		head.setSuJuOrderId(order_id);
 		head.setSuJuOrderName(SuJuOrderName);
 		head.setDeliveryName(DeliveryName);
+
+
 		head.set_status("manual");
 		head = sujuHeadRepository.save(head);
 
@@ -209,7 +220,6 @@ public class SujuController {
 			suju.setCompanyId(companyId);
 			suju.setCompanyName(companyName);
 			suju.setSpjangcd(spjangcd);
-			//suju.setProject_id(projectId);
 			suju.set_status("manual");
 			suju.setState("received");
 			suju.set_audit(user);
@@ -245,12 +255,155 @@ public class SujuController {
 			}
 
 			SujuRepository.save(suju);
+			Integer sujuId = suju.getId();
+
+// 우선: items 요소에 배열 형태로 온 경우
+			Object sdObj = item.get("standardDetails");
+			if (sdObj instanceof List) {
+				suJuDetailRepository.deleteBySujuId(sujuId);
+				@SuppressWarnings("unchecked")
+				List<Map<String, Object>> details = (List<Map<String, Object>>) sdObj;
+				for (Map<String, Object> d : details) {
+					String std = str(d.get("standard"));
+					String qtyStr = numStr(d.get("qty"));
+					Double qty = 0d;
+					if (!qtyStr.isEmpty()) { try { qty = Double.valueOf(qtyStr); } catch(Exception ignore) {} }
+					if ((std == null || std.isEmpty()) && (qty == null || qty == 0d)) continue;
+
+					suju_detail row = new suju_detail();
+					row.setSujuId(sujuId);
+					row.setStandard(std);
+					row.setQty(qty == null ? 0d : qty);
+					suJuDetailRepository.save(row);
+				}
+			} else {
+				// 폴백: suffix 기반 JSON 문자열
+				String detailJson = resolveDetailJsonForItem(item, payload);
+				saveSujuDetailsFromJson(sujuId, detailJson);
+			}
+
 		}
 
 
 		AjaxResult result = new AjaxResult();
 		result.success = true;
 		return result;
+	}
+
+	private static String numStr(Object o) {
+		if (o == null) return "";
+		return o.toString().replace(",", "").trim();
+	}
+
+	private static String str(Object o) {
+		return (o == null) ? "" : o.toString().trim();
+	}
+
+	// ----------------------------------------------------------
+// 유틸: payload에 존재하는 suffix 인덱스 추출
+// ----------------------------------------------------------
+	private static Set<Integer> findAllSuffixIndexes(Map<String, Object> payload, String keyPrefix) {
+		Set<Integer> set = new LinkedHashSet<>();
+		for (String k : payload.keySet()) {
+			if (k.startsWith(keyPrefix + "_")) {
+				String sfx = k.substring((keyPrefix + "_").length());
+				try { set.add(Integer.parseInt(sfx)); } catch (Exception ignore) {}
+			}
+		}
+		return set;
+	}
+
+	// ----------------------------------------------------------
+// 핵심: 현재 아이템에 대응하는 standard_detail_json을 찾아 반환
+// ----------------------------------------------------------
+	private String resolveDetailJsonForItem(Map<String, Object> item, Map<String, Object> payload) {
+		// 1) 아이템 안에 직접 들어있으면 그걸 사용
+		String direct = str(item.get("standard_detail_json"));
+		if (!direct.isEmpty()) return direct;
+
+		// 2) _rowIndex / rowIndex 로 찾기
+		String[] idxKeys = new String[] {"_rowIndex", "rowIndex"};
+		for (String key : idxKeys) {
+			String idxStr = str(item.get(key));
+			if (!idxStr.isEmpty()) {
+				String k1 = "standard_detail_json_" + idxStr;
+				String v1 = str(item.get(k1));
+				if (!v1.isEmpty()) return v1;
+				String v2 = str(payload.get(k1));
+				if (!v2.isEmpty()) return v2;
+			}
+		}
+
+		// 3) 값 매칭 기반으로 찾기
+		String materialId = numStr(item.get("Material_id"));
+		String productCode = str(item.get("product_code"));
+		String productName = str(item.get("txtProductName"));
+		String standard = str(item.get("standard"));
+		if (standard.isEmpty()) standard = str(item.get("Standard"));
+
+		Set<Integer> idxSet = new LinkedHashSet<>();
+		idxSet.addAll(findAllSuffixIndexes(payload, "standard_detail_json"));
+		if (idxSet.isEmpty()) {
+			idxSet.addAll(findAllSuffixIndexes(payload, "Material_id"));
+			idxSet.addAll(findAllSuffixIndexes(payload, "product_code"));
+			idxSet.addAll(findAllSuffixIndexes(payload, "txtProductName"));
+			idxSet.addAll(findAllSuffixIndexes(payload, "standard"));
+		}
+
+		for (Integer n : idxSet) {
+			boolean match = false;
+
+			if (!materialId.isEmpty() && materialId.equals(numStr(payload.get("Material_id_" + n)))) match = true;
+			if (!match && !productCode.isEmpty() && productCode.equals(str(payload.get("product_code_" + n)))) match = true;
+			if (!match && !productName.isEmpty() && productName.equals(str(payload.get("txtProductName_" + n)))) match = true;
+
+			String pStd = str(payload.get("standard_" + n));
+			if (pStd.isEmpty()) pStd = str(payload.get("Standard_" + n));
+			if (!match && !standard.isEmpty() && standard.equals(pStd)) match = true;
+
+			if (match) {
+				String json = str(payload.get("standard_detail_json_" + n));
+				if (!json.isEmpty()) return json;
+			}
+		}
+
+		// 못 찾으면 null
+		return null;
+	}
+
+	// JSON 문자열을 파싱해 suju_detail에 저장(수정 시 기존행 삭제)
+	private void saveSujuDetailsFromJson(Integer sujuId, String detailJson) {
+		if (sujuId == null || sujuId <= 0) return;
+		if (detailJson == null || detailJson.trim().isEmpty()) return;
+
+		try {
+			List<Map<String, Object>> details =
+					objectMapper.readValue(detailJson, new com.fasterxml.jackson.core.type.TypeReference<List<Map<String,Object>>>() {});
+
+			// 수정 케이스 대비: 기존 상세 먼저 삭제
+			suJuDetailRepository.deleteBySujuId(sujuId); // ← Repository에 deleteBySujuId 추가되어 있어야 함
+
+			for (Map<String, Object> d : details) {
+				String std = str(d.get("standard"));
+				String qtyStr = numStr(d.get("qty"));
+
+				Double qty = 0d;
+				if (!qtyStr.isEmpty()) {
+					try { qty = Double.valueOf(qtyStr); } catch (Exception ignore) { qty = 0d; }
+				}
+
+				// 완전 공백 레코드는 스킵
+				if ((std == null || std.isEmpty()) && (qty == null || qty == 0d)) continue;
+
+				suju_detail row = new suju_detail();
+				row.setSujuId(sujuId);
+				row.setStandard(std);
+				row.setQty(qty == null ? 0d : qty);
+
+				suJuDetailRepository.save(row);
+			}
+		} catch (Exception e) {
+		}
 	}
 
 
