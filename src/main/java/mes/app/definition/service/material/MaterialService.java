@@ -19,7 +19,7 @@ public class MaterialService {
 	SqlRunner sqlRunner;
 
 
-	public List<Map<String, Object>> getMaterialList(String matType, String matGroupId, String keyword, String spjangcd, String useYnFlag){
+	public List<Map<String, Object>> getMaterialList(String matType, String matGroupId, String keyword, String spjangcd, String useYnFlag, Integer userCodeId){
 
 		MapSqlParameterSource paramMap = new MapSqlParameterSource();
 		paramMap.addValue("mat_type", matType);
@@ -27,6 +27,7 @@ public class MaterialService {
 		paramMap.addValue("keyword", keyword);
 		paramMap.addValue("spjangcd", spjangcd);
 		paramMap.addValue("UseYn", useYnFlag);
+		paramMap.addValue("userCodeId", userCodeId);
 
 		String sql = """
 			select m.id
@@ -81,6 +82,8 @@ public class MaterialService {
                 , m."Useyn" as useyn
                 , m."Avrqty" as avrqty
                 , m."Routing_id"
+                , m."mat_user_code"
+                , uc."Value" as user_code_name
                 , CASE
 					 WHEN b."Material_id" IS NOT NULL THEN 1
 					 ELSE 0
@@ -97,12 +100,14 @@ public class MaterialService {
 				on b."Material_id" = m.id
 				and (b."StartDate" IS NULL OR b."StartDate" <= CURRENT_DATE)
 				and (b."EndDate"   IS NULL OR b."EndDate"   >= CURRENT_DATE)
+			left join user_code uc on m.mat_user_code = uc.id
             where 1=1
             AND m.spjangcd = :spjangcd
             AND m."Useyn" = :UseYn
         """;
 		if (StringUtils.isEmpty(matType)==false) sql +=" and mg.\"MaterialType\" = :mat_type ";
 		if (StringUtils.isEmpty(matGroupId)==false) sql +=" and m.\"MaterialGroup_id\" = (:mat_group_id)::int ";
+		if (userCodeId != null) sql +=" and m.\"mat_user_code\" = :userCodeId ";
 		if (StringUtils.isEmpty(keyword)==false) {
 			sql += """  
             		and ( m."Name" ilike concat('%',:keyword,'%')
@@ -251,6 +256,8 @@ public class MaterialService {
 		dicParam.addValue("routingId", CommonUtil.tryIntNull(data.getFirst("Routing_id")));
 		dicParam.addValue("unitPrice", CommonUtil.tryFloatNull(data.getFirst("UnitPrice")));
 		dicParam.addValue("user_id", CommonUtil.tryIntNull(data.getFirst("user_id").toString()));
+		dicParam.addValue("matUserCode", CommonUtil.tryIntNull(data.getFirst("MaterialMidCode")));
+
 
 		String sql = "";
 
@@ -308,6 +315,7 @@ public class MaterialService {
 						 ,"spjangcd"
 						 , "Temperature"
 						 , "Pressure"
+						 , "mat_user_code"
 						 )
 						VALUES
 						(now()
@@ -361,6 +369,7 @@ public class MaterialService {
 						, :spjangcd
 						, :pressure
 						, :temperature
+						,:matUserCode
 						)
 					""";
 		}else {
@@ -416,6 +425,7 @@ public class MaterialService {
 					,"Avrqty" = :avrqty
 					, "Temperature" = :temperature
 					, "Pressure" = :pressure
+					,"mat_user_code" = :matUserCode
 					WHERE id = :id
 					AND spjangcd = :spjangcd
 					""";

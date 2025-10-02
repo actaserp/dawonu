@@ -581,6 +581,8 @@
                     function loadUserCodes(parentId) {
                         let url = '/api/definition/material_group/userCodeList';
                         let data = { parent_id: parentId };
+                        console.log("parentId:", parentId);
+
 
                         AjaxUtil.getAsyncData(url, data, function (res) {
                             if (res.success) {
