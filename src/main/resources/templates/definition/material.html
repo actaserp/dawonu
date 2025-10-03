@@ -1519,6 +1519,10 @@
                     FormUtil.BindDataForm(detailData, $('#matTestForm'));
                     FormUtil.BindDataForm(detailData, $('#priceForm'));
                     $('#Routing_id').val(detailData.Routing_id);
+                    $('#MaterialGroup_id').trigger('change');
+                    setTimeout(() => {
+                        $('#MaterialMidCode').val(detailData.mat_user_code).trigger('change');
+                    }, 200);
                     // lot 체크
                     $('#matStockForm').find('#lot_use_yn').removeAttr('disabled');
 

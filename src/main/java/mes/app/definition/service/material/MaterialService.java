@@ -167,6 +167,7 @@ public class MaterialService {
             , m."Mtyn" as mtyn
             , m."Useyn" as useyn
             , m."Avrqty" as avrqty
+            , m."mat_user_code"
             from material m
             inner join mat_grp mg on m."MaterialGroup_id" = mg.id
             left join unit u on u.id = m."Unit_id"
