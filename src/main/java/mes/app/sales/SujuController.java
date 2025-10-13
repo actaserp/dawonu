@@ -1036,4 +1036,20 @@ public class SujuController {
 		}
 	}
 
+	@GetMapping("/detail_list")
+	public AjaxResult getDetailList(@RequestParam("sujuId") Integer sujuId) {
+		AjaxResult result = new AjaxResult();
+		if (sujuId == null || sujuId <= 0) {
+			result.success = false;
+			result.message = "잘못된 수주 ID입니다.";
+			result.data = List.of();
+			return result;
+		}
+
+		List<Map<String, Object>> details = sujuService.getDetailList(sujuId);
+		result.success = true;
+		result.data = details;
+		return result;
+	}
+
 }

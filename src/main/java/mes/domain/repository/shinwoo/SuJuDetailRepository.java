@@ -12,5 +12,4 @@ public interface SuJuDetailRepository extends JpaRepository<suju_detail, Integer
 
   void deleteBySujuId(Integer sujuId);
 
-  List<suju_detail> findBySujuId(Integer sujuId);
 }

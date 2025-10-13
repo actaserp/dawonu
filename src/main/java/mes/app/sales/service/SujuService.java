@@ -403,4 +403,24 @@ public class SujuService {
 		Object v = (row == null) ? null : row.get("next_code");
 		return (v == null) ? "1" : v.toString();   // "1"부터 시작
 	}
+
+
+	public List<Map<String, Object>> getDetailList(Integer sujuId) {
+		MapSqlParameterSource params = new MapSqlParameterSource();
+		params.addValue("suju_id", sujuId);
+
+		String sql = """
+        SELECT "id",
+               "suju_id",
+               "Standard" AS standard,
+               "Qty" AS qty
+        FROM suju_detail
+        WHERE "suju_id" = :suju_id
+        ORDER BY "id" ASC;
+    """;
+
+		return sqlRunner.getRows(sql, params);
+	}
+
+
 }
