@@ -268,6 +268,7 @@
                         {binding: 'price', header: '공급가', width: 120, align: 'right', isReadOnly: true},
                         {binding: 'vat', header: '부가세', width: 120, align: 'right', isReadOnly: true},
                         {binding: 'description', header: '비고', width: 100, align: 'left', isReadOnly: false},
+                        {binding: 'shipment_flag', header: '출하구분', width: 100, align: 'left', isReadOnly: true},
 
                     ],
                     itemsSource: this.viewData2,
@@ -337,7 +338,7 @@
                 data.forEach(item => {
                     let flag = false;
                     const unit_price = item['unit_price'];
-                    if (unit_price === '' || unit_price === null) {
+                    if (unit_price === '' || unit_price === null || unit_price === 0) {
                         flag = true;
                     }
 
@@ -357,6 +358,7 @@
                         price: item['price'],
                         vat: item['vat'],
                         description: item['description'],
+                        shipment_flag: item['shipment_flag'],
                     };
                     cv.addNew(newRow);
                 });
@@ -400,7 +402,7 @@
                         page.searchMain();
                         _this.grid2.itemsSource = [];
                     } else {
-                        Alert.alert('', '단가 저장 실패.');
+                        Alert.alert('', res.message);
                         return;
                     }
                 }

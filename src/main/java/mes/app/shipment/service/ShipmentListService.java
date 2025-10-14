@@ -71,7 +71,8 @@ public class ShipmentListService {
 		
 		return items;
 	}
-
+	//단가는 기본적으로 수주면 수주때 지정단가 가져오고 (수주지정단가는 shipment에 저장되어있음. 수주가 수정되었다면 다를수있긴함.)
+	//제품출하라면 품목의 최근단가를 가져온다.
 	public List<Map<String, Object>> getShipmentItemList(String headId, Integer company_id) {
 		MapSqlParameterSource paramMap = new MapSqlParameterSource();
 		paramMap.addValue("headId", headId);
@@ -91,31 +92,44 @@ public class ShipmentListService {
 				, s."Description" as description
 				, sh."Company_id" as company_id
 				, m.id as material_id
-				,case
-					when s."SourceTableName" = 'product' then mcu."UnitPrice"
-					else su."UnitPrice"
-				end as unit_price
+				--,case
+				--	when s."SourceTableName" = 'product' then mcu."UnitPrice"
+				--	else su."UnitPrice"
+				--end as unit_price
+				
+				--단가
+				,s."UnitPrice" as unit_price
+				--공급가
+				,s."Price" as price 
+				-- 부가세
+				,s."Vat" as vat
 				
 				,case
 					when s."SourceTableName" = 'product' then 'N'
 					else su."InVatYN"
 				end as invatyn
 			
-				,TRUNC((
-				                  CASE
-				                    WHEN s."SourceTableName" = 'product' THEN mcu."UnitPrice" * s."Qty"
-				                    WHEN su."InVatYN" = 'Y' THEN (su."UnitPrice" * (10.0 / 11)) * s."Qty"
-				                    ELSE su."UnitPrice" * s."Qty"
-				                  END
-				                )::numeric, 2) AS price
-				,case
-					when s."SourceTableName" = 'product' then (mcu."UnitPrice" * s."Qty") * 0.1
-					when su."InVatYN" = 'Y' then (su."UnitPrice" - (su."UnitPrice" * (10.0/11))) * s."Qty"
-					else (su."UnitPrice" * s."Qty") * 0.1
-				end as vat
+				--,TRUNC((
+				--                  CASE
+				--                    WHEN s."SourceTableName" = 'product' THEN mcu."UnitPrice" * s."Qty"
+				--                    WHEN su."InVatYN" = 'Y' THEN (su."UnitPrice" * (10.0 / 11)) * s."Qty"
+				--                    ELSE su."UnitPrice" * s."Qty"
+				--                  END
+				--                )::numeric, 2) AS price
+				--,case
+				--	when s."SourceTableName" = 'product' then (mcu."UnitPrice" * s."Qty") * 0.1
+				--	when su."InVatYN" = 'Y' then (su."UnitPrice" - (su."UnitPrice" * (10.0/11))) * s."Qty"
+				--	else (su."UnitPrice" * s."Qty") * 0.1
+				--end as vat
 	            , m."VatExemptionYN" as vat_exempt_yn
 	            , s."SourceDataPk" as src_data_pk
 	            , s."SourceTableName" as src_table_name
+	            , case when s."SourceTableName" = 'rela_data' 
+	            		then '수주출하'
+	            	   when s."SourceTableName" = 'product'	
+						then '제품출하'
+					   else '알수없음'
+				end as shipment_flag	 
 				from shipment  s
 				inner join material m on m.id = s."Material_id" 
 				inner join mat_grp mg on mg.id = m."MaterialGroup_id"

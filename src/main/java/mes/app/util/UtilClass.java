@@ -97,7 +97,15 @@ public class UtilClass {
             return "";
         }
     }
+    /***
+     *  오늘날짜에서 param으로 들어온 값만큼 빼서 반환
+     * **/
+    public static String getDayByParamAdd(int day){
 
+        LocalDate date = LocalDate.now().plusDays(day);
+
+        return date.format(DateTimeFormatter.ofPattern("yyyyMMdd"));
+    }
     /**
      * 세션에서 사업장 코드를 통해 사업자 번호를 추출하는 메서드
      * ***/

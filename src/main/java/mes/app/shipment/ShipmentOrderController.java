@@ -8,6 +8,7 @@ import java.util.stream.Collectors;
 import javax.servlet.http.HttpServletRequest;
 import javax.transaction.Transactional;
 
+import mes.app.util.UtilClass;
 import mes.domain.entity.*;
 import mes.domain.repository.*;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -58,12 +59,20 @@ public class ShipmentOrderController {
 			@RequestParam("cboMatGroup") String matGrpPk,
 			@RequestParam("cboMaterial") String matPk,
 			@RequestParam("keyword") String keyword ){
-		
+
+		if(dateFrom.isEmpty()){
+			dateFrom = UtilClass.getDayByParamAdd(0); // 오늘날짜
+		}
+
+		if(dateTo.isEmpty()){
+			dateTo = UtilClass.getDayByParamAdd(7);
+		}
+
 		List<Map<String, Object>> items = this.shipmentOrderService.getSujuList(dateFrom,dateTo,notShip,compPk,matGrpPk,matPk,keyword);
-		
+
 		AjaxResult result = new AjaxResult();
 		result.data = items;
-		
+
 		return result;
 	}
 

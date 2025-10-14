@@ -98,8 +98,10 @@ public class ShipmentStmtController {
 		
 		return result;
 	}
-	
+
 	// 단가 변경
+	//단가는 기본적으로 수주면 수주때 지정단가 가져오고 (없으면 0)
+	//제품출하라면 품목의 최근단가를 가져온다.
 	@PostMapping("/update_unit_price")
 	@Transactional
 	public AjaxResult saveUnitPrice(
@@ -107,49 +109,58 @@ public class ShipmentStmtController {
 			@RequestBody MultiValueMap<String,Object> dataList,
 			HttpServletRequest request,
 			Authentication auth) {
-		
+
 		User user = (User)auth.getPrincipal();
-		
+
 		AjaxResult result = new AjaxResult();
-		
+
 		List<Map<String, Object>> item = CommonUtil.loadJsonListMap(dataList.getFirst("Q").toString());
 
 		if (item.size() == 0) {
 			result.success = false;
 			return result;
 		}
-		
+
 		ShipmentHead head = this.shipmentHeadRepository.getShipmentHeadById(head_id);
-		
-		if (head == null) {			
+
+		if (head == null) {
 			result.success = false;
-			return result;			
+			return result;
 		} else {
-			
+
+			//발행처리 여부
 			if ("Y".equals(head.getStatementIssuedYN())) {
 				result.success = false;
-				return result;				
-			} else {				
+				return result;
+			} else {
 				double price_sum = 0.0;
 				double vat_sum = 0.0;
 				List<MatCompUprice> matCompUpriceList = new ArrayList<>();
 
 				for (int i = 0; i < item.size(); i++) {
-					
+
+					Double unit_price = CommonUtil.tryDoubleNull(item.get(i).get("unit_price"));
+
+					if(unit_price == null || unit_price == 0){
+						result.success = false;
+						result.message = "단가정보가 없습니다.";
+						return result;
+					}
+
+					String invatyn = (String) item.get(i).get("invatyn");
+
 					Integer ship_pk = (Integer) item.get(i).get("ship_pk");
 					Shipment shipment = this.shipmentRepository.getShipmentById(ship_pk);
-					
+
 					if (shipment != null) {
-						
+
 						/*String vat_exempt_yn = (String) item.get(i).get("vat_exempt_yn");
-						
+
 						if (vat_exempt_yn == null || vat_exempt_yn == "") {
 							vat_exempt_yn = "N";
 						}*/
-			            
-						Double unit_price = CommonUtil.tryDoubleNull(item.get(i).get("unit_price"));
+
 						Double order_qty = shipment.getOrderQty();
-						String invatyn = (String) item.get(i).get("invatyn");
 
 						Integer material_id = UtilClass.getInt(item.get(i), "material_id");
 						Integer company_id = UtilClass.getInt(item.get(i), "company_id");
@@ -167,10 +178,9 @@ public class ShipmentStmtController {
 							vat_sum += vat;
 
 						}else{
-							double vat_exam_price = (unit_price * ((double) 10 /11));
-
-							price = vat_exam_price * order_qty;
-							vat = (unit_price * 0.1) * order_qty;
+							double netUnit = unit_price / 1.1;               // 부가세 제거한 단가
+							price = netUnit * order_qty;                     // 공급가 합계(순액)
+							vat   = (unit_price * order_qty) - price;        // 총액 - 순액 = 부가세
 
 							price_sum += price;
 							vat_sum += vat;
@@ -208,6 +218,7 @@ public class ShipmentStmtController {
 									.findFirst()
 									.orElse(null);
 
+							//에러구간
 							Double formerUnitPrice =  matCompUprice1.getUnitPrice();
 
 							matCompUprice1.setUnitPrice(unit_price);
@@ -219,24 +230,24 @@ public class ShipmentStmtController {
 
 						matCompUpriceRepository.saveAll(matCompUpriceList);
 
-	                    shipment.setUnitPrice(unit_price.doubleValue());
-	                    shipment.setPrice(price);
-	                    shipment.setVat(vat);
-	                    shipment.set_audit(user);
-	                    
-	                    this.shipmentRepository.save(shipment);
+						shipment.setUnitPrice(unit_price.doubleValue());
+						shipment.setPrice(price);
+						shipment.setVat(vat);
+						shipment.set_audit(user);
+
+						this.shipmentRepository.save(shipment);
 					}
 				}
 
-                head.setTotalPrice(price_sum);
-                head.setTotalVat(vat_sum);
-                head.set_audit(user);
-                
-                this.shipmentHeadRepository.save(head);
+				head.setTotalPrice(price_sum);
+				head.setTotalVat(vat_sum);
+				head.set_audit(user);
+
+				this.shipmentHeadRepository.save(head);
 			}
 		}
-		
-		return result;	
+
+		return result;
 	}
 		
 	// 명세서 발행처리	

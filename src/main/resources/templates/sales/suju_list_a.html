@@ -908,19 +908,28 @@
 
         setTimeout(() => {
           FormUtil.BindDataSujuForm(data, $sujuForm);
+          $content.find('tr:visible').each(function () {
+            calculateAmounts($(this), 'unit');
+          });
+
+
+
           if (data.mode === 'new') {
             // 신규는 기본 해제 + 값도 N으로 맞춰서 extractForm 시 누락 방지
             $content.find('input[type="checkbox"][name^="VatIncluded"]')
-              .prop('checked', false)
-              .val('N')
-              .trigger('change'); // 계산식 즉시 반영
+                    .prop('checked', false)
+                    .val('N')
+                    .trigger('change'); // 계산식 즉시 반영
+          }else{
+            //edit
+            let nextElementIndex = data.sujuList.length;
+
+            const $checkbox = $content.find(`input[name="VatIncluded_${nextElementIndex}"]`);
+            $checkbox.prop('checked', false).val('N').trigger('change');
           }
 
-          // 최초 계산 수행
-          $content.find('.item-table tbody tr:visible').not('.item-template-row').each(function () {
-            calculateAmounts($(this), 'unit');
-          });
-          $root.find('input[name="unit"], input[name^="unit_"]').trigger('input');
+
+
         }, 100);
 
         if (data.StateName && data.StateName !== '수주') {
@@ -1001,7 +1010,7 @@
                 VatAmount: data[`VatAmount_${i}`] === '면세' ? '0' : (data[`VatAmount_${i}`] || '0').replace(/,/g, ''),
                 totalAmount: (data[`totalAmount_${i}`] || '0').replace(/,/g, ''),
                 description: data[`description_${i}`] || '',
-                VatIncluded: data[`VatIncluded_${i}`] === 'on' ? 'Y' : 'N',
+                VatIncluded: data[`VatIncluded_${i}`] === undefined ? 'N' : 'Y',
                 projectHidden: data[`projectHidden_${i}`] || '',
                 unitPriceChanged: (() => {
                   const ori = parseFloat(data[`originalUnitPrice_${i}`] || '0');
