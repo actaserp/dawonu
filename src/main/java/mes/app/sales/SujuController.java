@@ -974,6 +974,7 @@ public class SujuController {
 	@PostMapping("/save_material")
 	public AjaxResult SaveMaterial(@RequestParam(value="id", required=false) Integer id,
 																 @RequestParam("MaterialGroup_id")Integer MaterialGroup_id,
+																 @RequestParam("cboMaterialMid")Integer cboMaterialMid,
 																 @RequestParam("Name")String Name,
 																 @RequestParam("Unit_id") Integer Unit_id,
 																 @RequestParam(value = "Standard", required=false) String Standard,
@@ -1011,10 +1012,15 @@ public class SujuController {
 			material.setStandard1(Standard);
 			material.setSpjangcd(spjangcd);
 			material.setUseyn("0");
+			material.setMatUserCode(cboMaterialMid);
 			material.set_audit(user);
 
 			// 저장
 			Material saved = materialRepository.save(material);
+
+			String unitName = unitRepository.findById(Unit_id)
+					.map(Unit::getName)
+					.orElse(null);
 
 			// 프론트에서 바로 바인딩할 최소 데이터 제공
 			Map<String, Object> data = new HashMap<>();
@@ -1022,6 +1028,7 @@ public class SujuController {
 			data.put("Code", saved.getCode());
 			data.put("name",   saved.getName());
 			data.put("standard", saved.getStandard1());
+			data.put("unit_name", unitName);
 			data.put("GroupId", saved.getMaterialGroupId());
 
 			result.success =true;

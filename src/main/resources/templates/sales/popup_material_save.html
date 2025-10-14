@@ -3,7 +3,7 @@
     <style>
     .CompSave input,
     .CompSave select {
-      width: 250px;
+      width: 350px;
       box-sizing: border-box;
     }
     </style>
@@ -90,16 +90,69 @@
         this.focusAfterClose = focusAfterClose || document.activeElement;
 
         const $content = $(tmpl('popup_MatSaveTemplate', {}));
-        this.modalContainer.open({ width: 900, height: 320, $content });
+        this.modalContainer.open({ width: 1000, height: 320, $content });
 
         const $form = $content.find('#MaterialSaveForm');
         const $matGroup = $content.find('#MaterialGroup_id');
         const $unitSel  = $content.find('#Unit_id');
         const $factory  = $content.find('#Factory_id');
+        const $midSel   = $content.find('#cboMaterialMid');
 
         AjaxUtil.fillSelectOptions($matGroup, 'material_group', '', false);
         AjaxUtil.fillSelectOptions($unitSel,  'unit','', false);
         AjaxUtil.fillSelectOptions($factory,  'factory','', false);
+        function loadMaterialMids(parentId, { $target = $midSel, selectedId = '' } = {}) {
+          // 초기화 및 로딩 상태
+          $target.prop('disabled', true)
+            .empty()
+            //.append('<option value="">로딩중...</option>');
+
+          if (!parentId) {
+            $target.empty()
+              .append('<option value="">선택</option>')
+              .prop('disabled', false);
+            return;
+          }
+
+          $.ajax({
+            url: '/api/definition/material/children',
+            type: 'GET',
+            data: { parentId },
+          })
+            .done((res) => {
+              $target.empty().append('<option value="">선택</option>');
+              if (res && res.success && Array.isArray(res.data)) {
+                res.data.forEach(item => {
+                  // item: { id, value } 가정
+                  const opt = $('<option/>', { value: item.id, text: item.value });
+                  $target.append(opt);
+                });
+                if (selectedId) $target.val(String(selectedId));
+              }
+            })
+            .fail((err) => {
+              console.error('중분류 로딩 오류', err);
+              Notify.error('중분류 데이터를 불러오지 못했습니다.');
+              $target.empty().append('<option value="">선택</option>');
+            })
+            .always(() => {
+              $target.prop('disabled', false);
+            });
+        }
+
+        // 품목그룹 변경 시 중분류 갱신
+        $matGroup.on('change', function () {
+          const groupId = $(this).val();
+          loadMaterialMids(groupId);
+        });
+
+        // (선택) 최초 진입 시, 기본 그룹 선택값이 있으면 중분류 선로딩
+        const initialGroupId = $matGroup.val();
+        if (initialGroupId) {
+          loadMaterialMids(initialGroupId /* , { selectedId: '초기선택값' } */);
+        } else {
+          $midSel.empty().append('<option value="">선택</option>');
+        }
 
         // 닫기
         const doClose = () => this.close();

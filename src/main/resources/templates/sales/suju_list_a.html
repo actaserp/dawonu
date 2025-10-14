@@ -1287,6 +1287,7 @@
               setByPrefix('Material_id_',    saved.id);
               setByPrefix('txtProductName_', saved.name);
               setByPrefix('standard_',       saved.standard);
+              setByPrefix('unit_',       saved.unit_name);
 
               // 읽기전용 토글
               const $std = $row.find('input[type="text"][name^="standard_"]:visible').first();
@@ -1370,49 +1371,6 @@
             $Standard.val('');
             $unit_name.val('');
             $Standard.prop('readonly', false);
-          }
-        });
-
-
-        // 프로젝트 팝업 열기
-        $content.on('keydown', 'input[name^="project_"]', function (e) {
-          if (e.key !== 'Enter' && e.keyCode !== 13) return;
-
-          e.preventDefault();
-
-          const $field = $(this);
-          const $row = $field.closest('tr');
-
-          const keyword = $field.val().trim();
-          const pop = new PopProjectComponent();
-
-          const callback = function (item) {
-            $row.find('input[name^="projectHidden_"]').val(item.projno || '');
-            $row.find('input[name^="project_"]').val(item.projnm || '');
-          };
-
-          if (!keyword) {
-            pop.focusAfterClose = $field[0];
-            pop.show(callback);
-            return;
-          }
-
-          const data = {
-            srchName: keyword,
-            spjangcd: sessionStorage.getItem('spjangcd')
-          };
-
-          const result = AjaxUtil.getSyncData('/api/popup/search_project', data);
-          const rows = result?.data || [];
-
-          if (rows.length === 1) {
-            callback(rows[0]);
-          } else {
-            pop.show(callback);
-            setTimeout(() => {
-              pop.$srchName.val(keyword);
-              pop.$btnSearch.trigger('click');
-            }, 50);
           }
         });
 
@@ -1532,7 +1490,7 @@
         const html = tmpl('StandardTemplate', Data);
         const $popup = $(html);
         const modal = new PopupDraggable('규격/수량 입력');
-        modal.open({ width: 600, height: 350, $content: $popup });
+        modal.open({ width: 600, height: 400, $content: $popup });
 
         $popup.find('input[name="ProductName"]').val(Data.productName || '');
 
@@ -1631,6 +1589,49 @@
           else $('<input>', {type:'hidden', name, value}).appendTo($cell);
         }
 
+        function attachStdNav($root, addRow) {
+          const selector = '.item-Standard-table tr.std-row input[name="standard"], .item-Standard-table tr.std-row input[name="qty"]';
+
+          // 같은 $root에 중복 바인딩 방지
+          $root.off('keydown.stdNav').on('keydown.stdNav', selector, function(e) {
+            const key = e.key;
+            if (!['Enter','ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(key)) return;
+
+            e.preventDefault();
+
+            const $input = $(this);
+            const isQty  = ($input.attr('name') || '').includes('qty');
+
+            const moveFocus = (rowIdx, colName) => {
+              // 행이 모자라면 필요한 만큼 생성
+              while (rowIdx >= $root.find('.item-Standard-table tr.std-row').length) {
+                addRow();
+              }
+              const $rows = $root.find('.item-Standard-table tr.std-row');
+              const $row  = $rows.eq(rowIdx);
+              const $cell = $row.find(`input[name="${colName}"]`);
+              if ($cell.length) $cell.focus().select();
+            };
+
+            const $rows = $root.find('.item-Standard-table tr.std-row');
+            const $row  = $input.closest('tr.std-row');
+            const rowIdx = $rows.index($row);
+            const colThis = isQty ? 'qty' : 'standard';
+
+            const el = /** @type {HTMLInputElement} */ (e.target);
+            const atStart = el.selectionStart === 0;
+            const atEnd   = el.selectionEnd === el.value.length;
+
+            if (key === 'Enter') {
+              return !isQty ? moveFocus(rowIdx, 'qty') : moveFocus(rowIdx + 1, 'standard');
+            }
+            if (key === 'ArrowDown') return moveFocus(rowIdx + 1, colThis);
+            if (key === 'ArrowUp')   return moveFocus(Math.max(0, rowIdx - 1), colThis);
+            if (key === 'ArrowRight' && atEnd)  return moveFocus(rowIdx, 'qty');
+            if (key === 'ArrowLeft'  && atStart) return moveFocus(rowIdx, 'standard');
+          });
+        }
+        attachStdNav($popup, addRow);
         // 저장: 합계 바인딩 + 상세 JSON 부모행에 보관
         $popup.off('click.btnStdSave')
           .on('click.btnStdSave', '#btn_standard_save', function () {

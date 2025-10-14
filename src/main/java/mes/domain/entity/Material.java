@@ -203,6 +203,9 @@ public class Material extends AbstractAuditModel {
 	@Column(name = "\"WorkCenter_id\"")
 	Integer workCenterId;
 
+	@Column(name="mat_user_code")
+	Integer matUserCode;
+
 
 	//Entity 생성 후 활성화
 	//MaterialGroup materialGroup;

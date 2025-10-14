@@ -53,14 +53,16 @@ public class PopupController {
 	            , u."Name" as unit_name
 	            , m."Mtyn" as mtyn
 	            , m."WorkCenter_id"
-				, m."Equipment_id"
-				, m."VatExemptionYN"
-				, m."Standard1" as "Spec"
+							, m."Equipment_id"
+							, m."VatExemptionYN"
+							, m."Standard1" as "Spec"
+							, uc."Value"    as mat_user_name
 	            from material m
 	            left join unit u on m."Unit_id" = u.id
 	            left join mat_grp mg on m."MaterialGroup_id" = mg.id
 	            left join sys_code sc on mg."MaterialType" = sc."Code" 
 	            and sc."CodeType" ='mat_type'
+	            left join user_code uc  on uc.id = m."mat_user_code"
 	            where 1=1 
 	            AND "Useyn" ='0' 
 	            and m."spjangcd" = :spjangcd
