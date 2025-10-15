@@ -777,7 +777,16 @@
 
             // 검색
             $('#btnSearch').click(function (e) {
+                e.preventDefault();
                 page.searchMain();
+            });
+
+            //엔터검색
+            $('#searchForm input').on('keydown', function(e){
+               if(e.key === 'Enter'){
+                   e.preventDefault();
+                   page.searchMain();
+               }
             });
 
             $('#cboSource').change(function (e) {
