@@ -350,7 +350,15 @@
 
             // 검색
             $('#btnSearch').click(function (e) {
+                e.preventDefault();
                 page.searchMainData();
+            });
+
+            $('#searchForm').on('keydown', function(e){
+               if(e.key === 'Enter'){
+                   e.preventDefault();
+                   page.searchMainData();
+               }
             });
 
             $('#cboCompany').change(function () {

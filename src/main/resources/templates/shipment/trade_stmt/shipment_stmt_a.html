@@ -364,8 +364,10 @@
                 });
             }
 
-            searchMain() {
+            searchMain(callback) {
                 this.loading = true;
+
+                let _this = this;
 
                 let data = FormUtil.extractForm($('#searchForm'));
                 let url = this.baseUrl + "/order_list";
@@ -377,6 +379,13 @@
 
                 setTimeout(() => {
                     this.loading = false;
+
+                    _this.grid2.itemsSource = [];
+
+                    if(typeof callback === 'function'){
+                        callback();
+                    }
+
                 }, 0);
 
             }
@@ -388,22 +397,46 @@
                     return;
                 }
 
+                //현재 선택된 행
+                const selectedRow = this.grid1.selection.row >= 0
+                    ? this.grid1.rows[this.grid1.selection.row].dataItem :
+                    null;
+                const selectedId = selectedRow ? selectedRow.id : null;
+
                 let data = {};
-
                 data['head_id'] = page.head_id;
-
-                let list_data = this.grid2.collectionView.items;
-                data['Q'] = JSON.stringify(list_data);
+                data['Q'] = JSON.stringify(this.grid2.collectionView.items);
 
                 let fnSuccess = function (res) {
-                    if (res.success == true) {
+                    if (res.success) {
 
-                        Notify.success('단가 저장했습니다.');
-                        page.searchMain();
-                        _this.grid2.itemsSource = [];
+                        Alert.alert('', '단가를 저장하였습니다.')
+
+                        page.searchMain(function () {
+                            if (selectedId) {
+                                const view = _this.grid1.collectionView;
+                                const index = view.items.findIndex(item => item.id === selectedId);
+
+                                if (index >= 0) {
+                                    _this.grid1.select(index, 0);
+                                    const selectedRowData = view.items[index];
+
+                                    // 선택 행에 맞게 디테일 재조회
+                                    _this.head_id = selectedRowData.id;
+                                    _this.ship_state = selectedRowData.state;
+                                    _this.issue_yn = selectedRowData.issue_yn;
+                                    _this.searchDetail(null, selectedRowData.company_id);
+
+                                    // 선택된 행이 보이도록 스크롤
+                                    _this.grid1.scrollIntoView(index, 0);
+                                }
+                            }
+                        });
+
+                        // page.searchMain();
+                        // _this.grid2.itemsSource = [];
                     } else {
                         Alert.alert('', res.message);
-                        return;
                     }
                 }
 

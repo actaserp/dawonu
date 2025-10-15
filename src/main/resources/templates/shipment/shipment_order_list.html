@@ -397,7 +397,15 @@
 
             // 검색
             $('#btnSearch').click(function (e) {
+                e.preventDefault();
                 page.searchMain();
+            });
+
+            $('#searchForm').on('keydown', function(e){
+               if(e.key === 'Enter'){
+                   e.preventDefault();
+                   page.searchMain();
+               }
             });
 
             $('#btnSaveShipDate').click(function (e) {

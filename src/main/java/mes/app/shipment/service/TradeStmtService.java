@@ -97,27 +97,35 @@ public class TradeStmtService {
 				, m."Name" as mat_name
 	            , '' as mat_spec
 				, u."Name" as unit_name
-				, s."OrderQty" as order_qty 
+				, s."OrderQty" as order_qty
 				, s."Qty" as ship_qty
 				, s."Description" as description 
-				,case
-				when s."SourceTableName" = 'product' then mcu."UnitPrice"
-				else su."UnitPrice"
-				end as unit_price
-				,TRUNC((
-				                       CASE
-				                         WHEN s."SourceTableName" = 'product' THEN mcu."UnitPrice" * s."Qty"
-				                         WHEN su."InVatYN" = 'Y' THEN (su."UnitPrice" * (10.0 / 11)) * s."Qty"
-				                         ELSE su."UnitPrice" * s."Qty"
-				                       END
-				                     )::numeric, 2) AS price	
-				,TRUNC((
-				                                 CASE
-				                                   WHEN s."SourceTableName" = 'product' THEN (mcu."UnitPrice" * s."Qty") * 0.1
-				                                   WHEN su."InVatYN" = 'Y' THEN (su."UnitPrice" - (su."UnitPrice" * (10.0 / 11))) * s."Qty"
-				                                   ELSE (su."UnitPrice" * s."Qty") * 0.1
-				                                 END
-				                               )::numeric, 2) AS vat
+				--,case
+				--when s."SourceTableName" = 'product' then mcu."UnitPrice"
+				--else su."UnitPrice"
+				--end as unit_price
+				
+				--단가
+				,s."UnitPrice" as unit_price
+				--공급가
+				,s."Price" as price
+				-- 부가세
+				,s."Vat" as vat
+				
+				--,TRUNC((
+				--                       CASE
+				--                         WHEN s."SourceTableName" = 'product' THEN mcu."UnitPrice" * s."Qty"
+				--                         WHEN su."InVatYN" = 'Y' THEN (su."UnitPrice" * (10.0 / 11)) * s."Qty"
+				--                         ELSE su."UnitPrice" * s."Qty"
+				--                       END
+				--                     )::numeric, 2) AS price	
+				--,TRUNC((
+				--                                 CASE
+				--                                   WHEN s."SourceTableName" = 'product' THEN (mcu."UnitPrice" * s."Qty") * 0.1
+				--                                   WHEN su."InVatYN" = 'Y' THEN (su."UnitPrice" - (su."UnitPrice" * (10.0 / 11))) * s."Qty"
+				--                                   ELSE (su."UnitPrice" * s."Qty") * 0.1
+				--                                 END
+				--                               )::numeric, 2) AS vat
 	            , m."VatExemptionYN" as vat_exempt_yn
 				from shipment  s
 				inner join material m on m.id = s."Material_id" 

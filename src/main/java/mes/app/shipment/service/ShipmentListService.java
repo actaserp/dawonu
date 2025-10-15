@@ -41,10 +41,10 @@ public class ShipmentListService {
                 , fn_code_name('shipment_state', sh."State") as state_name
                 , to_char(coalesce(sh."OrderDate",sh."_created") ,'yyyy-mm-dd') as order_date
                 , sh."StatementIssuedYN" as issue_yn
-                , sh."StatementNumber" as stmt_number 
+                , sh."StatementNumber" as stmt_number
                 , sh."IssueDate" as issue_date
-                from shipment_head sh 
-                join company c on c.id = sh."Company_id"   
+                from shipment_head sh
+                join company c on c.id = sh."Company_id"
                 where sh."ShipDate"  between cast(:dateFrom as date) and cast(:dateTo as date)
 				""";
 		
@@ -62,7 +62,7 @@ public class ShipmentListService {
 			if (StringUtils.isEmpty(matGrpPk)==false)  sql += " and mg.id  = cast(:matGrpPk as Integer) ";
 			if (StringUtils.isEmpty(keyword)==false)  sql += " and ( m.\"Name\" ilike concat('%%',:keyword,'%%') or m.\"Code\" ilike concat('%%',:keyword,'%%')) ";
 
-
+			sql += " )";
 		}
 		sql += """ 
 		 		order by sh."ShipDate" desc
