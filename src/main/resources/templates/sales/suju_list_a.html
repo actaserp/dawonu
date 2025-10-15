@@ -760,19 +760,29 @@
           const v = (unit || '').trim();
           return v === 'M(미터)' || v === 'M' || v.includes('미터');
         }
+        function isLocked($row) {
+          const raw = (($row.find('input[name^="standard_locked_"], input[name="standard_locked"]').val() || '') + '')
+            .trim()
+            .toUpperCase();
+          return raw === 'Y' || raw === 'TRUE' || raw === '1' || raw === 'ON';
+        }
 
         function refreshStdBtn($row) {
           const unit = getUnitVal($row);
-          const show = isMeter(unit);
-          // 필요하면 디버그
-          // console.log('unit=', unit, ' -> show=', show);
-          $row.find(STD_BTN_SEL).css('display', show ? 'inline-flex' : 'none');
+          const showByUnit = isMeter(unit);
+          const locked = isLocked($row);
+          console.log('unit=', unit, ' -> showByUnit=', showByUnit, ' locked=', locked);
+          $row.find(STD_BTN_SEL).css('display', showByUnit && !locked ? 'inline-flex' : 'none');
         }
 
         // 초기 렌더된 '버튼 있는' 행만 반영
-        $root.find(STD_BTN_SEL).each(function () {
-          refreshStdBtn($(this).closest('tr'));
-        });
+        $root.on(
+          'input change',
+          'input[name="unit"], input[name^="unit_"], input[name^="standard_locked_"], input[name="standard_locked"]',
+          function () {
+            refreshStdBtn($(this).closest('tr'));
+          }
+        );
 
         // unit 값 변경(사용자/프로그램 모두) 시 해당 행만 갱신
         $root.on('input change', 'input[name="unit"], input[name^="unit_"]', function () {
@@ -790,28 +800,65 @@
           target.showStandardForm(Data);
         });
 
+        // $root.off('click.btnStandard').on('click.btnStandard', '#btnStandard', (e) => {
+        //   e.preventDefault();
+        //
+        //   // 1) 클릭한 버튼이 속한 행 컨텍스트
+        //   const $row = $(e.currentTarget).closest('tr');
+        //
+        //   // 2) 품목명 후보 탐색 (이름 규칙이 다를 수 있어 여러 패턴 시도)
+        //   const productName =
+        //     ($row.find('input[name^="txtProductName_"]:visible').val() || '').trim();
+        //   const suju_id = ($row.find('input[name^="suju_id"]:visible').val() || '').trim();
+        //   const standard_id = ($row.find('input[name^="standard_id_"]:visible').val() || '').trim();
+        //
+        //   // 3) 팝업에 전달
+        //   const Data = {
+        //     id: standard_id,
+        //     suju_id:suju_id,
+        //     mode: 'standard',
+        //     productName: productName, // 팝업 상단에 표시할 값
+        //     _row: $row                 // 저장 시 되돌아갈 타겟 행 (DOM 참조)
+        //   };
+        //
+        //   // 컨텍스트 안전 호출
+        //   const target = (_this && typeof _this.showStandardForm === 'function') ? _this : window;
+        //   if (typeof target.showStandardForm !== 'function') {
+        //     console.error('showStandardForm not found');
+        //     return;
+        //   }
+        //   target.showStandardForm(Data);
+        // });
         $root.off('click.btnStandard').on('click.btnStandard', '#btnStandard', (e) => {
           e.preventDefault();
 
-          // 1) 클릭한 버튼이 속한 행 컨텍스트
           const $row = $(e.currentTarget).closest('tr');
-
-          // 2) 품목명 후보 탐색 (이름 규칙이 다를 수 있어 여러 패턴 시도)
-          const productName =
-            ($row.find('input[name^="txtProductName_"]:visible').val() || '').trim();
+          const productName = ($row.find('input[name^="txtProductName_"]:visible').val() || '').trim();
           const suju_id = ($row.find('input[name^="suju_id"]:visible').val() || '').trim();
           const standard_id = ($row.find('input[name^="standard_id_"]:visible').val() || '').trim();
 
-          // 3) 팝업에 전달
+          const getRowIndex = ($r) => {
+            const $any = $r.find('input[name]').first();
+            const m = ($any.attr('name') || '').match(/_(\d+)$/);
+            return m ? parseInt(m[1], 10) : null;
+          };
+          const idx = getRowIndex($row);
+          const jsonName = (idx != null) ? `standard_detail_json_${idx}` : 'standard_detail_json';
+          let localDetails = null;
+          try {
+            const raw = $row.find(`input[type="hidden"][name="${jsonName}"]`).val();
+            if (raw) localDetails = JSON.parse(raw);
+          } catch (e) {}
+
           const Data = {
             id: standard_id,
-            suju_id:suju_id,
+            suju_id: suju_id,
             mode: 'standard',
-            productName: productName, // 팝업 상단에 표시할 값
-            _row: $row                 // 저장 시 되돌아갈 타겟 행 (DOM 참조)
+            productName,
+            _row: $row,
+            details: Array.isArray(localDetails) ? localDetails : null
           };
 
-          // 컨텍스트 안전 호출
           const target = (_this && typeof _this.showStandardForm === 'function') ? _this : window;
           if (typeof target.showStandardForm !== 'function') {
             console.error('showStandardForm not found');
@@ -819,6 +866,7 @@
           }
           target.showStandardForm(Data);
         });
+
 
         $content.find('#btnCompanySearch').click(function () {
           let poppage = new PopCompComponent();
@@ -908,11 +956,9 @@
 
         setTimeout(() => {
           FormUtil.BindDataSujuForm(data, $sujuForm);
-          $content.find('tr:visible').each(function () {
-            calculateAmounts($(this), 'unit');
-          });
-
-
+          // $content.find('tr:visible').each(function () {
+          //   calculateAmounts($(this), 'unit');
+          // });
 
           if (data.mode === 'new') {
             // 신규는 기본 해제 + 값도 N으로 맞춰서 extractForm 시 누락 방지
@@ -927,9 +973,11 @@
             const $checkbox = $content.find(`input[name="VatIncluded_${nextElementIndex}"]`);
             $checkbox.prop('checked', false).val('N').trigger('change');
           }
-
-
-
+          // 최초 계산 수행
+          $content.find('.item-table tbody tr:visible').not('.item-template-row').each(function () {
+            calculateAmounts($(this), 'unit');
+          });
+          $root.find('input[name="unit"], input[name^="unit_"]').trigger('input');
         }, 100);
 
         if (data.StateName && data.StateName !== '수주') {
@@ -1321,6 +1369,7 @@
           const $productId = $row.find('input[name^="Material_id_"]');
           const $productCode = $row.find('input[name^="product_code_"]');
           const $Standard = $row.find('input[name^="standard_"]');
+          const $standard_locked = $row.find('input[name^="standard_locked_"]');
           const $unit_name = $row.find('input[name^="unit_"]');
 
           const keyword = $field.val().trim();
@@ -1333,7 +1382,11 @@
             $productCode.val(item.Code || '');
             $unit_name.val(item.unit_name || '').trigger('input');
             $Standard.val(item.Spec || '');
-
+            if (item.Spec && item.Spec.trim() !== '') {
+              $standard_locked.val('Y').trigger('change');
+            } else {
+              $standard_locked.val('').trigger('change');
+            }
 
             tryShowPrice($row);
           };
@@ -1371,6 +1424,7 @@
           const $productId = $row.find('input[name^="Material_id_"]');
           const $productCode = $row.find('input[name^="product_code_"]');
           const $Standard = $row.find('input[name^="standard_"]');
+          const $standard_locked = $row.find('input[name^="standard_locked_"]');
           const $unit_name = $row.find('input[name^="unit_"]');
 
           if ($field.val().trim() === '') {
@@ -1379,6 +1433,7 @@
             $productCode.val('');
             $Standard.val('');
             $unit_name.val('');
+            $standard_locked.val('').trigger('change');
             $Standard.prop('readonly', false);
           }
         });
@@ -1520,7 +1575,7 @@
           // 기존 표준행 제거
           $popup.find('.item-Standard-table tr.std-row').remove();
 
-          const list = (details || []).slice(0, 3); // 최대 3행
+          const list = (details || []); // 최대 3행
           if (list.length === 0) {
             // 신규: 기본 2행
             addRow(); addRow();
@@ -1537,7 +1592,7 @@
           if ($popup.find('.item-Standard-table tr.std-row').length === 1) addRow();
         }
 
-        //suju_id 추출 (Data 또는 부모행 입력에서)
+        // suju_id 추출 (Data 또는 부모행 입력에서)
         const $parentRow = Data._row;
         let sujuId = 0;
         if (Data.suju_id) sujuId = parseInt(Data.suju_id, 10) || 0;
@@ -1545,21 +1600,42 @@
           sujuId = parseInt(($parentRow.find('input[name^="suju_id_"]').val() || '0'), 10) || 0;
         }
 
-        //상세 불러오기 (suju_id 있으면 서버 호출, 없으면 기본 2행)
-        if (sujuId > 0) {
-          $.getJSON('/api/sales/suju/detail_list', { sujuId })
-            .done(res => {
-              // 기대 응답: { success:true, data:[ {Standard:"...", Qty:1.2}, ... ] } 또는 rows 필드
-              const rows = (res && (res.data || res.rows)) || [];
-              setRows(rows);
-            })
-            .fail(err => {
-              console.error('detail_list load error', err);
-              setRows([]); // 실패 시 기본 2행
-            });
+// 1) 호출자가 전달한 로컬 초안(details) 우선
+        if (Array.isArray(Data.details) && Data.details.length > 0) {
+          setRows(Data.details);
         } else {
-          setRows([]); // 신규
+          // 2) 부모행 히든 JSON 시도
+          const idx = getRowIndex($parentRow); // 아래에 선언된 함수(호이스팅으로 사용 가능)
+          const jsonName = (idx != null) ? `standard_detail_json_${idx}` : 'standard_detail_json';
+
+          let localParsed = null;
+          try {
+            const raw = $parentRow.find(`input[type="hidden"][name="${jsonName}"]`).val();
+            if (raw) {
+              const arr = JSON.parse(raw);
+              if (Array.isArray(arr) && arr.length > 0) localParsed = arr;
+            }
+          } catch(e) { /* ignore */ }
+
+          if (localParsed) {
+            setRows(localParsed);
+          } else if (sujuId > 0) {
+            // 3) 서버 조회
+            $.getJSON('/api/sales/suju/detail_list', { sujuId })
+              .done(res => {
+                const rows = (res && (res.data || res.rows)) || [];
+                setRows(rows);
+              })
+              .fail(err => {
+                console.error('detail_list load error', err);
+                setRows([]); // 실패 시 기본 2행
+              });
+          } else {
+            // 4) 신규 기본
+            setRows([]);
+          }
         }
+
 
         //버튼
         $popup.on('click', '#addRemark', function(e){
@@ -1656,17 +1732,28 @@
               const q = ($(this).find('input[name="qty"]').val() || '').trim();
               if (s !== '' || q !== '') rows.push({ standard: s, qty: q });
             });
+            
+            // 부동소수 오차 방지: 정수 스케일링
+            const SCALE = 1000; // 필요한 소수자릿수(예: 3자리)만큼 설정
+            const toInt = v => Math.round(toNum(v) * SCALE);
 
-            let sumStd = 0, sumQty = 0;
-            rows.forEach(r => { sumStd += toNum(r.standard); sumQty += toNum(r.qty); });
+            let sumStdInt = 0, sumQtyInt = 0;
+            rows.forEach(r => {
+              sumStdInt += toInt(r.standard);
+              sumQtyInt += toInt(r.qty);
+            });
+
+            const sumStd = sumStdInt / SCALE;
+            const sumQty = sumQtyInt / SCALE;
+
 
             const $stdTarget = $parentRow.find('input[type="text"][name^="standard_"]:visible').first()
               .add($parentRow.find('input[name="standard"]').first()).first();
             const $qtyTarget = $parentRow.find('input[type="text"][name^="quantity_"]:visible').first()
               .add($parentRow.find('input[name="quantity"]').first()).first();
 
-            if ($stdTarget.length) $stdTarget.val(sumStd).trigger('input').trigger('change');
-            if ($qtyTarget.length) $qtyTarget.val(sumQty).trigger('input').trigger('change');
+            if ($stdTarget.length) $stdTarget.val(sumStd.toFixed(1)).trigger('input').trigger('change');
+            if ($qtyTarget.length) $qtyTarget.val(sumQty.toFixed(1)).trigger('input').trigger('change');
 
             const idx = getRowIndex($parentRow);
             const jsonName = (idx != null) ? `standard_detail_json_${idx}` : 'standard_detail_json';

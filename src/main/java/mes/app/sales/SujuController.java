@@ -381,7 +381,7 @@ public class SujuController {
 					objectMapper.readValue(detailJson, new com.fasterxml.jackson.core.type.TypeReference<List<Map<String,Object>>>() {});
 
 			// 수정 케이스 대비: 기존 상세 먼저 삭제
-			suJuDetailRepository.deleteBySujuId(sujuId); // ← Repository에 deleteBySujuId 추가되어 있어야 함
+			suJuDetailRepository.deleteBySujuId(sujuId);
 
 			for (Map<String, Object> d : details) {
 				String std = str(d.get("standard"));
@@ -1012,6 +1012,12 @@ public class SujuController {
 			material.setStandard1(Standard);
 			material.setSpjangcd(spjangcd);
 			material.setUseyn("0");
+			material.setWorkCenterId(45);	// 컷팅워크센터를 기본으로
+			if (Standard != null && !Standard.trim().isEmpty()) {
+				material.setRoutingId(11);
+			} else {
+				material.setRoutingId(10);
+			}
 			material.setMatUserCode(cboMaterialMid);
 			material.set_audit(user);
 
