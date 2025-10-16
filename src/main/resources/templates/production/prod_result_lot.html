@@ -2071,7 +2071,7 @@
                     }
                     // (선택) PLAN 모드라면 산출품/지시수량 체크
                     if (!data.prod_mat_id || !data.need_pro_mat_qty) {
-                        Alert.alert('', 'PLAN 모드에서는 공정 산출품과 지시수량이 필요합니다.');
+                        Alert.alert('', '해당 공정의 등록된 BOM이 없습니다.');
                         return;
                     }
                 } else {
@@ -3394,11 +3394,12 @@
                             stop_date: CommonUtil.getYYYYMMDD(),
                             stopTime: CommonUtil.getHourMin(),
                             WorkOrderNumber: item.order_num,
-                            jr_pk: item.id,
+                            jr_pk: $('#tabBasic').find('#id').val(),
                             Description: '',
-                            Equipment_id: item.equipment_id,
+                            Equipment_id: $('#tabBasic').find('#equipment_id').val(),
                             StopCause_id: null
                         };
+                        console.log('sendData', sendData);
 
                         let previousIndex = _this.selectedIndex;
                         AjaxUtil.postAsyncData(_this.baseUrl + '/stop_save', sendData, function (result) {

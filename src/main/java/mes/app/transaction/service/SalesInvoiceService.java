@@ -338,7 +338,12 @@ public class SalesInvoiceService {
         String spjangcd = (String) form.get("spjangcd");
         Map<String, Object> invoicer = this.getInvoicerDatail(spjangcd);
         if (invoicer != null) {
-            salesment.setIcercorpnum((String) invoicer.get("saupnum")); // 사업자번호
+            String saupnum = (String) invoicer.get("saupnum");
+            if (saupnum != null) {
+                // 하이픈 제거
+                saupnum = saupnum.replaceAll("-", "");
+                salesment.setIcercorpnum(saupnum);
+            }
             salesment.setIcercorpnm((String) invoicer.get("spjangnm"));
             salesment.setIcerceonm((String) invoicer.get("prenm"));
             salesment.setIceraddr((String) invoicer.get("address"));

@@ -248,7 +248,8 @@ public class ProductionResultService {
 				  jr.id                              AS child_id,
 				  jr."Parent_id"                     AS parent_id,
 				  COALESCE(jr."Parent_id", jr.id)    AS base_id,
-				  CASE WHEN jr."State"='working' THEN 1 ELSE 0 END AS is_working
+				  CASE WHEN jr."State"='working' THEN 1 ELSE 0 END AS is_working,
+				  CASE WHEN jr."State"='stopped' THEN 1 ELSE 0 END AS is_stopped
 			  FROM job_res jr
 			  WHERE jr."ProductionDate" BETWEEN CAST(:dateFrom AS date) AND CAST(:dateTo AS date)
 				AND jr.spjangcd = :spjangcd
@@ -266,6 +267,7 @@ public class ProductionResultService {
 					  ) AS rn,
 				  -- 체인에 working 있는지 (있으면 1)
 				  MAX(T.is_working) OVER (PARTITION BY T.base_id) AS any_working
+				  , MAX(T.is_stopped) OVER (PARTITION BY T.base_id) AS any_stopped
 			  FROM T
 			),
 			F AS (
@@ -283,9 +285,18 @@ public class ProductionResultService {
 			   , B."WorkIndex"                                AS work_idx
 			
 			   -- 파생 상태: working 있으면 working, 아니면 부모 상태
-			   , CASE WHEN S.any_working = 1 THEN 'working' ELSE B."State" END            AS state
-			   , fn_code_name('job_state', CASE WHEN S.any_working = 1 THEN 'working' ELSE B."State" END)
-																						  AS job_state
+			   , CASE
+					 WHEN S.any_working = 1 THEN 'working'
+					 WHEN S.any_stopped = 1 THEN 'stopped'
+					 ELSE B."State"
+				 END AS state
+				 , fn_code_name('job_state',
+					 CASE
+						 WHEN S.any_working = 1 THEN 'working'
+						 WHEN S.any_stopped = 1 THEN 'stopped'
+						 ELSE B."State"
+					 END
+				 ) AS job_state
 			
 			   , C."WorkerCount"                              AS worker_count
 			   , M.id                                         AS mat_pk
