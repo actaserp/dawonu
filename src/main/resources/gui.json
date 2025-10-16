@@ -40,7 +40,7 @@
   "wm_shipment_do_b": { "name": "출고지시등록(LOT)", "templates": { "default": "shipment/shipment_do_b.html" } },
   "wm_shipment_list": { "name": "출고내역", "templates": { "default": "shipment/shipment_list.html" } },
   "wm_shipment_stmt_a": { "name": "거래명세서발행", "templates": { "default": "shipment/trade_stmt/shipment_stmt_a.html" } },
-  "wm_sales_analysis": { "name": "매출분석", "templates": { "default": "shipment/trade_stmt/sales_analysis.html" } },
+  "wm_sales_analysis": { "name": "매출분석", "templates": { "default": "summary/sales_analysis.html" } },
 
   "wm_balju_order": {"name": "발주등록", "templates": { "default": "balju_rp/balju_order" }},
   "wm_balju_order_aggregate": {"name": "발주량집계", "templates": { "default": "balju_rp/balju_order_aggregate" }},
