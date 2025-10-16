@@ -210,8 +210,8 @@ public class ShipmentDoBController {
 				matlotcons.set_audit(user);
 
 				this.matLotConsRepository.save(matlotcons);
-				this.shipmentDoBService.updateShipmentQantityByLotConsume(sh_id, shipment_id, sourceData);
-
+				//this.shipmentDoBService.updateShipmentQantityByLotConsume(sh_id, shipment_id, sourceData);
+				this.shipmentDoBService.updateShipmentAndHeadByLotConsume(sh_id, shipment_id, sourceData);
 			}
 		});
 
@@ -246,7 +246,8 @@ public class ShipmentDoBController {
 						throw new RuntimeException("출하상세정보가 없습니다.");
 					}
 
-					this.shipmentDoBService.updateShipmentQantityByLotConsume(sh_id, shipment_id, sourceData);
+					//this.shipmentDoBService.updateShipmentQantityByLotConsume(sh_id, shipment_id, sourceData);
+					this.shipmentDoBService.updateShipmentAndHeadByLotConsume(sh_id, shipment_id, sourceData);
 
 
 

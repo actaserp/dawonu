@@ -336,7 +336,7 @@
                 }
 
                 let fnSuccess = (res) => {
-                    if (res.success == true) {
+                    if (res.success) {
                         Alert.alert('', '출하 지시 취소 완료');
 
                         this.searchMain();
@@ -344,7 +344,7 @@
 
 
                     } else {
-                        Alert.alert('', '출하 지시 취소 완료');
+                        Alert.alert('', res.message);
                     }
                 }
 

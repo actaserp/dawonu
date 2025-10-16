@@ -161,6 +161,7 @@ public class ShipmentStmtController {
 						}*/
 
 						Double order_qty = shipment.getOrderQty();
+						Double qty = shipment.getQty();
 
 						Integer material_id = UtilClass.getInt(item.get(i), "material_id");
 						Integer company_id = UtilClass.getInt(item.get(i), "company_id");
@@ -171,7 +172,7 @@ public class ShipmentStmtController {
 						double vat = 0;
 
 						if(invatyn.equals("N")){
-							price = unit_price * order_qty;
+							price = unit_price * qty;
 							vat = price * 0.1;
 
 							price_sum += price;
@@ -179,8 +180,8 @@ public class ShipmentStmtController {
 
 						}else{
 							double netUnit = unit_price / 1.1;               // 부가세 제거한 단가
-							price = netUnit * order_qty;                     // 공급가 합계(순액)
-							vat   = (unit_price * order_qty) - price;        // 총액 - 순액 = 부가세
+							price = netUnit * qty;                     // 공급가 합계(순액)
+							vat   = (unit_price * qty) - price;        // 총액 - 순액 = 부가세
 
 							price_sum += price;
 							vat_sum += vat;

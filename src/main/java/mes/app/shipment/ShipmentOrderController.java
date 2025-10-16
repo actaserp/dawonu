@@ -48,6 +48,8 @@ public class ShipmentOrderController {
 
 	@Autowired
 	MaterialRepository materialRepository;
+	@Autowired
+	private MatLotConsRepository matLotConsRepository;
 
 
 	@GetMapping("/suju_list")
@@ -263,6 +265,7 @@ public class ShipmentOrderController {
 
 						sm.setUnitPrice(unitPrice);
 						sm.setPrice(unitPrice * orderQty);
+						sm.setVat((unitPrice * orderQty) * 0.1);
 						totalPrice += unitPrice * orderQty;
 						totalVat += (unitPrice * orderQty) * 0.1;
 					}else{
@@ -421,6 +424,21 @@ public class ShipmentOrderController {
 		if ("shipped".equals(head.getState())) {
 			result.success = false;
 		} else {
+
+			List<Shipment> ShipmentList = this.shipmentRepository.findByShipmentHeadId(head_id);
+
+			List<Integer> shipment_ids = ShipmentList.stream()
+					.map(Shipment::getId)
+					.toList();
+
+			List<MatLotCons> byShipmentIds = matLotConsRepository.findByShipmentIds(shipment_ids);
+
+			if(!byShipmentIds.isEmpty()){
+				result.success = false;
+				result.message = "할당된 LOT가 있는 출하상세가 존재합니다.";
+				return result;
+			}
+
 			this.transactionTemplate.executeWithoutResult(status->{			
 				try {
 					
