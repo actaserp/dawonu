@@ -163,7 +163,8 @@ public class ShipmentApiController {
         if(!smh.getState().equals(ShipmentStatus.SHIPPED.getLabel())){
             List<Shipment> smList = shipmentRepository.findByShipmentHeadId(head_id);
 
-            AjaxResult innerResult = shipmentApiService.ShipmenSaveActionByLot(smList, head_id, BarcodeList, auth);
+            String sourceData = smList.get(0).getSourceTableName() == null ? "" : smList.get(0).getSourceTableName();
+            AjaxResult innerResult = shipmentApiService.ShipmenSaveActionByLot(smList, head_id, BarcodeList, sourceData, auth);
 
             if(!innerResult.success) return  innerResult;
         }

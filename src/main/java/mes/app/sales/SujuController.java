@@ -90,6 +90,8 @@ public class SujuController {
 
 	@Autowired
 	private ObjectMapper objectMapper;
+	@Autowired
+	private ShipmentRepository shipmentRepository;
 
 	// 수주 목록 조회 
 	@GetMapping("/read")
@@ -144,6 +146,8 @@ public class SujuController {
 	@Transactional
 	public AjaxResult SujuSave(@RequestBody Map<String, Object> payload, Authentication auth) {
 		User user = (User) auth.getPrincipal();
+
+		AjaxResult result = new AjaxResult();
 		//log.info("수주등록 들어온 데이터: payload:{}", payload);
 		String jumunDateStr = (String) payload.get("JumunDate");
 		String dueDateStr = (String) payload.get("DueDate");
@@ -208,6 +212,21 @@ public class SujuController {
 			if (item.containsKey("suju_id") && item.get("suju_id") != null && !item.get("suju_id").toString().isEmpty()) {
 				Integer sujuId = Integer.parseInt(item.get("suju_id").toString());
 				suju = SujuRepository.findById(sujuId).orElse(new Suju());
+
+				int suju_pk = suju.getId();
+
+				Optional<Shipment> shipment = shipmentRepository.findById(suju_pk);
+
+				//출하계획 or 부분출하는 수정하게 하면 안됨 , 자바스크립트로 막는것도 좋지만
+				//어떤 변수가 있을지 몰라서 서버측에서 방어하면 안전함 서버측은 동기화면에서 강함
+				//주석처럼 result로 던져버리면 트랜잭션 롤백이 안됨. 예외를 발생시켜야 스프링에서 프록시로 가로채서 롤백가능
+				if(shipment.isPresent()){
+					//result.success = false;
+					//result.message = "출하계획 또는 진행중인 수주입니다.";
+					//return result;
+					throw new RuntimeException("출하계획 또는 진행중인 수주입니다.");
+				}
+
 			} else {
 				suju = new Suju(); // 신규일 경우
 				suju.setJumunNumber(head.getJumunNumber());
@@ -285,7 +304,6 @@ public class SujuController {
 		}
 
 
-		AjaxResult result = new AjaxResult();
 		result.success = true;
 		return result;
 	}

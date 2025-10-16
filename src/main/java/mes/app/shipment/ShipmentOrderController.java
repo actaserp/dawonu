@@ -89,7 +89,8 @@ public class ShipmentOrderController {
 		
 		return result;
 	}
-	
+
+	//모달반영도 여기바라봄.
 	@PostMapping("/save_shipment_order")
 	@Transactional
 	public AjaxResult saveShipmentOrder(
@@ -300,10 +301,9 @@ public class ShipmentOrderController {
 						totalVat += VatSum;
 					}
 					if (item.getPrice() != null) {
-						double price = item.getPrice().doubleValue();
 
-						double UnitPrice = price / qty;
-						double PriceSum = UnitPrice * orderQty;
+						double UnitPrice = item.getUnitPrice();
+						double PriceSum = item.getPrice();
 
 						sm.setUnitPrice(UnitPrice);
 						sm.setPrice(PriceSum);

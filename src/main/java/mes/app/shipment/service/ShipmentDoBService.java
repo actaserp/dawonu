@@ -7,6 +7,7 @@ import java.util.Map;
 import mes.domain.repository.MatLotConsRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
 
 import io.micrometer.core.instrument.util.StringUtils;
@@ -21,9 +22,10 @@ public class ShipmentDoBService {
 	SqlRunner sqlRunner;
 	@Autowired
 	private MatLotConsRepository matLotConsRepository;
-
+	@Autowired
+	NamedParameterJdbcTemplate namedParameterJdbcTemplate;
 	// 출하지시헤더 조회
-	public List<Map<String, Object>> getShipmentHeaderList(String date_from, String date_to, String state, Integer comp_pk, Integer mat_grp_pk, Integer mat_pk) {
+	public List<Map<String, Object>> getShipmentHeaderList(String date_from, String date_to, String state, Integer comp_pk, Integer mat_grp_pk, Integer mat_pk, String keyword) {
 		
 		MapSqlParameterSource paramMap = new MapSqlParameterSource();        
 		paramMap.addValue("date_from", Date.valueOf(date_from));
@@ -32,6 +34,7 @@ public class ShipmentDoBService {
 		paramMap.addValue("comp_pk", CommonUtil.tryIntNull(comp_pk));
 		paramMap.addValue("mat_grp_pk", CommonUtil.tryIntNull(mat_grp_pk));
 		paramMap.addValue("mat_pk", CommonUtil.tryIntNull(mat_pk));
+		paramMap.addValue("keyword", keyword == null ? "" : "%" + keyword + "%");
 
         String sql = """
 			with SH as
@@ -68,10 +71,10 @@ public class ShipmentDoBService {
 			    from SH
 			    inner join shipment s on s."ShipmentHead_id" = SH.id 
         	""";
-        
-        if (mat_grp_pk != null && mat_pk == null) {
-        	sql += " inner join material m on m.id = s.\"Material_id\" ";
-        }
+
+		if(mat_grp_pk != null || mat_pk != null || !keyword.isEmpty()){
+			sql += "inner join material m on m.id = s.\"Material_id\" ";
+		}
 
         sql += " where 1 = 1 ";
         
@@ -80,7 +83,12 @@ public class ShipmentDoBService {
         } else if (mat_grp_pk != null) {
         	sql += " and m.\"MaterialGroup_id\" = :mat_grp_pk ";
         }
-        
+
+		if(!keyword.isEmpty()){
+			sql += " and m.\"Name\" like :keyword";
+		}
+
+
         sql += """
         		group by s."ShipmentHead_id"
 			    )
@@ -92,7 +100,10 @@ public class ShipmentDoBService {
 			    inner join S on S.head_id = SH.id
 	            where 1 = 1
         		""";
-        
+		sql += """
+				order by SH.ship_date, SH.id desc
+				""";
+
         List<Map<String, Object>> items = this.sqlRunner.getRows(sql, paramMap);
         
         return items;
@@ -129,6 +140,7 @@ public class ShipmentDoBService {
 	            left join mat_grp mg on mg.id = m."MaterialGroup_id" 
 	            left join unit u on u.id = m."Unit_id" 
 	        where sh.id = :shipment_header_id	
+		    order by s.id desc
 		        		 """;
 		 
         List<Map<String, Object>> items = this.sqlRunner.getRows(sql, paramMap);
@@ -224,7 +236,7 @@ public class ShipmentDoBService {
 		this.sqlRunner.execute(sql, paramMap);
 	}
 
-	public void updateShipmentQantityByLotConsume (Integer sh_id, Integer shipment_id) {
+	public void updateShipmentQantityByLotConsume (Integer sh_id, Integer shipment_id, String sourceData) {
 
 		MapSqlParameterSource paramMap = new MapSqlParameterSource();
 		paramMap.addValue("sh_id", sh_id);
@@ -244,8 +256,9 @@ public class ShipmentDoBService {
 		if (shipment_id != null) {
 			sql += " and s.id = :shipment_id ";
 		}
-		
-		sql += """
+
+		if(sourceData.equals("rela_data")){
+			sql += """
 				group by s.id),
 				UPC as (
 	            select
@@ -256,7 +269,57 @@ public class ShipmentDoBService {
 	            , m."VatExemptionYN"
 	            from A
 	            inner join shipment s on s.id = A.id
-	            inner join shipment_head sh on sh.id = s."ShipmentHead_id" 
+	            inner join shipment_head sh on sh.id = s."ShipmentHead_id"
+	            inner join material m on m.id = s."Material_id" 
+	            left join mat_comp_uprice mcu on mcu."Material_id"=s."Material_id" and mcu."Company_id"=sh."Company_id" and mcu."ApplyStartDate" <=now() and mcu."ApplyEndDate" > now()
+	            where sh.id = :sh_id 
+	        ), B as(        
+	           select 
+	           s.id
+	           , A.qty
+	           , UPC."UnitPrice" 
+	           , (A.qty * UPC."UnitPrice") as "Price"
+	           , case when UPC."VatExemptionYN"='Y' then 0 else (A.qty * UPC."UnitPrice"*0.1) end  as "Vat" 
+	           , s."Material_id"
+	           , UPC."Company_id"
+	           , suju."InVatYN" as invat
+	           from shipment s 
+	           	
+	           	inner join suju suju
+				on suju.id = s."SourceDataPk"
+				and s."SourceTableName" = 'rela_data'
+				
+	           	 inner join shipment_head sh2 on sh2.id = s."ShipmentHead_id"
+	             inner join A on A.id = s.id             
+	             inner join UPC on UPC.id = s.id
+	             )
+	        update shipment set 
+	         "Qty" = B.qty 
+	         , "UnitPrice" = B."UnitPrice"
+	         , "Price" = CASE
+	         		WHEN B.invat = 'Y' THEN ROUND((B."Price" / 1.1)::numeric, 2)
+	         		ELSE B."Price"
+	         		END
+	         , "Vat" = CASE
+			    WHEN B.invat = 'Y' THEN ROUND(((B."Price" / 1.1) * 0.1)::numeric, 2)
+			    ELSE B."Vat"
+			END
+	        from B
+	        where shipment.id = B.id
+	        """;
+		}else if(sourceData.equals("product")){
+			sql += """
+					group by s.id),
+				UPC as (
+	            select
+	            s.id
+	            , s."Material_id"
+	            , sh."Company_id"
+	            , mcu."UnitPrice"
+	            , m."VatExemptionYN"
+	            from A
+	            inner join shipment s on s.id = A.id
+	            inner join shipment_head sh on sh.id = s."ShipmentHead_id"
 	            inner join material m on m.id = s."Material_id" 
 	            left join mat_comp_uprice mcu on mcu."Material_id"=s."Material_id" and mcu."Company_id"=sh."Company_id" and mcu."ApplyStartDate" <=now() and mcu."ApplyEndDate" > now()
 	            where sh.id = :sh_id 
@@ -270,50 +333,58 @@ public class ShipmentDoBService {
 	           , s."Material_id"
 	           , UPC."Company_id"
 	           from shipment s 
-	             inner join shipment_head sh2 on sh2.id = s."ShipmentHead_id"
+	           
+	           	 inner join shipment_head sh2 on sh2.id = s."ShipmentHead_id"
 	             inner join A on A.id = s.id             
 	             inner join UPC on UPC.id = s.id
-	        )
+	             )
 	        update shipment set 
 	         "Qty" = B.qty 
 	         , "UnitPrice" = B."UnitPrice"
-	         , "Price" =  B."Price"
+	         , "Price" = B."Price"
 	         , "Vat" = B."Vat"
-	        from B
+			from B
 	        where shipment.id = B.id
-				""";
+					""";
+
+		}else{
+			throw new RuntimeException("SourceDataTable의 값이 올바르지 않습니다.");
+		}
 		
         this.sqlRunner.execute(sql, paramMap);    
 	}
 	
 	// 수주헤더 기준으로 출하항목(shipment) 금액합산 정리
-	public void updateShipmentStateComplete (Integer sh_id, String description) {
-		
-		updateShipmentQantityByLotConsume(sh_id, null);
+	public void updateShipmentStateComplete (Integer sh_id, String description, String sourceData) {
+
+		updateShipmentQantityByLotConsume(sh_id, null, sourceData);
 
 		MapSqlParameterSource paramMap = new MapSqlParameterSource();
 		paramMap.addValue("sh_id", sh_id);
 		paramMap.addValue("description", description);
-	    
+
 		String sql = """
 				with A as(
-				select 
+				select
 		        sh.id as sh_id
 		        , count(s.id) as s_count
 		        , sum(s."Price") as "TotalPrice"
 		        , sum(s."Vat") as "TotalVat"
-		        from shipment s 
+		        , sum(s."Qty") as "TotalQty"
+		        from shipment s
 		        inner join shipment_head sh on sh.id=s."ShipmentHead_id"
 		        where sh.id=:sh_id
-		        group by sh.id 
+		        group by sh.id
 		        )
-		        update 
-		        shipment_head 
-		        set "TotalVat" = A."TotalVat"
+		        update
+		        shipment_head
+		        set
+		        "TotalQty" = A."TotalQty"
+		        ,"TotalVat" = A."TotalVat"
 		        , "TotalPrice" = A."TotalPrice"
 		        , "State" = 'shipped'
 		        ,"Description" = :description
-		        from A 
+		        from A
 		        where id=A.sh_id
 				""";
 		

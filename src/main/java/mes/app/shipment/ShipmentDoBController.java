@@ -64,6 +64,7 @@ public class ShipmentDoBController {
 			@RequestParam(value = "cboCompany", required = false) Integer comp_pk,
 			@RequestParam(value = "cboMatGroup", required = false) Integer mat_grp_pk,
 			@RequestParam(value = "cboMaterial", required = false) Integer mat_pk,
+			@RequestParam(value = "keyword", required = false) String keyword,
 			@RequestParam(value = "chkNotShipped", required = false) String not_ship, HttpServletRequest request) {
 
 		String state = "";
@@ -74,7 +75,7 @@ public class ShipmentDoBController {
 		}
 
 		List<Map<String, Object>> items = this.shipmentDoBService.getShipmentHeaderList(date_from, date_to, state,
-				comp_pk, mat_grp_pk, mat_pk);
+				comp_pk, mat_grp_pk, mat_pk, keyword);
 
 		AjaxResult result = new AjaxResult();
 		result.data = items;
@@ -141,18 +142,20 @@ public class ShipmentDoBController {
 		Optional<Shipment> shipment = shipmentRepository.findById(shipment_id);
 
 		if(shipment.isPresent()){
-			Shipment shipment1 = shipment.get();
-			if(shipment1.getQty() >= shipment1.getOrderQty()){
-				result.success = false;
-				result.message = "이미 지시량만큼 로트가 지정되었습니다.";
-				return result;
-			}
+//			Shipment shipment1 = shipment.get();
+//			if(shipment1.getQty() >= shipment1.getOrderQty()){
+//				result.success = false;
+//				result.message = "이미 지시량만큼 로트가 지정되었습니다.";
+//				return result;
+//			}
 
 		}else{
 			result.success = false;
 			result.message = "출하상세정보가 없습니다.";
 			return result;
 		}
+
+		String sourceData = shipment.get().getSourceTableName();
 
 		List<Map<String, Object>> items = CommonUtil.loadJsonListMap(Q.getFirst("Q").toString());
 		Timestamp now = DateUtil.getNowTimeStamp();
@@ -207,7 +210,8 @@ public class ShipmentDoBController {
 				matlotcons.set_audit(user);
 
 				this.matLotConsRepository.save(matlotcons);
-				this.shipmentDoBService.updateShipmentQantityByLotConsume(sh_id, shipment_id);
+				this.shipmentDoBService.updateShipmentQantityByLotConsume(sh_id, shipment_id, sourceData);
+
 			}
 		});
 
@@ -234,7 +238,18 @@ public class ShipmentDoBController {
 						Integer mlc_id = mlc_ids.get(i);
 						this.shipmentDoBService.deleteMatLotCons(mlc_id);
 					}
-					this.shipmentDoBService.updateShipmentQantityByLotConsume(sh_id, shipment_id);
+					Optional<Shipment> shipment = this.shipmentRepository.findById(shipment_id);
+					String sourceData = "";
+					if(shipment.isPresent()){
+						sourceData = shipment.get().getSourceTableName();
+					}else{
+						throw new RuntimeException("출하상세정보가 없습니다.");
+					}
+
+					this.shipmentDoBService.updateShipmentQantityByLotConsume(sh_id, shipment_id, sourceData);
+
+
+
 				} catch (Exception e) {
 					// 로그 출력
 					e.printStackTrace();  // 콘솔 출력
@@ -309,7 +324,7 @@ public class ShipmentDoBController {
 						Double orderQty = sm.getOrderQty();
 						sm.set_status("a");
 						sm.set_audit(user);
-						sm.setQty(orderQty);
+						//sm.setQty(orderQty);
 
 						this.shipmentRepository.save(sm);
 
@@ -317,10 +332,13 @@ public class ShipmentDoBController {
 					}
 				}
 			}
+			String sourceData = smList.get(0).getSourceTableName() == null ? "" : smList.get(0).getSourceTableName();
+
 			// 수주헤더 기준으로 출하항목(shipment) 금액합산 정리
-			this.shipmentDoBService.updateShipmentStateComplete(sh_id, description);
-            // 관련 수주를 찾아서 수주의 출하 상태를 변경한다.
+			this.shipmentDoBService.updateShipmentStateComplete(sh_id, description, sourceData);
+			// 관련 수주를 찾아서 수주의 출하 상태를 변경한다.
 			this.shipmentDoBService.updateSujuShipmentState(sh_id);
+
 		});
 
 		return result;

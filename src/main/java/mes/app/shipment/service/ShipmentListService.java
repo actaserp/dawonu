@@ -65,10 +65,10 @@ public class ShipmentListService {
 			sql += " )";
 		}
 		sql += """ 
-		 		order by sh."ShipDate" desc
+		 		order by sh."ShipDate", sh.id desc
 		 		""";
-        List<Map<String,Object>> items = this.sqlRunner.getRows(sql, paramMap);
-		
+		List<Map<String,Object>> items = this.sqlRunner.getRows(sql, paramMap);
+
 		return items;
 	}
 	//단가는 기본적으로 수주면 수주때 지정단가 가져오고 (수주지정단가는 shipment에 저장되어있음. 수주가 수정되었다면 다를수있긴함.)

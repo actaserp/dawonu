@@ -320,6 +320,31 @@ var Alert = {
             }
         });
     },
+    //확인 버튼 안 눌러도 자동으로 닫히게 하는 함수
+    alertAuto: function (_title, _msg, _okCallback) {
+        if (_title) dialog.config.title = i18n.getCommonText(_title);
+        let message = i18n.getCommonText(_msg);
+        setTimeout(() => {
+            document.querySelector('[data-dialog-btn="ok"]')?.focus();
+        }, 50);
+        dialog.alert(Utils.decodingHTMLTag(message), function () {
+            if (_okCallback !== undefined) {
+                _okCallback();
+            }
+        });
+
+        setTimeout(() => {
+            const okBtn = document.querySelector('[data-dialog-btn="ok"]');
+            if (okBtn) {
+                okBtn.click(); // OK 버튼 클릭 트리거
+            } else {
+                // 혹시 버튼이 없으면 강제로 다이얼로그 닫기
+                if (dialog && typeof dialog.close === 'function') {
+                    dialog.close();
+                }
+            }
+        }, 1000); // 2초 후 자동 닫힘
+    },
     confirm: function (_title, _msg, _yesCallback, _noCallback) {
         if (_title) dialog.config.title = i18n.getCommonText(_title);
 

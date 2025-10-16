@@ -237,6 +237,7 @@
         let modalContainer;
         let SelectItem = [];
         let enterFlag = false;
+        let main_enterFlag = false;
 
         class ShipmentProcessPage {
             constructor() {
@@ -319,37 +320,33 @@
                 });
                 let isInitialLoad = true; // 초기 상태 플래그
 
-                this.shipmentHeaderGrid.selectionChanged.addHandler((s, e) => {
-                    if (isInitialLoad) {
-                        isInitialLoad = false; // 초기 로드 이후 플래그 해제
-                        this.shipmentHeaderGrid.select(-1, -1); // 선택 상태 해제
-                        return;
-                    }
+                this.shipmentHeaderGrid.hostElement.addEventListener('click', (e) => {
+                    const ht = this.shipmentHeaderGrid.hitTest(e);
 
-                    let selectedRowIndex = s.selection.row; // 선택된 행의 인덱스
-                    if (selectedRowIndex >= 0) { // 유효한 행이 선택되었는지 확인
-                        let selectedRowData = s.rows[selectedRowIndex].dataItem; // 선택된 행의 데이터
+                    // ✅ 셀을 더블클릭한 경우만 동작
+                    if (ht.panel === this.shipmentHeaderGrid.cells) {
+                        const selectedRowIndex = ht.row;
+                        const selectedRowData = this.shipmentHeaderGrid.rows[selectedRowIndex].dataItem;
 
+                        if (selectedRowData) {
+                            // 👉 더블클릭 시만 실행
+                            _this.showShipmentList();
 
-                        //TODO: 비지니스 로직
-                        _this.showShipmentList();
-                        _this.showMatLotConsumeList();
+                            if (selectedRowData.state == "shipped") {
+                                _this.$btnShipmentComplete.attr('disabled', 'disabled');
+                                _this.$LotNumber.attr('disabled', 'disabled');
+                                _this.$btnLOTSelect.attr('disabled', 'disabled');
+                                _this.$btnLOTSelectCancel.attr('disabled', 'disabled');
+                            } else {
+                                _this.$btnShipmentComplete.removeAttr('disabled');
+                                _this.$LotNumber.removeAttr('disabled');
+                                _this.$btnLOTSelect.removeAttr('disabled');
+                                _this.$btnLOTSelectCancel.removeAttr('disabled');
+                            }
 
-                        if (selectedRowData.state == "shipped") {
-                            _this.$btnShipmentComplete.attr('disabled', 'disabled');
-                            _this.$LotNumber.attr('disabled', 'disabled');
-                            _this.$btnLOTSelect.attr('disabled', 'disabled');
-                            _this.$btnLOTSelectCancel.attr('disabled', 'disabled');
-                        } else {
-                            _this.$btnShipmentComplete.removeAttr('disabled');
-                            _this.$LotNumber.removeAttr('disabled');
-                            _this.$btnLOTSelect.removeAttr('disabled');
-                            _this.$btnLOTSelectCancel.removeAttr('disabled');
+                            console.log(`더블클릭된 행 인덱스: ${selectedRowIndex}`);
+                            console.log('더블클릭된 행 데이터:', selectedRowData);
                         }
-
-                        console.log(`선택된 행 인덱스: ${selectedRowIndex}`);
-                        console.log('선택된 행 데이터:', selectedRowData);
-
                     }
                 });
                 this.$btnShipmentComplete = $('#btnShipmentComplete');
@@ -415,16 +412,15 @@
 
                 });
                 // 데이터 로드 후 초기 선택 상태 해제
-                this.shipmentListGrid.loadedRows.addHandler(() => {
-                    setTimeout(() => {
-                        this.shipmentListGrid.select(-1, -1); // 선택 상태 초기화
-                    }, 0); // 비동기로 처리하여 초기 선택 해제
-                });
-                let isInitialLoad2 = true; // 초기 상태 플래그
-
                 this.shipmentListGrid.selectionChanged.addHandler((s, e) => {
-                    if (isInitialLoad2) {
-                        isInitialLoad2 = false; // 초기 로드 이후 플래그 해제
+
+                    if (!enterFlag) {
+                        console.log('false');
+                        // 선택된 표시(UI)도 함께 해제
+                        setTimeout(() => {
+                            this.shipmentListGrid.select(-1, -1); // ✅ 시각적 선택 해제
+                        }, 0);
+                        enterFlag = true;
                         return;
                     }
 
@@ -648,7 +644,7 @@
                 if (result != null) {
                     this.shipmentHeaderGrid.itemsSource = result.data;
                 }
-                return;
+                enterFlag = false;
             }
 
             showMatLotConsumeList() {
@@ -674,12 +670,16 @@
                 }
             }
 
-            showShipmentList() {
-                let headerItems = this.shipmentHeaderGrid.selectedItems;
+            showShipmentList(callback) {
+
+                console.log('호출')
+
+                ;                let headerItems = this.shipmentHeaderGrid.selectedItems;
                 if (headerItems.length === 0 || headerItems === null || headerItems === undefined) {
                     Alert.alert('', '항목을 선택해 주세요.');
                     return;
                 }
+
                 let shipment_header = headerItems[0];
                 let data = {
                     header_id: shipment_header.id
@@ -691,8 +691,12 @@
                 let result = AjaxUtil.getSyncData(this.url + '/shipment_list', data);
                 if (result != null) {
                     this.shipmentListGrid.itemsSource = result.data;
+                    setTimeout(() => {
+                        if(typeof callback === 'function'){
+                            callback();
+                        }
+                    })
                 }
-                console.log('ship', shipment_header);
             }
 
             // LOT 추가 버튼 클릭
@@ -840,11 +844,38 @@
                         };
 
                         let url = _this.url + '/save_mat_lot_cons';
+
+                        //현재 선택된 행
+                        const selectedRow = _this.shipmentListGrid.selection.row >= 0
+                            ? _this.shipmentListGrid.rows[_this.shipmentListGrid.selection.row].dataItem :
+                            null;
+                        const selectedId = selectedRow ? selectedRow.shipment_id : null;
+
                         let fnsuccess = function (result) {
                             if (result.success) {
                                 fnLotSearch();
-                                _this.showShipmentList();
-                                _this.showMatLotConsumeList();
+                                _this.showShipmentList(function(){
+
+                                    console.log('select', selectedId);
+                                    if(selectedId){
+                                        const view = _this.shipmentListGrid.collectionView;
+                                        const index = view.items.findIndex(item => item.shipment_id === selectedId);
+
+                                        if (index >= 0) {
+                                            _this.shipmentListGrid.select(index, 0);
+                                            const selectedRowData = view.items[index];
+
+                                            // 선택 행에 맞게 디테일 재조회
+                                            _this.head_id = selectedRowData.id;
+                                            _this.ship_state = selectedRowData.state;
+                                            _this.issue_yn = selectedRowData.issue_yn;
+
+                                            // 선택된 행이 보이도록 스크롤
+                                            _this.shipmentListGrid.scrollIntoView(index, 0);
+                                        }
+                                    }
+                                });
+                                //_this.showMatLotConsumeList();
                             }else{
                                 Alert.alert('', result.message);
 
@@ -961,6 +992,12 @@
             $('#btnSearch').click(function (e) {
                 page.searchDataBind();
             });
+
+            $('#searchForm').on('keydown', function(e){
+                if(e.key === 'Enter'){
+                    page.searchDataBind();
+                }
+            })
 
             page.searchDataBind();
         })

@@ -662,7 +662,7 @@
 
                 let fnSuccess = function (res) {
                     if (res.success) {
-                        Notify.success('출고 지시 완료.');
+                        Alert.alertAuto('', '반영되었습니다.');
 
                         document.getElementById('btn-search-close').click();
                         document.getElementById('btnSearch').click();
@@ -818,9 +818,11 @@
                 let fnSuccess = function (res) {
                     if (res.success) {
                         page.searchMain();
-                        Notify.success("출고 처리 완료.");
+                        Alert.alertAuto('', '출고 처리 완료');
+                        //Notify.success("출고 처리 완료.");
                     } else {
-                        Notify.success("출고 처리 실패.");
+                        Alert.alert('', res.message);
+                        //Notify.success("출고 처리 실패.");
                     }
                 }
 

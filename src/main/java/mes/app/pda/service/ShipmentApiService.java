@@ -330,7 +330,7 @@ public class ShipmentApiService {
 
 	//출하동작 , 코드는 길지만 읽어보면 별거없음. 그냥 출하 + lot 소모 합쳐놓은거
 	@Transactional
-	public AjaxResult ShipmenSaveActionByLot(List<Shipment> shipmentList, Integer sh_id, List<Map<String, Object>>  BarcodeList,Authentication auth){
+	public AjaxResult ShipmenSaveActionByLot(List<Shipment> shipmentList, Integer sh_id, List<Map<String, Object>>  BarcodeList, String sourceData, Authentication auth){
 
 		/** init variables **/
 		AjaxResult result = new AjaxResult();
@@ -386,8 +386,8 @@ public class ShipmentApiService {
 				}
 			}
 		}
-
-		shipmentDoBService.updateShipmentStateComplete(sh_id, "");
+		//TODO: 확인필요
+		//shipmentDoBService.updateShipmentStateComplete(sh_id, "");
 
 		shipmentDoBService.updateSujuShipmentState(sh_id);
 		//endregion
@@ -425,7 +425,8 @@ public class ShipmentApiService {
 			matlotcons.set_audit(user);
 
 			matLotConsRepository.save(matlotcons);
-			shipmentDoBService.updateShipmentQantityByLotConsume(sh_id, shipmentId);
+
+			shipmentDoBService.updateShipmentQantityByLotConsume(sh_id, shipmentId, sourceData);
 		}
 		//endregion
 
