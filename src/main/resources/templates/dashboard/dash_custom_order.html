@@ -200,13 +200,15 @@
                             e.cell.style.fontWeight = '';
 
                             if (col && col.binding === 'division' && item) {
-                                if (item.division === '수주') {          // 수주 → 파란색
-                                    e.cell.style.color = '#1d4ed8';
-                                    e.cell.style.fontWeight = '600';
-                                } else if (item.division === '발주') {  // 발주 → 빨간색
-                                    e.cell.style.color = '#dc2626';
-                                    e.cell.style.fontWeight = '600';
-                                }
+                                const isSuju = item.division === '수주';
+
+                                // 색상은 기존 로직 그대로
+                                e.cell.style.color = isSuju ? '#1d4ed8' : '#dc2626';
+                                e.cell.style.fontWeight = '600';
+
+                                // 👇 표시만 바꾼다: 수주는 '수주', 그 외(발주/매입)는 '매입'
+                                e.cell.textContent = isSuju ? '수주' : '매입';
+                                return; // 끝
                             }
                         }
                     },

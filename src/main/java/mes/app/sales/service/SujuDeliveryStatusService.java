@@ -19,43 +19,51 @@ public class SujuDeliveryStatusService {
   SqlRunner sqlRunner;
 
 
-  public List<Map<String, Object>> getList(LocalDate start, LocalDate  end, String company) {
-    MapSqlParameterSource param = new MapSqlParameterSource();
-    param.addValue("start", start);
-    param.addValue("end", end);
-    param.addValue("company", company);
+  public List<Map<String, Object>> getList(LocalDate start, LocalDate end, String company) {
+    MapSqlParameterSource param = new MapSqlParameterSource()
+        .addValue("start", start)
+        .addValue("end", end)
+        .addValue("company", company);
 
     String sql = """
-       select
-         h.id,
-         s.vechidno ,
-         c."Name" as com_name,
-         h."JumunDate",
-         m."CustomerBarcode",
-         s.devdate  ,
-         h."DeliveryDate",
-         h.contractnm ,
-         d."SujuQty",
-         s."Qty" as ship_oty,
-         m."Name" as mat_name ,
-         GREATEST((d."SujuQty" - s."Qty" ), 0) AS "SujuQty3"
-         from shipment s
-         left join  suju_head h on h.id = s.suju_head_id
-         left join suju d on h.id= d."SujuHead_id"
-         left join company c on c.id= h."Company_id"
-         left join material m on m.id = d."Material_id"
-         where 1=1
-         AND h."DeliveryDate" BETWEEN :start AND :end
-        """;
-    if (StringUtils.isEmpty(company)==false)
-      sql+="and upper(c.\"Name\") like concat('%%',upper(:company),'%%')";
-
-    sql+= """
-        order by h."DeliveryDate"
+        WITH suju_qty AS (
+          SELECT d."SujuHead_id" AS head_id, d."Material_id" AS mat_id, SUM(d."SujuQty") AS suju_qty
+          FROM suju d
+          GROUP BY d."SujuHead_id", d."Material_id"
+        ),
+        ship_qty AS (
+          SELECT d."SujuHead_id" AS head_id, d."Material_id" AS mat_id,
+                 COALESCE(SUM(s."Qty"), 0) AS shipped_qty, MAX(s."_created") AS last_ship_ts
+          FROM suju d
+          LEFT JOIN shipment s ON s."SourceDataPk" = d.id
+          GROUP BY d."SujuHead_id", d."Material_id"
+        )
+        SELECT
+          h.id,
+          '' AS vechidno,
+          c."Name" AS com_name,
+          h."JumunDate",
+          m."CustomerBarcode",
+          to_char(sp.last_ship_ts, 'yyyy-mm-dd') AS devdate,
+          h."DeliveryDate",
+          h."Description" AS contractnm,
+          sq.suju_qty AS "SujuQty",
+          COALESCE(sp.shipped_qty, 0) AS "ship_oty",
+          GREATEST(sq.suju_qty - COALESCE(sp.shipped_qty, 0), 0) AS "SujuQty3",
+          m."Name" AS mat_name
+        FROM suju_head h
+        JOIN suju_qty sq ON sq.head_id = h.id
+        LEFT JOIN ship_qty sp ON sp.head_id = sq.head_id AND sp.mat_id = sq.mat_id
+        LEFT JOIN company c ON c.id = h."Company_id"
+        LEFT JOIN material m ON m.id = sq.mat_id
+        WHERE h."DeliveryDate" BETWEEN :start AND :end
+          AND (:company IS NULL OR :company = '' OR UPPER(c."Name") LIKE CONCAT('%%', UPPER(:company), '%%'))
+        ORDER BY h."DeliveryDate"
         """;
 
 //    log.info("수주별납품현황 SQL: {}", sql);
 //    log.info("수주별납품현황 데이터: {}", param.getValues());
     return this.sqlRunner.getRows(sql, param);
   }
+
 }

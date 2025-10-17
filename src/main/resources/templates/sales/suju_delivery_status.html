@@ -33,7 +33,7 @@
           </dl>
           <dl id="searchComArea">
             <dt>
-              <label>상호(차주)</label>
+              <label>업체</label>
             </dt>
             <dd>
               <input type="text" class="form-control2"
@@ -91,17 +91,14 @@
           },
           columns: [
             { binding: 'id', header: 'id', visible: false, allowSorting: false},
-            // { binding: 'CustomerBarcode', header: '제원관리번호', width: 150, align: 'left'},
             { binding: 'DeliveryDate', header: '출고예정일', width: 120, align: 'center' },
             { binding: 'JumunDate', header: '수주일', width: 120, align: 'center' },
-            { binding: 'com_name', header: '상호(차주)', width: 150 , allowMerging: false },
-            { binding: 'contractnm', header: '차주', width: 180, allowSorting: false },
-            { binding: 'mat_name', header: '차명', width: 180, allowSorting: false },
-            { binding: 'SujuQty', header: '수주량(대수)', width: 100, align: 'right', format: 'n0' },
+            { binding: 'com_name', header: '업체', width: 150 , allowMerging: false },
+            { binding: 'mat_name', header: '품목', width: 180, allowSorting: false },
+            { binding: 'SujuQty', header: '수주량', width: 100, align: 'right', format: 'n0' },
             { binding: 'ship_oty', header: '출고 수량', width: 100, align: 'right', format: 'n0' },
             { binding: 'SujuQty3', header: '미출고 수량', width: 120, align: 'right', format: 'n0' },
             { binding: 'devdate', header: '출고일', width: 120, align: 'center' },
-            { binding: 'vechidno', header: '차대번호', width: 210, minWidth: 150, align: 'center', format: 'n0' },
           ],
           itemsSource: this.viewData,
         });
