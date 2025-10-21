@@ -1469,7 +1469,6 @@ let AjaxUtil = {
         });
 
         if (selected_value) {
-            console.log('selected_value', selected_value);
             $combo.val(selected_value).change();
         }
 
