@@ -366,23 +366,23 @@ public class MaterialService {
 							 SELECT CASE
 								 WHEN sc."Code" = 'product' THEN 10
 								 ELSE NULL
-							 END
-							 FROM sys_code sc
-							 WHERE sc."Code" = (
-								 SELECT mg."Code"
-								 FROM material_group mg
-								 WHERE mg.id = :matGroupId
-							 )
-							 LIMIT 1
+							   END
+							   FROM sys_code sc
+							   WHERE sc."Code" = (
+								 SELECT mg."MaterialType"
+								 FROM mat_grp mg
+								 WHERE mg.id = 101
+							   )
+							   LIMIT 1
 						 )
 						, :unitPrice
 						, :mtyn
 						, :useyn
 						, :avrqty
 						, :spjangcd
-						, :pressure
-						, :temperature
-						,:matUserCode
+						 , :temperature
+						 , :pressure
+						 , :matUserCode
 						)
 					""";
 		}else {

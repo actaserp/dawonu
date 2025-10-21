@@ -2220,6 +2220,14 @@
                         $(this).removeAttr('disabled');
                     }
                 });
+                AjaxUtil.fillSelectOptions($('#WorkCenter_id'), 'workcenter', '', '45'); // 워크센터
+                setTimeout(() => {
+                    $('#WorkCenter_id').val(45).trigger('change');
+                }, 0);
+                AjaxUtil.fillSelectOptions($('#Equipment_id'), 'equipment_code', '', 102, 45);
+                setTimeout(() => {
+                    $('#Equipment_id').val(102).trigger('change');
+                }, 0);
                 $('#matStockForm').find('input, select, textarea').each(function () {
                     if ($(this).is(':disabled')) {
                         $(this).removeAttr('disabled');
