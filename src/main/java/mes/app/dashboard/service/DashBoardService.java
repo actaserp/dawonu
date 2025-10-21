@@ -27,21 +27,38 @@ public class DashBoardService {
 		// 1) 각각 조회
 		List<Map<String, Object>> balju = getBaljuList(start, end, spjangcd, choComp);
 		List<Map<String, Object>> suju  = getSujuList(start, end, spjangcd, choComp);
+		List<Map<String, Object>> invo  = getInvoList(start, end, spjangcd, choComp);
+		List<Map<String, Object>> sales  = getSaleList(start, end, spjangcd, choComp);
 
 		// 2) 구분(division) 부여 + 키 표준화(필요 시)
 		balju.forEach(m -> {
 			m.put("division", "발주");
+			m.put("division_group", "매입");
 			normalizeBaljuRow(m); // 아래 예시 참고
 		});
 		suju.forEach(m -> {
 			m.put("division", "수주");
+			m.put("division_group", "수주");
 			normalizeSujuRow(m);  // 아래 예시 참고
+		});
+		invo.forEach(m -> {
+			 m.put("division", "매입");
+			 m.put("division_group", "매입");
+			 normalizeInvoRow(m);
+		 });
+
+		sales.forEach(m -> {
+			m.put("division", "매출");
+			m.put("division_group", "매출");
+			normalizeSalesRow(m);
 		});
 
 		// 3) 병합 + 정렬(납기일 우선, 없으면 주문일)
-		List<Map<String, Object>> merged = new ArrayList<>(balju.size() + suju.size());
+		List<Map<String, Object>> merged = new ArrayList<>(balju.size() + suju.size() + invo.size()+ sales.size());
 		merged.addAll(balju);
 		merged.addAll(suju);
+		merged.addAll(invo);
+		merged.addAll(sales);
 
 		// due_date, order_date 모두 'YYYY-MM-DD' 문자열
 		Comparator<Map<String, Object>> byJumunDateDesc =
@@ -50,7 +67,7 @@ public class DashBoardService {
 								.map(Object::toString)
 								.orElse(""),
 						Comparator.nullsLast(String::compareTo)
-				).reversed();
+				);
 
 		merged.sort(byJumunDateDesc);
 
@@ -89,6 +106,35 @@ public class DashBoardService {
 		m.remove("ShipmentStateName");
 		m.remove("StateName");
 
+	}
+
+	// 매입 행 표준화
+	private void normalizeInvoRow(Map<String, Object> m) {
+		m.putIfAbsent("head_id", m.remove("misnum"));
+		m.putIfAbsent("company_id", m.remove("cltcd"));
+		m.putIfAbsent("company_name", m.remove("cltnm"));
+		//m.putIfAbsent("type_name", m.remove("SujuTypeName"));
+		m.putIfAbsent("product_name", m.remove("title"));
+		m.putIfAbsent("price", m.remove("supplycost"));
+		m.putIfAbsent("vat", m.remove("taxtotal"));
+		m.putIfAbsent("total_price", m.remove("totalamt"));
+		m.putIfAbsent("JumunDate", m.remove("misdate"));
+		m.putIfAbsent("BusinessNumber", m.remove("BusinessNumber"));
+		m.putIfAbsent("state_name", m.remove("misgubun_name"));
+	}
+	//매출 행 표준화
+	private void normalizeSalesRow(Map<String, Object> m) {
+		m.putIfAbsent("head_id", m.remove("misnum"));
+		m.putIfAbsent("company_id", m.remove("cltcd"));
+		m.putIfAbsent("company_name", m.remove("ivercorpnm"));
+//		m.putIfAbsent("type_name", m.remove("taxtype"));
+		m.putIfAbsent("state_name", m.remove("taxtype"));
+		m.putIfAbsent("product_name", m.remove("item_summary"));
+		m.putIfAbsent("price", m.remove("supplycost"));
+		m.putIfAbsent("vat", m.remove("taxtotal"));
+		m.putIfAbsent("total_price", m.remove("totalamt"));
+		m.putIfAbsent("JumunDate", m.remove("misdate"));
+		m.putIfAbsent("BusinessNumber", m.remove("ivercorpnum"));
 	}
 
 	public List<Map<String, Object>> getBaljuList(Timestamp start, Timestamp end, String spjangcd, String choComp) {
@@ -374,9 +420,157 @@ public class DashBoardService {
 						 sc_state."Value",
 						 sc_type."Value",
 						 sc_ship."Value"
-					order by sh."JumunDate" desc,  sh.id desc
+					order by sh."JumunDate" desc,  sh.id 
 				""";
 
+		List<Map<String, Object>> itmes = this.sqlRunner.getRows(sql, dicParam);
+
+		return itmes;
+	}
+
+	//매입 리스트
+	public List<Map<String, Object>> getInvoList(Timestamp start, Timestamp end, String spjangcd, String choComp){
+
+		MapSqlParameterSource dicParam = new MapSqlParameterSource();
+		dicParam.addValue("start", start);
+		dicParam.addValue("end", end);
+		dicParam.addValue("spjangcd", spjangcd);
+		String pattern = (choComp == null || choComp.isBlank()) ? "%" : "%" + choComp + "%";
+		dicParam.addValue("choComp", pattern);
+		String sql = """
+				WITH detail_summary AS (
+				    SELECT
+				        misnum,
+				        MIN(itemnm) AS first_itemnm,
+				        COUNT(*) AS item_count
+				    FROM tb_invoicedetail
+				    GROUP BY misnum
+				),
+				clt_unified AS (
+				    SELECT id, '0' AS flag, "Code", "Name" AS name, NULL AS accnum, NULL AS accname, NULL AS cardnum, NULL AS cardnm FROM company
+				UNION ALL
+				SELECT id, '1' AS flag, "Code", "Name", NULL, NULL, NULL, NULL FROM person
+				UNION ALL
+				SELECT accid AS id, '2', NULL, NULL, accnum, accname, NULL, NULL FROM tb_account
+				UNION ALL
+				SELECT id, '3', NULL, NULL, NULL, null, cardnum, cardnm FROM tb_iz010
+				),
+				payclt_unified AS (
+				    SELECT id, '0' AS flag, "Code", "Name" AS name, NULL AS accnum, NULL AS accname, NULL AS cardnum, NULL AS cardnm FROM company
+				UNION ALL
+				SELECT id, '1', "Code", "Name", NULL, NULL, NULL, NULL FROM person
+				UNION ALL
+				SELECT accid AS id, '2', NULL, NULL, accnum, accname, NULL, NULL FROM tb_account
+				UNION ALL
+				SELECT id, '3', NULL, NULL, NULL, null, cardnum, cardnm FROM tb_iz010
+				)               
+				SELECT
+				    TO_CHAR(TO_DATE(m.misdate, 'YYYYMMDD'), 'YYYY-MM-DD') AS misdate,
+				m.misnum,
+				m.misgubun,
+				purchase_type_code."Value" AS misgubun_name,
+				m.paycltcd,
+				m.cltcd,
+				c."BusinessNumber"  ,
+				COALESCE(cu.name, cu.accnum, cu.cardnum) AS cltnm,
+				COALESCE(cu.accname, cu.cardnm, cu."Code") AS cltnmsub,
+				COALESCE(pcu.name, pcu.accnum, pcu.cardnum) AS paycltnm,
+				COALESCE(pcu.accname, pcu.cardnm, pcu."Code") AS paycltnmsub,
+				m.totalamt,
+				m.supplycost,
+				m.taxtotal,
+				m.title,
+				m.deductioncd,
+				de.name AS dedunm,
+				m.depart_id,
+				dp."Name" AS dpName,
+				m.card_id,
+				iz.cardnum AS incardnum,
+				CASE
+				    WHEN ds.item_count > 1 THEN ds.first_itemnm || ' 외 ' || (ds.item_count - 1) || '개'
+				        WHEN ds.item_count = 1 THEN ds.first_itemnm
+				        ELSE NULL
+				    END AS item_summary             
+				FROM tb_invoicement m
+				left join company c on c.id = m.cltcd
+				LEFT JOIN detail_summary ds ON m.misnum = ds.misnum
+				LEFT JOIN clt_unified cu ON m.cltcd = cu.id AND m.cltflag = cu.flag
+				LEFT JOIN payclt_unified pcu ON m.paycltcd = pcu.id AND m.paycltflag = pcu.flag
+				LEFT JOIN vat_deduction_type de ON m.deductioncd = de.code
+				LEFT JOIN depart dp ON m.depart_id = dp.id
+				LEFT JOIN tb_iz010 iz ON m.card_id = iz.id
+				LEFT JOIN sys_code purchase_type_code ON purchase_type_code."CodeType" = 'purchase_type'
+				AND purchase_type_code."Code" = m.misgubun
+				WHERE 1=1
+				and m.spjangcd = :spjangcd
+				and to_date(m.misdate, 'YYYYMMDD') between :start and :end;
+				""";
+		List<Map<String, Object>> itmes = this.sqlRunner.getRows(sql, dicParam);
+
+		return itmes;
+	}
+
+	public List<Map<String, Object>> getSaleList(Timestamp start, Timestamp end, String spjangcd, String choComp){
+
+		MapSqlParameterSource dicParam = new MapSqlParameterSource();
+		dicParam.addValue("start", start);
+		dicParam.addValue("end", end);
+		dicParam.addValue("spjangcd", spjangcd);
+		String pattern = (choComp == null || choComp.isBlank()) ? "%" : "%" + choComp + "%";
+		dicParam.addValue("choComp", pattern);
+		String sql = """
+				WITH detail_summary AS (
+					SELECT DISTINCT ON (misnum)
+						misnum,
+						itemnm AS first_itemnm,
+						COUNT(*) OVER (PARTITION BY misnum) AS item_count
+					FROM tb_salesdetail
+					ORDER BY misnum, misseq
+				 ) 
+					 SELECT
+						TO_CHAR(TO_DATE(m.misdate, 'YYYYMMDD'), 'YYYY-MM-DD') AS misdate,
+						m.misnum,
+						m.misgubun,
+						sale_type_code."Value" AS misgubun_name,  -- fn_code_name 제거
+						m.cltcd,
+						m.ivercorpnum,
+						m.ivercorpnm,
+						m.totalamt,
+						m.supplycost,
+						m.taxtotal,
+						m.statecode,
+						state_code."Value" AS statecode_name,
+						TO_CHAR(TO_TIMESTAMP(m.statedt, 'YYYYMMDDHH24MISS'), 'YYYY-MM-DD HH24:MI:SS') AS statedt_formatted,
+						m.iverceonm,
+						m.iveremail,
+						m.iveraddr,
+						m.taxtype,
+						issue_div."Value" AS issuediv_name,
+						m.issuediv,
+						m.modifycd,
+						CASE
+						 WHEN ds.item_count > 1 THEN ds.first_itemnm || ' 외 ' || (ds.item_count - 1) || '개'
+						 WHEN ds.item_count = 1 THEN ds.first_itemnm
+						 ELSE NULL
+						END AS item_summary                 
+					 FROM tb_salesment m                 
+					 LEFT JOIN tb_salesdetail d
+						ON m.misnum = d.misnum                 
+					 LEFT JOIN detail_summary ds
+						ON m.misnum = ds.misnum                 
+					 LEFT JOIN sys_code sale_type_code
+						ON sale_type_code."CodeType" = 'sale_type'
+						AND sale_type_code."Code" = m.misgubun                  
+					 LEFT JOIN sys_code issue_div
+						ON issue_div."CodeType" = 'issue_div'
+						AND issue_div."Code" = m.issuediv                 
+					 LEFT JOIN sys_code state_code
+						ON state_code."CodeType" = 'state_code_pb'
+						AND state_code."Code" = m.statecode::text                 
+					 WHERE 1 = 1
+					 and m.spjangcd = :spjangcd
+					 and to_date(m.misdate, 'YYYYMMDD') between :start and :end;					
+				""";
 		List<Map<String, Object>> itmes = this.sqlRunner.getRows(sql, dicParam);
 
 		return itmes;
@@ -389,6 +583,123 @@ public class DashBoardService {
 		paramMap.addValue("id", id);
 
 		String detailSql = """ 
+				WITH shipment_status AS (
+				  SELECT "SourceDataPk", SUM("Qty") AS shipped_qty
+				  FROM shipment
+				  WHERE "SourceTableName" = 'rela_data'
+				  GROUP BY "SourceDataPk"
+				),
+				suju_with_state AS (
+				  SELECT
+				    s.id,
+				    s."SujuHead_id" AS head_id,
+				    s."Material_id",
+				    m."Code" AS "product_code",
+				    s."JumunDate",
+				    m."Name" AS "product_name",
+				    u."Name" AS "unit",
+				    s."SujuQty"     AS "quantity",          -- 헤더 원수량
+				    s."UnitPrice"   AS "unit_price",
+				    s."Vat"         AS "vat_amount",        -- 헤더 금액(원본)
+				    s."Price"       AS "supply_amount",
+				    s."TotalAmount" AS "total_amount",
+				    s."Description" AS "description",
+				    s."State"       AS "original_state",
+				    COALESCE(sh.shipped_qty, -1) AS "shipped_qty",
+				    s."Standard"    AS standard,            -- 헤더 규격(원본)
+				    CASE
+				      WHEN sh.shipped_qty = -1 THEN s."State"
+				      WHEN sh.shipped_qty = 0  THEN 'force_completion'
+				      WHEN sh.shipped_qty >= s."SujuQty" THEN 'shipped'
+				      WHEN sh.shipped_qty <  s."SujuQty" THEN 'partial'
+				      ELSE s."State"
+				    END AS final_state
+				  FROM suju s
+				  JOIN material m       ON m.id = s."Material_id"
+				  JOIN mat_grp  mg      ON mg.id = m."MaterialGroup_id"
+				  LEFT JOIN unit u      ON m."Unit_id" = u.id
+				  LEFT JOIN TB_DA003 p  ON p."projno" = s.project_id
+				  LEFT JOIN shipment_status sh ON sh."SourceDataPk" = s.id
+				  WHERE s."SujuHead_id" = :id
+				),
+				-- ▼ 부모 라벨용: 첫 규격 + ' 외 N개'
+				first_std AS (
+				  SELECT
+				    s.id,
+				    (SELECT sd."Standard"
+				       FROM suju_detail sd
+				      WHERE sd."suju_id" = s.id
+				        AND COALESCE(sd."Standard",'') <> ''
+				      ORDER BY sd.id
+				      LIMIT 1) AS first_standard,
+				    (SELECT GREATEST(COUNT(*) - 1, 0)
+				       FROM suju_detail sd
+				      WHERE sd."suju_id" = s.id
+				        AND COALESCE(sd."Standard",'') <> '') AS rest_count
+				  FROM suju_with_state s
+				),
+				base AS (
+				  SELECT
+				    s.*,
+				    -- 상세/폴백 조인
+				    x.detail_id,
+				    x.line_standard,
+				    x.line_qty,
+				    x.is_fallback,
+				    -- id별 첫 행 판별
+				    ROW_NUMBER() OVER (
+				      PARTITION BY s.id
+				      ORDER BY x.detail_id NULLS LAST, x.is_fallback DESC
+				    ) AS rn
+				  FROM suju_with_state s
+				  LEFT JOIN LATERAL (
+				    SELECT sd."id" AS detail_id, sd."Standard" AS line_standard, sd."Qty" AS line_qty, FALSE AS is_fallback
+				      FROM suju_detail sd WHERE sd."suju_id" = s.id
+				    UNION ALL
+				    SELECT NULL::int, s.standard, s."quantity", TRUE
+				      WHERE NOT EXISTS (SELECT 1 FROM suju_detail sd2 WHERE sd2."suju_id" = s.id)
+				  ) x ON TRUE
+				)
+				SELECT
+					b.id, b.head_id, b."Material_id", b."product_code", b."JumunDate",
+					b."product_name", b."unit",
+					b.line_standard AS standard,
+					b.line_qty      AS quantity,
+					-- ★ 자식 금액은 전부 NULL (재계산 트리거 방지)
+					NULL::numeric   AS unit_price,
+					NULL::numeric   AS supply_amount,
+					NULL::numeric   AS vat_amount,
+					NULL::numeric   AS total_amount,
+					-- ★ 헤더 금액은 별도 컬럼으로 항상 실어보냄
+					b."unit_price"     AS header_unit_price,
+					b."supply_amount"  AS header_supply_amount,
+					b."vat_amount"     AS header_vat_amount,
+					b."total_amount"   AS header_total_amount,
+					b."quantity"       AS header_quantity,
+					-- ▼ 라벨: DB 값 그대로
+					b.standard AS header_standard_label,				
+					b.final_state AS "state",
+					COALESCE(sc_ship."Value", sc_suju."Value") AS "state_name",
+					CASE WHEN b.rn = 1 THEN b."description" END AS "description",
+					b.detail_id, b.is_fallback
+				FROM base b
+				-- LEFT JOIN first_std fs ON fs.id = b.id  -- 삭제
+				LEFT JOIN sys_code sc_ship
+					ON sc_ship."Code" = b.final_state AND sc_ship."CodeType" = 'shipment_state'
+				LEFT JOIN sys_code sc_suju
+					ON sc_suju."Code" = b.final_state AND sc_suju."CodeType" = 'suju_state'
+				ORDER BY b.id, b.detail_id NULLS LAST;
+		""";
+
+        return this.sqlRunner.getRows(detailSql, paramMap);
+	}
+
+	/*public List<Map<String, Object>> getSujuDetail(int id) {
+
+		MapSqlParameterSource paramMap = new MapSqlParameterSource();
+		paramMap.addValue("id", id);
+
+		String detailSql = """
 			WITH shipment_status AS (
 				 SELECT "SourceDataPk", SUM("Qty") AS shipped_qty
 				 FROM shipment
@@ -451,12 +762,12 @@ public class DashBoardService {
 			 LEFT JOIN sys_code sc_suju
 				 ON sc_suju."Code" = s.final_state AND sc_suju."CodeType" = 'suju_state'
 			 ORDER BY s.id
-				 
+
 		""";
 
-        return this.sqlRunner.getRows(detailSql, paramMap);
+    return this.sqlRunner.getRows(detailSql, paramMap);
 	}
-
+*/
 	// 발주 디테일
 	public List<Map<String, Object>> getBaljuDetail(int id) {
 		MapSqlParameterSource paramMap = new MapSqlParameterSource();
@@ -606,6 +917,56 @@ public class DashBoardService {
         """;
 
         return sqlRunner.getRows(sql, paramMap);
+	}
+
+	//매입 디테일
+	public List<Map<String, Object>> getInvoDetail(int id) {
+		MapSqlParameterSource paramMap = new MapSqlParameterSource();
+		paramMap.addValue("misnum", id);
+		String sql = """ 
+			select
+				TO_CHAR(TO_DATE(d.misdate, 'YYYYMMDD'), 'YYYY-MM-DD') AS "JumunDate",
+				purchase_type_code."Value" AS state_name,
+				d.itemnm as product_name,
+				d.spec as standard,
+				d.qty as quantity,
+				d.unitcost as unit_price,
+				d.supplycost as supply_amount ,
+				d.taxtotal as vat_amount,
+				(d.supplycost + d.taxtotal) AS total_amount,
+				d.remark as description
+			 from tb_invoicedetail d
+			 left join tb_invoicement m ON m.misnum = d.misnum 
+			 LEFT JOIN sys_code purchase_type_code ON purchase_type_code."CodeType" = 'purchase_type' 
+			 AND purchase_type_code."Code" = m.misgubun
+				WHERE d.misnum = :misnum
+				ORDER BY d.misseq::int asc;
+                 """;
+		return sqlRunner.getRows(sql, paramMap);
+	}
+
+	//매출
+	public List<Map<String, Object>> getSalesDetail(int id) {
+		MapSqlParameterSource paramMap = new MapSqlParameterSource();
+		paramMap.addValue("misnum", id);
+		String sql= """
+				select
+				 TO_CHAR(TO_DATE(d.misdate, 'YYYYMMDD'), 'YYYY-MM-DD') AS "JumunDate",
+				 h.taxtype as state_name,
+				 d.itemnm as product_name,
+				 d.spec as standard,
+				 d.qty as quantity,
+				 d.unitcost ,
+				 d.supplycost as supply_amount ,
+				 d.taxtotal as vat_amount,
+				 (d.supplycost + d.taxtotal) AS total_amount,
+				 d.remark as description
+				from tb_salesdetail d
+				left join tb_salesment h on h.misdate = d.misdate
+				 WHERE d.misnum = :misnum
+				 ORDER BY d.misseq::int asc;
+				""";
+		return sqlRunner.getRows(sql, paramMap);
 	}
 
 	// 수주 이력
@@ -806,6 +1167,27 @@ public class DashBoardService {
 
         return this.sqlRunner.getRows(detailSql, paramMap);
 	}
+
+	//매출 이력
+	public List<Map<String, Object>> getSalesHistory(int id) {
+		MapSqlParameterSource paramMap = new MapSqlParameterSource();
+		paramMap.addValue("id", id);
+		String HistorySql= """
+				
+				""";
+		return this.sqlRunner.getRows(HistorySql, paramMap);
+	}
+
+	//매입 이력
+	public List<Map<String, Object>> getInvoHistory(int id) {
+		MapSqlParameterSource paramMap = new MapSqlParameterSource();
+		paramMap.addValue("id", id);
+		String HistorySql= """
+				
+				""";
+		return this.sqlRunner.getRows(HistorySql, paramMap);
+	}
+
 
 	// 거래처 디테일
 	public Map<String, Object> getCompany(int comp_id) {
@@ -1686,5 +2068,6 @@ public class DashBoardService {
 	        
 	     return items;
 	}
+
 
 }

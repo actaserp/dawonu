@@ -9,6 +9,20 @@
         #work-table td input{
             width: 100%;
         }
+        /* Wijmo 선택/호버가 덮어쓰면 우선순위 올리기 */
+        #result-grid .wj-cell.diff-new              { background-color:#e6f7ff; }
+        #result-grid .wj-cell.diff-modified_both    { background-color:#fff1b8; }
+        #result-grid .wj-cell.diff-modified_bom     { background-color:#ffd666; }
+        #result-grid .wj-cell.diff-modified_part    { background-color:#ffccc7; }
+        #result-grid .wj-cell.diff-deleted          { background-color:#f0f0f0; }
+        #result-grid .wj-cell.diff-unchanged        { background-color:#ffffff; }
+        #result-grid .wj-cell.diff-new_parent       { background-color:#d9f7be; }
+        #result-grid .wj-cell.diff-deleted_parent   { background-color:#f0f0f0; }
+
+        /* 선택/호버 상태에서도 유지 */
+        #result-grid .wj-state-selected.wj-cell[class*="diff-"] { background-color: inherit !important; }
+        #result-grid .wj-state-hover.wj-cell[class*="diff-"]    { background-color: inherit !important; }
+
     </style>
 </head>
 
@@ -175,40 +189,73 @@
             init() {
                 let _this = this;
 
+                // 구분 표기 매핑(백엔드 원본 코드를 모두 포용하도록 느슨하게)
+                const DIVISION_LABEL_MAP = {
+                    // 수주
+                    'suju': '수주',
+                    // 매출
+                    'sales': '매출', 'sale': '매출', 'shipment': '매출', '출고': '매출',
+                    // 매입(=매입·발주)
+                    'purchase': '매입', 'buy': '매입', 'balju': '매입', '발주': '매입',
+                    // 수금
+                    'receipt': '수금', 'receive': '수금', 'deposit': '수금', '입금': '수금',
+                    // 지급
+                    'payment': '지급', 'payout': '지급', 'withdraw': '지급', '출금': '지급',
+                    // 대체거래(수입·지출)
+                    'transfer': '대체거래(수입·지출)', 'adjust': '대체거래(수입·지출)', 'etc': '대체거래(수입·지출)', 'etc_inout': '대체거래(수입·지출)'
+                };
+
+                // 색상(선택) — 기존 톤 유지 + 카테고리별 강조
+                const DIVISION_COLOR_MAP = {
+                    '수주': '#1d4ed8',                // 파랑
+                    '매출': '#10b981',                // 초록
+                    '매입': '#dc2626',                // 빨강
+                    '수금': '#7c3aed',                // 보라
+                    '지급': '#f59e0b',                // 주황
+                    '대체거래(수입·지출)': '#6b7280'  // 회색
+                };
+
+                // 원본 division(문자열) → 라벨로 변환(소문자/트림 후 매핑)
+                function toDivisionLabel(raw) {
+                    const key = String(raw || '').trim().toLowerCase();
+                    return DIVISION_LABEL_MAP[key] || raw || '';
+                }
+
+
                 this.grid = new wijmo.grid.FlexGrid('#prod-result-grid', {
                     autoGenerateColumns: false,
                     selectionMode: wijmo.grid.SelectionMode.Row,
                     headersVisibility: wijmo.grid.HeadersVisibility.Column,
                     formatItem: (s, e) => {
-                        // 헤더 가운데 정렬
+                        // 헤더 정렬/색 지정(기존 유지)
                         if (e.panel.cellType === wijmo.grid.CellType.ColumnHeader) {
                             e.cell.style.textAlign = 'center';
                             const binding = s.columns[e.col].binding;
                             if (binding === 'Description') {
-                                e.cell.style.color = '#5567ff'; // 글자 색 적용
+                                e.cell.style.color = '#5567ff';
                             }
                             return;
                         }
 
-                        // 본문 셀 색상 처리
+                        // 본문 셀
                         if (e.panel.cellType === wijmo.grid.CellType.Cell) {
                             const col = s.columns[e.col];
                             const item = s.rows[e.row]?.dataItem;
 
-                            // 재활용 셀 초기화(중요)
+                            // 재활용 셀 초기화
                             e.cell.style.color = '';
                             e.cell.style.fontWeight = '';
 
                             if (col && col.binding === 'division' && item) {
-                                const isSuju = item.division === '수주';
+                                // 새 라벨 매핑
+                                const label = toDivisionLabel(item.division);
+                                e.cell.textContent = label;
 
-                                // 색상은 기존 로직 그대로
-                                e.cell.style.color = isSuju ? '#1d4ed8' : '#dc2626';
+                                // 색상/굵기 (선택)
+                                const color = DIVISION_COLOR_MAP[label];
+                                if (color) e.cell.style.color = color;
                                 e.cell.style.fontWeight = '600';
-
-                                // 👇 표시만 바꾼다: 수주는 '수주', 그 외(발주/매입)는 '매입'
-                                e.cell.textContent = isSuju ? '수주' : '매입';
-                                return; // 끝
+                                return;
                             }
                         }
                     },
@@ -263,13 +310,15 @@
                     selectionMode: wijmo.grid.SelectionMode.Row,
                     headersVisibility: wijmo.grid.HeadersVisibility.All,
                     showMarquee: true,
+                    childItemsPath: 'children',   // ★ 트리 핵심
                     formatItem: (s, e) => {
                         if (e.panel.cellType === wijmo.grid.CellType.RowHeader) {
-                            // 헤더에 순번
                             e.cell.textContent = (e.row + 1).toString();
+                            return;
                         }
                         if (e.panel.cellType === wijmo.grid.CellType.ColumnHeader) {
                             e.cell.style.textAlign = 'center';
+                            return;
                         }
                         if (e.panel.cellType === wijmo.grid.CellType.ColumnFooter) {
                             const col = s.columns[e.col];
@@ -277,11 +326,64 @@
                                 e.cell.textContent = '합계';
                                 e.cell.style.textAlign = 'center';
                             }
+                            return;
                         }
+
+                        // 셀 커스터마이징 (날짜 포맷/인덴트/부모 숫자 표시용)
+                        if (e.panel.cellType !== wijmo.grid.CellType.Cell) return;
+
+                        const col = s.columns[e.col];
+                        const row = s.rows[e.row];
+                        const item = row?.dataItem;
+                        if (!item) return;
+
+                        // YYYYMMDD -> YYYY-MM-DD (서버가 이미 포맷했으면 자동 skip)
+                        if (col.binding === 'JumunDate') {
+                            const raw = (e.cell.textContent || '').trim();
+                            if (/^\d{8}$/.test(raw)) {
+                                e.cell.textContent = `${raw.slice(0,4)}-${raw.slice(4,6)}-${raw.slice(6,8)}`;
+                            }
+                        }
+
+                        // 트리 인덴트 보정 (제품명 열만)
+                        if (col.binding === 'product_name') {
+                            const depth = row.level || 0;
+                            const btn = e.cell.querySelector('button.wj-elem-collapse');
+                            if (btn) { btn.style.height = '14px'; btn.style.padding = '0'; btn.style.lineHeight = '14px'; }
+                            const textNode = [...e.cell.childNodes].find(n => n.nodeType === Node.TEXT_NODE && n.textContent.trim() !== '');
+                            if (textNode) {
+                                const span = document.createElement('span');
+                                span.textContent = textNode.textContent.trim();
+                                span.style.marginLeft = `${depth * 15}px`;
+                                span.style.display = 'inline-block';
+                                e.cell.replaceChild(span, textNode);
+                            }
+                        }
+
+                        // ★★★ 여기부터 핵심: 자식 행은 'standard','quantity'만 표시
+                        if (item.__type === 'child') {
+                            const visibleForChild = new Set(['standard', 'quantity']); // 화이트리스트
+                            if (!visibleForChild.has(col.binding)) {
+                                e.cell.textContent = '';               // 나머지 전부 숨김
+                                e.cell.classList.add('child-dim');     // (선택) 흐리게 보이도록
+                            } else {
+                                // 숫자 포맷이 필요하면 여기에서 포맷(예: 소수 1자리)
+                                if (col.binding === 'quantity') {
+                                    const n = Number(e.cell.textContent.replace(/,/g,''));
+                                    if (isFinite(n)) e.cell.textContent = (Math.round(n * 10) / 10).toString();
+                                }
+                            }
+                        }
+
+                        // DIFF 색상 (있으면)
+                        if (item.DIFF_TYPE) {
+                            e.cell.classList.add(`diff-${String(item.DIFF_TYPE).toLowerCase()}`);
+                        }
+
                     },
                     columns: [
                         {binding: 'id', visible:false},
-                        {binding: 'JumunDate', header: '일자', width: 100, align: 'center', isReadOnly: true},
+                        {binding: 'JumunDate', header: '일자', width: 120, align: 'center', isReadOnly: true},
                         {binding: 'state_name', header: '상태', width: 80, align: 'center'},
                         {binding: 'product_name', header: '제품명', width: 200, align: 'left', isReadOnly: true},
                         {binding: 'standard', header: '규격', width: 80, align: 'center', isReadOnly: true},
@@ -291,18 +393,13 @@
                         {binding: 'vat_amount', header: '세액', width: 100, align: 'right', isReadOnly: true, aggregate: wijmo.Aggregate.Sum},
                         {binding: 'total_amount', header: '합계', width: 100, align: 'right', isReadOnly: true, aggregate: wijmo.Aggregate.Sum},
                         {binding: 'description', header: '비고', width: '*', align: 'left', isReadOnly: true},
-
                     ],
                     itemsSource: new wijmo.collections.CollectionView([]),
                 });
 
-                // 하단 합계 행 추가
                 this.resultGrid.columnFooters.rows.push(new wijmo.grid.GroupRow());
-
-                // Context Menu 추가
                 new FlexGridContextMenu(this.resultGrid);
-                this.resultGrid.downloadFileName = '품목 내역';
-
+                this.resultGrid.downloadFileName = '상세 내역';
 
                 this.historyGrid = new wijmo.grid.FlexGrid('#history-grid', {
                     autoGenerateColumns: false,
@@ -330,20 +427,34 @@
             }
 
             getDetail () {
-                let _this = this;
+                const it = this.grid.selectedItems && this.grid.selectedItems[0];
+                if (!it) return;
 
-                const it = _this.grid.selectedItems && _this.grid.selectedItems[0];
-                let data = {
-                    id: it.head_id,
-                    division: it.division,
-                };
-                let result = AjaxUtil.getSyncData(this.baseUrl + '/detail', data);
-                if (result.data && _this.grid.itemsSource) {
+                const data   = { id: it.head_id, division: it.division };
+                const result = AjaxUtil.getSyncData(this.baseUrl + '/detail', data);
+                if (!result || !result.data) return;
 
-                    _this.resultGrid.itemsSource = result.data;
+                const isSuju = String(it.division) === '수주';
+
+                // 트리 모드 on/off
+                this.resultGrid.childItemsPath = isSuju ? 'children' : null;
+
+                if (isSuju) {
+                    // 수주일 때만 트리 변환 + 롤업
+                    const tree = toTree(result.data);  // (이미 만들어둔 함수)
+                    this.resultGrid.itemsSource = new wijmo.collections.CollectionView(tree);
+
+                    // 필요 시 기본으로 접기
+                    this.resultGrid.collapseGroupsToLevel(0);
+                } else {
+                    // 수주가 아닐 때: 평면 데이터 그대로
+                    this.resultGrid.itemsSource = new wijmo.collections.CollectionView(result.data);
                 }
 
-            };
+                // 선택/스크롤 초기화(선택)
+                // this.resultGrid.select(-1, -1);
+                // this.resultGrid.scrollPosition = new wijmo.Point(0, 0);
+            }
 
             getHistory () {
                 let _this = this;
@@ -452,6 +563,97 @@
                 }
             }
 
+        }
+
+        function toTree(rows) {
+            const byId = new Map();
+
+            // 1) 부모 생성 (동일)
+            for (const r of rows || []) {
+                const id = r.id;
+                if (!byId.has(id)) {
+                    byId.set(id, {
+                        __type: 'parent',
+                        id: r.id,
+                        head_id: r.head_id,
+                        Material_id: r.Material_id,
+                        product_code: r.product_code,
+                        JumunDate: r.JumunDate,
+                        product_name: r.product_name,
+                        unit: r.unit,
+                        standard: r.header_standard_label ?? r.header_standard ?? r.standard ?? '',
+                        // 합계 중복 방지 기본값
+                        quantity: null, unit_price: null, supply_amount: null, vat_amount: null, total_amount: null,
+                        // 화면 표시용
+                        _display_quantity: r.header_quantity ?? r.quantity ?? null,
+                        _display_unit_price: r.header_unit_price ?? r.unit_price ?? null,
+                        _display_supply_amount: r.header_supply_amount ?? r.supply_amount ?? null,
+                        _display_vat_amount: r.header_vat_amount ?? r.vat_amount ?? null,
+                        _display_total_amount: r.header_total_amount ?? r.total_amount ?? null,
+
+                        state: r.state, state_name: r.state_name, description: r.description, DIFF_TYPE: r.DIFF_TYPE,
+                        __hasNonFallbackChild: false, __sawFallback: false,
+                        children: []
+                    });
+                }
+            }
+
+            // 2) 자식 붙이기 (fallback은 생성하지 않음)
+            for (const r of rows || []) {
+                const p = byId.get(r.id);
+                const isChild = (r.row_type === 'child') || (r.detail_id != null) || (r.is_fallback === true);
+                if (!isChild) continue;
+
+                if (r.is_fallback === true) { p.__sawFallback = true; continue; }
+
+                p.__hasNonFallbackChild = true;
+                p.children.push({
+                    __type: 'child',
+                    id: r.id, detail_id: r.detail_id ?? null, JumunDate: r.JumunDate, product_name: r.product_name,
+                    standard: r.standard, quantity: r.quantity, unit_price: r.unit_price,
+                    supply_amount: r.supply_amount, vat_amount: r.vat_amount, total_amount: r.total_amount,
+                    description: r.description, state: r.state, state_name: r.state_name, DIFF_TYPE: r.DIFF_TYPE
+                });
+            }
+
+            // 3) 후처리: 롤업 + fallback 처리
+            for (const p of byId.values()) {
+                if (p.children.length > 0) {
+                    const sum = k => p.children.reduce((a, c) => a + (Number(c[k]) || 0), 0);
+
+                    const hasChildAmounts = p.children.some(c =>
+                        c.supply_amount != null || c.vat_amount != null || c.total_amount != null
+                    );
+
+                    if (hasChildAmounts) {
+                        // (배분 모드일 때만) 롤업 + 가중평균 단가
+                        p.quantity      = sum('quantity');
+                        p.supply_amount = sum('supply_amount');
+                        p.vat_amount    = sum('vat_amount');
+                        p.total_amount  = sum('total_amount');
+                        p.unit_price    = p.quantity ? Math.round(p.total_amount / p.quantity) : null;
+                    } else {
+                        // ★ 이번 모드: 헤더 원본 단가/금액 사용
+                        const n = v => (v == null ? null : Number(v));
+                        const childQtySum = sum('quantity');
+
+                        p.quantity      = n(p._display_quantity) ?? childQtySum ?? 0;
+                        p.unit_price    = n(p._display_unit_price);        // ★ 재계산 금지
+                        p.supply_amount = n(p._display_supply_amount) ?? 0;
+                        p.vat_amount    = n(p._display_vat_amount) ?? 0;
+                        p.total_amount  = n(p._display_total_amount) ?? 0;
+
+                        // 표시값 동기화
+                        p._display_unit_price    = p.unit_price;
+                        p._display_quantity      = p.quantity;
+                        p._display_supply_amount = p.supply_amount;
+                        p._display_vat_amount    = p.vat_amount;
+                        p._display_total_amount  = p.total_amount;
+                    }
+                }
+            }
+
+            return Array.from(byId.values());
         }
 
         // 공통: 숫자만 남기기

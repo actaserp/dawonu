@@ -67,12 +67,28 @@ public class DashBoardController {
 			@RequestParam("id") int id,
 			@RequestParam("division") String division,
 			HttpServletRequest request) {
+		String key = (division == null) ? "" : division.trim();
 
-		List<Map<String, Object>> item = null;
-		if ("발주".equals(division)) {
-			item = dashBoardService.getBaljuDetail(id);
-		} else{
-			item = dashBoardService.getSujuDetail(id);
+		List<Map<String, Object>> item;
+		switch (key) {
+			case "발주":
+				item = dashBoardService.getBaljuDetail(id);
+				break;
+			case "수주":
+				item = dashBoardService.getSujuDetail(id);
+				break;
+			case "매입":
+				item = dashBoardService.getInvoDetail(id);  // ✅ 매입 상세
+				break;
+			case "매출":
+				item = dashBoardService.getSalesDetail(id);
+				break;
+
+			default:
+				AjaxResult err = new AjaxResult();
+				err.success = false;
+				err.message = "지원하지 않는 구분입니다: " + key;
+				return err;
 		}
 
 		AjaxResult result = new AjaxResult();
@@ -87,18 +103,38 @@ public class DashBoardController {
 			@RequestParam("division") String division,
 			HttpServletRequest request) {
 
-		List<Map<String, Object>> item = null;
-		if ("발주".equals(division)) {
-			item = dashBoardService.getBaljuHistory(id);
-		} else{
-			item = dashBoardService.getSujuHistory(id);
+		String key = (division == null) ? "" : division.trim();
+
+		List<Map<String, Object>> item;
+		switch (key) {
+			case "발주":
+				item = dashBoardService.getBaljuHistory(id);
+				break;
+
+			case "수주":
+				item = dashBoardService.getSujuHistory(id);
+				break;
+
+			case "매입":
+				item = dashBoardService.getInvoHistory(id);
+				break;
+//
+			case "매출":
+				item = dashBoardService.getSalesHistory(id);
+				break;
+
+			default:
+				AjaxResult err = new AjaxResult();
+				err.success = false;
+				err.message = "지원하지 않는 구분입니다: " + key;
+				return err;
 		}
 
 		AjaxResult result = new AjaxResult();
 		result.data = item;
-
 		return result;
 	}
+
 
 	@GetMapping("/company")
 	public AjaxResult getCompany(
