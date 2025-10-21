@@ -362,7 +362,19 @@ public class MaterialService {
 						, :inputManHour
 						, :purchaseOrderStandard
 						, :vatExemptionYN
-						, 10
+						, (
+							 SELECT CASE
+								 WHEN sc."Code" = 'product' THEN 10
+								 ELSE NULL
+							 END
+							 FROM sys_code sc
+							 WHERE sc."Code" = (
+								 SELECT mg."Code"
+								 FROM material_group mg
+								 WHERE mg.id = :matGroupId
+							 )
+							 LIMIT 1
+						 )
 						, :unitPrice
 						, :mtyn
 						, :useyn
