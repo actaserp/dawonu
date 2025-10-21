@@ -1767,81 +1767,38 @@
         }
         attachStdNav($popup, addRow);
         // 저장: 합계 바인딩 + 상세 JSON 부모행에 보관
-        /*$popup.off('click.btnStdSave')
-          .on('click.btnStdSave', '#btn_standard_save', function () {
-            const toNum = v => {
-              if (v == null) return 0;
-              const n = parseFloat(String(v).replace(/,/g,''));
-              return isFinite(n) ? n : 0;
-            };
-
-            const rows = [];
-            $popup.find('.item-Standard-table tr.std-row').each(function(){
-              const s = ($(this).find('input[name="standard"]').val() || '').trim();
-              const q = ($(this).find('input[name="qty"]').val() || '').trim();
-              if (s !== '' || q !== '') rows.push({ standard: s, qty: q });
-            });
-
-            // 부동소수 오차 방지: 정수 스케일링
-            const SCALE = 1000; // 필요한 소수자릿수(예: 3자리)만큼 설정
-            const toInt = v => Math.round(toNum(v) * SCALE);
-
-            let sumStdInt = 0, sumQtyInt = 0;
-            rows.forEach(r => {
-              sumStdInt += toInt(r.standard);
-              sumQtyInt += toInt(r.qty);
-            });
-
-            const sumStd = sumStdInt / SCALE;
-            const sumQty = sumQtyInt / SCALE;
-
-
-            const $stdTarget = $parentRow.find('input[type="text"][name^="standard_"]:visible').first()
-              .add($parentRow.find('input[name="standard"]').first()).first();
-            const $qtyTarget = $parentRow.find('input[type="text"][name^="quantity_"]:visible').first()
-              .add($parentRow.find('input[name="quantity"]').first()).first();
-
-            if ($stdTarget.length) $stdTarget.val(sumStd.toFixed(1)).trigger('input').trigger('change');
-            if ($qtyTarget.length) $qtyTarget.val(sumQty.toFixed(1)).trigger('input').trigger('change');
-
-            const idx = getRowIndex($parentRow);
-            const jsonName = (idx != null) ? `standard_detail_json_${idx}` : 'standard_detail_json';
-            upsertHidden($parentRow, jsonName, JSON.stringify(rows));
-
-            modal.close();
-          });*/
         $popup.off('click.btnStdSave')
           .on('click.btnStdSave', '#btn_standard_save', function () {
             const toNum = v => {
               if (v == null) return 0;
-              const n = parseFloat(String(v).replace(/,/g,''));
-              return isFinite(n) ? n : 0;
+              const n = parseFloat(String(v).replace(/,/g, ''));
+              return Number.isFinite(n) ? n : 0;
             };
 
             // 1) 행 수집
             const rows = [];
-            $popup.find('.item-Standard-table tr.std-row').each(function(){
+            $popup.find('.item-Standard-table tr.std-row').each(function () {
               const s = ($(this).find('input[name="standard"]').val() || '').trim();
               const q = ($(this).find('input[name="qty"]').val() || '').trim();
               if (s !== '' || q !== '') rows.push({ standard: s, qty: q });
             });
 
             // 2) 합계 계산 (소수 1자리 정밀도)
-            const SCALE = 10;                 // 1 decimal place
-            const toI1  = v => Math.round(toNum(v) * SCALE);
+            const SCALE = 10; // 1 decimal place
+            const toI1 = v => Math.round(toNum(v) * SCALE);
 
             let sumStdI = 0, sumQtyI = 0, sumMulII = 0; // Σstd, Σqty, Σ(std×qty)
             rows.forEach(r => {
               const sI = toI1(r.standard);
               const qI = toI1(r.qty);
-              sumStdI  += sI;
-              sumQtyI  += qI;
-              sumMulII += (sI * qI);          // 곱은 scale^2
+              sumStdI += sI;
+              sumQtyI += qI;
+              sumMulII += (sI * qI); // 곱은 scale^2
             });
 
-            const sumStd =  sumStdI / SCALE;                  // Σ규격
-            const sumQty =  sumQtyI / SCALE;                  // Σ수량
-            const sumMul =  sumMulII / (SCALE * SCALE);       // Σ(규격×수량)
+            const sumStd = sumStdI / SCALE;                    // Σ규격
+            const sumQty = sumQtyI / SCALE;                    // Σ수량
+            const sumMul = sumMulII / (SCALE * SCALE);         // Σ(규격×수량)
 
             // 3) 부모행 타깃(standard_0 / quantity_0 우선)
             const $qty0 = $parentRow.find('input[type="text"][name="quantity_0"]:visible');
@@ -1861,18 +1818,21 @@
             const unitVal = ($parentRow.find('input[name="unit"], input[name^="unit_"]').first().val() || '').trim();
             const isMeter = unitVal === 'M(미터)' || unitVal === 'M' || unitVal.includes('미터');
 
-            // ▼ 규격 라벨: "첫번째규격 외 N개"
-            const stdList   = rows.map(r => (r.standard || '').trim()).filter(s => s !== '');
-            const firstStd  = stdList[0] || '';                  // 첫 규격
-            const restCount = Math.max(0, stdList.length - 1);   // 나머지 개수
-            const stdLabel  = firstStd ? (restCount > 0 ? `${firstStd} 외 ${restCount}개` : firstStd) : '';
+            // ▼ 규격 라벨: 미터면 '총(M)'만, 아니면 기존 라벨
+            const stdList = rows.map(r => (r.standard || '').trim()).filter(s => s !== '');
+            const firstStd = stdList[0] || '';
+            const restCount = Math.max(0, stdList.length - 1);
 
-            // 규격 표시(합계 대신 라벨 사용)
+            const stdLabel = isMeter
+              ? '총(M)'
+              : (firstStd ? (restCount > 0 ? `${firstStd} 외 ${restCount}개` : firstStd) : '');
+
+            // 규격 표시
             if ($stdTarget.length) {
               $stdTarget.val(stdLabel).trigger('input').trigger('change');
             }
 
-          // 수량: 미터면 총길이(Σ 규격×수량), 아니면 Σ수량
+            // 수량: 미터면 총길이(Σ 규격×수량), 아니면 Σ수량
             if ($qtyTarget.length) {
               const v = isMeter ? sumMul : sumQty;
               $qtyTarget.val(v.toFixed(1)).trigger('input').trigger('change');
@@ -1883,7 +1843,7 @@
             const jsonName = (idx != null) ? `standard_detail_json_${idx}` : 'standard_detail_json';
             upsertHidden($parentRow, jsonName, JSON.stringify(rows));
 
-            modal.close();
+            modal.close?.();
           });
 
         // 닫기
