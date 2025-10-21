@@ -246,8 +246,8 @@ public class SujuController {
 			String invatyn = item.get("VatIncluded").toString();
 
 			suju.setMaterialId(Integer.parseInt(item.get("Material_id").toString()));
-			suju.setSujuQty(Integer.parseInt(item.get("quantity").toString()));
-			suju.setSujuQty2(Integer.parseInt(item.get("quantity").toString()));
+			suju.setSujuQty(Double.parseDouble(item.get("quantity").toString()));
+			suju.setSujuQty2(Double.parseDouble(item.get("quantity").toString()));
 			suju.setUnitPrice(Integer.parseInt(item.get("unitPrice").toString()));
 			suju.setPrice(Integer.parseInt(item.get("supplyAmount").toString()));
 			suju.setVat(Integer.parseInt(item.get("VatAmount").toString()));
@@ -732,8 +732,8 @@ public class SujuController {
 			Suju suju = new Suju();
 			suju.setState("received");
 
-			suju.setSujuQty(quantity);
-			suju.setSujuQty2(quantity);
+			suju.setSujuQty(Double.valueOf(quantity));
+			suju.setSujuQty2(Double.valueOf(quantity));
 			suju.setCompanyId(company.getId());
 			suju.setCompanyName(company_name);
 			suju.setDueDate(Date.valueOf(due_date));

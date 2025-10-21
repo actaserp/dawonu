@@ -35,7 +35,7 @@ public class Suju extends AbstractAuditModel {
 	Integer materialId;
 	
 	@Column(name="\"SujuQty\"")
-	Integer sujuQty;
+	Double sujuQty;
 	
 	@Column(name="\"JumunDate\"")
 	Date jumunDate;
@@ -65,7 +65,7 @@ public class Suju extends AbstractAuditModel {
 	Integer reservationStock;
 	
 	@Column(name="\"SujuQty2\"")
-	Integer sujuQty2;
+	Double sujuQty2;
 	
 	@Column(name="\"UnitPrice\"")
 	Integer unitPrice;

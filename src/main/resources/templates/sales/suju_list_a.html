@@ -771,7 +771,7 @@
           const unit = getUnitVal($row);
           const showByUnit = isMeter(unit);
           const locked = isLocked($row);
-          console.log('unit=', unit, ' -> showByUnit=', showByUnit, ' locked=', locked);
+          // console.log('unit=', unit, ' -> showByUnit=', showByUnit, ' locked=', locked);
           $row.find(STD_BTN_SEL).css('display', showByUnit && !locked ? 'inline-flex' : 'none');
         }
 
@@ -800,35 +800,7 @@
           target.showStandardForm(Data);
         });
 
-        // $root.off('click.btnStandard').on('click.btnStandard', '#btnStandard', (e) => {
-        //   e.preventDefault();
-        //
-        //   // 1) 클릭한 버튼이 속한 행 컨텍스트
-        //   const $row = $(e.currentTarget).closest('tr');
-        //
-        //   // 2) 품목명 후보 탐색 (이름 규칙이 다를 수 있어 여러 패턴 시도)
-        //   const productName =
-        //     ($row.find('input[name^="txtProductName_"]:visible').val() || '').trim();
-        //   const suju_id = ($row.find('input[name^="suju_id"]:visible').val() || '').trim();
-        //   const standard_id = ($row.find('input[name^="standard_id_"]:visible').val() || '').trim();
-        //
-        //   // 3) 팝업에 전달
-        //   const Data = {
-        //     id: standard_id,
-        //     suju_id:suju_id,
-        //     mode: 'standard',
-        //     productName: productName, // 팝업 상단에 표시할 값
-        //     _row: $row                 // 저장 시 되돌아갈 타겟 행 (DOM 참조)
-        //   };
-        //
-        //   // 컨텍스트 안전 호출
-        //   const target = (_this && typeof _this.showStandardForm === 'function') ? _this : window;
-        //   if (typeof target.showStandardForm !== 'function') {
-        //     console.error('showStandardForm not found');
-        //     return;
-        //   }
-        //   target.showStandardForm(Data);
-        // });
+
         $root.off('click.btnStandard').on('click.btnStandard', '#btnStandard', (e) => {
           e.preventDefault();
 
@@ -1285,7 +1257,8 @@
         });
 
         // 숫자 포맷 (input 중 formatting)
-        $content.on('input', 'input[name^="quantity_"], input[name^="unitPrice_"], input[name^="supplyAmount_"], input[name^="VatAmount_"], input[name^="totalAmount_"]', function () {
+        /*$content.on('input', 'input[name^="quantity_"], input[name^="unitPrice_"], input[name^="supplyAmount_"], ' +
+          'input[name^="VatAmount_"], input[name^="totalAmount_"]', function () {
           if (isInternalFormatting) return;
           isInternalFormatting = true;
 
@@ -1306,7 +1279,83 @@
           }
 
           isInternalFormatting = false;
-        });
+        });*/
+        // 숫자 포맷 (input 중 formatting) - 소수점/천단위 지원
+        $content.off('input.numfmt')
+          .on('input.numfmt', 'input[name^="quantity_"], input[name^="unitPrice_"], input[name^="supplyAmount_"], input[name^="VatAmount_"], input[name^="totalAmount_"]', function (e) {
+            if (isInternalFormatting) return;
+            if (e.originalEvent && e.originalEvent.isComposing) return; // IME 조합중일 때 무시
+            isInternalFormatting = true;
+
+            const $this = $(this);
+            const input = this;
+            const name  = input.name || '';
+
+            // 커서 보정용
+            const prevLen   = input.value.length;
+            const cursorPos = input.selectionStart;
+            const rightRemain = prevLen - cursorPos;
+
+            let allowDecimal = false;
+            let decimals = 0;
+
+            // 규칙: 수량만 소수 1자리 허용, 나머지(단가/금액)는 정수
+            if (name.startsWith('quantity_')) { allowDecimal = true; decimals = 1; }
+
+            // 원본값에서 콤마만 제거
+            let raw = String($this.val() || '').replace(/,/g, '');
+
+            if (allowDecimal) {
+              // 숫자와 점만 허용 + 점은 하나만
+              raw = raw.replace(/[^0-9.]/g, '').replace(/\.(?=.*\.)/g, '');
+              // 빈 값 처리
+              if (raw === '' || raw === '.') {
+                $this.val('');
+                isInternalFormatting = false;
+                return;
+              }
+              // 숫자화
+              let num = Number(raw);
+              if (!isFinite(num)) {
+                $this.val('');
+                isInternalFormatting = false;
+                return;
+              }
+              // 소수 자리 제한(초과 입력 컷)
+              const factor = Math.pow(10, decimals);
+              num = Math.floor(num * factor) / factor;
+
+              // 천단위 + 고정 소수 자리
+              const parts = num.toFixed(decimals).split('.');
+              parts[0] = Number(parts[0]).toLocaleString('ko-KR');
+              const formatted = decimals > 0 ? parts[0] + '.' + parts[1] : parts[0];
+
+              $this.val(formatted);
+
+              // 커서 재배치(오른쪽부터 보정)
+              const newLen = formatted.length;
+              const pos = Math.max(0, newLen - rightRemain);
+              input.setSelectionRange(pos, pos);
+
+            } else {
+              // 정수만
+              raw = raw.replace(/[^0-9]/g, '');
+              if (raw === '') {
+                $this.val('');
+                isInternalFormatting = false;
+                return;
+              }
+              const formatted = Number(raw).toLocaleString('ko-KR');
+              $this.val(formatted);
+
+              const newLen = formatted.length;
+              const pos = Math.max(0, newLen - rightRemain);
+              input.setSelectionRange(pos, pos);
+            }
+
+            isInternalFormatting = false;
+          });
+
 
         // 검색 버튼 클릭 시 팝업
         $content.on('click', 'a[title="품목 신규등록"]', function () {
@@ -1718,7 +1767,7 @@
         }
         attachStdNav($popup, addRow);
         // 저장: 합계 바인딩 + 상세 JSON 부모행에 보관
-        $popup.off('click.btnStdSave')
+        /*$popup.off('click.btnStdSave')
           .on('click.btnStdSave', '#btn_standard_save', function () {
             const toNum = v => {
               if (v == null) return 0;
@@ -1732,7 +1781,7 @@
               const q = ($(this).find('input[name="qty"]').val() || '').trim();
               if (s !== '' || q !== '') rows.push({ standard: s, qty: q });
             });
-            
+
             // 부동소수 오차 방지: 정수 스케일링
             const SCALE = 1000; // 필요한 소수자릿수(예: 3자리)만큼 설정
             const toInt = v => Math.round(toNum(v) * SCALE);
@@ -1755,6 +1804,81 @@
             if ($stdTarget.length) $stdTarget.val(sumStd.toFixed(1)).trigger('input').trigger('change');
             if ($qtyTarget.length) $qtyTarget.val(sumQty.toFixed(1)).trigger('input').trigger('change');
 
+            const idx = getRowIndex($parentRow);
+            const jsonName = (idx != null) ? `standard_detail_json_${idx}` : 'standard_detail_json';
+            upsertHidden($parentRow, jsonName, JSON.stringify(rows));
+
+            modal.close();
+          });*/
+        $popup.off('click.btnStdSave')
+          .on('click.btnStdSave', '#btn_standard_save', function () {
+            const toNum = v => {
+              if (v == null) return 0;
+              const n = parseFloat(String(v).replace(/,/g,''));
+              return isFinite(n) ? n : 0;
+            };
+
+            // 1) 행 수집
+            const rows = [];
+            $popup.find('.item-Standard-table tr.std-row').each(function(){
+              const s = ($(this).find('input[name="standard"]').val() || '').trim();
+              const q = ($(this).find('input[name="qty"]').val() || '').trim();
+              if (s !== '' || q !== '') rows.push({ standard: s, qty: q });
+            });
+
+            // 2) 합계 계산 (소수 1자리 정밀도)
+            const SCALE = 10;                 // 1 decimal place
+            const toI1  = v => Math.round(toNum(v) * SCALE);
+
+            let sumStdI = 0, sumQtyI = 0, sumMulII = 0; // Σstd, Σqty, Σ(std×qty)
+            rows.forEach(r => {
+              const sI = toI1(r.standard);
+              const qI = toI1(r.qty);
+              sumStdI  += sI;
+              sumQtyI  += qI;
+              sumMulII += (sI * qI);          // 곱은 scale^2
+            });
+
+            const sumStd =  sumStdI / SCALE;                  // Σ규격
+            const sumQty =  sumQtyI / SCALE;                  // Σ수량
+            const sumMul =  sumMulII / (SCALE * SCALE);       // Σ(규격×수량)
+
+            // 3) 부모행 타깃(standard_0 / quantity_0 우선)
+            const $qty0 = $parentRow.find('input[type="text"][name="quantity_0"]:visible');
+            const $std0 = $parentRow.find('input[type="text"][name="standard_0"]:visible');
+
+            let $qtyTarget = $qty0.length
+              ? $qty0
+              : $parentRow.find('input[type="text"][name^="quantity_"]:visible').first()
+                .add($parentRow.find('input[name="quantity"]').first()).first();
+
+            let $stdTarget = $std0.length
+              ? $std0
+              : $parentRow.find('input[type="text"][name^="standard_"]:visible').first()
+                .add($parentRow.find('input[name="standard"]').first()).first();
+
+            // 4) 단위에 따라 값 세팅
+            const unitVal = ($parentRow.find('input[name="unit"], input[name^="unit_"]').first().val() || '').trim();
+            const isMeter = unitVal === 'M(미터)' || unitVal === 'M' || unitVal.includes('미터');
+
+            // ▼ 규격 라벨: "첫번째규격 외 N개"
+            const stdList   = rows.map(r => (r.standard || '').trim()).filter(s => s !== '');
+            const firstStd  = stdList[0] || '';                  // 첫 규격
+            const restCount = Math.max(0, stdList.length - 1);   // 나머지 개수
+            const stdLabel  = firstStd ? (restCount > 0 ? `${firstStd} 외 ${restCount}개` : firstStd) : '';
+
+            // 규격 표시(합계 대신 라벨 사용)
+            if ($stdTarget.length) {
+              $stdTarget.val(stdLabel).trigger('input').trigger('change');
+            }
+
+          // 수량: 미터면 총길이(Σ 규격×수량), 아니면 Σ수량
+            if ($qtyTarget.length) {
+              const v = isMeter ? sumMul : sumQty;
+              $qtyTarget.val(v.toFixed(1)).trigger('input').trigger('change');
+            }
+
+            // 5) 상세 JSON 저장
             const idx = getRowIndex($parentRow);
             const jsonName = (idx != null) ? `standard_detail_json_${idx}` : 'standard_detail_json';
             upsertHidden($parentRow, jsonName, JSON.stringify(rows));
