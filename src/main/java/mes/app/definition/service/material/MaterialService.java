@@ -2,6 +2,7 @@ package mes.app.definition.service.material;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
@@ -254,7 +255,6 @@ public class MaterialService {
 		dicParam.addValue("purchaseOrderStandard", CommonUtil.tryString(data.getFirst("PurchaseOrderStandard")));
 		dicParam.addValue("vatExemptionYN", CommonUtil.tryString(data.getFirst("VatExemptionYN")));
 
-		dicParam.addValue("routingId", CommonUtil.tryIntNull(data.getFirst("Routing_id")));
 		dicParam.addValue("unitPrice", CommonUtil.tryFloatNull(data.getFirst("UnitPrice")));
 		dicParam.addValue("user_id", CommonUtil.tryIntNull(data.getFirst("user_id").toString()));
 		dicParam.addValue("matUserCode", CommonUtil.tryIntNull(data.getFirst("MaterialMidCode")));
@@ -362,7 +362,7 @@ public class MaterialService {
 						, :inputManHour
 						, :purchaseOrderStandard
 						, :vatExemptionYN
-						, :routingId
+						, 10
 						, :unitPrice
 						, :mtyn
 						, :useyn
@@ -419,7 +419,7 @@ public class MaterialService {
 					, "InputManHour" = :inputManHour
 					, "PurchaseOrderStandard" = :purchaseOrderStandard
 					, "VatExemptionYN" = :vatExemptionYN 
-					, "Routing_id" = :routingId
+					--, "Routing_id" = :routingId
 					, "UnitPrice" = :unitPrice
 					, "Mtyn" = :mtyn
 					, "Useyn" = :useyn

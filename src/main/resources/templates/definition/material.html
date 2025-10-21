@@ -1418,8 +1418,14 @@
                 AjaxUtil.fillSelectOptions($('#MaterialGroup_id'), 'material_group', '', false); // 품목그룹
                 AjaxUtil.fillSelectOptions($('#Unit_id'), 'unit', '', false); // 단위
                 AjaxUtil.fillSelectOptions($('#StoreHouse_id'), 'store_house', '', false); // 창고
-                AjaxUtil.fillSelectOptions($('#WorkCenter_id'), 'workcenter', '', false); // 워크센터
-
+                AjaxUtil.fillSelectOptions($('#WorkCenter_id'), 'workcenter', '', '45'); // 워크센터
+                setTimeout(() => {
+                    $('#WorkCenter_id').val(45).trigger('change');
+                }, 0);
+                AjaxUtil.fillSelectOptions($('#Equipment_id'), 'equipment_code', '', 102, 45);
+                setTimeout(() => {
+                    $('#Equipment_id').val(102).trigger('change');
+                }, 0);
 
                 $('#WorkCenter_id').change(function (e) {
                     let group_pk = $('#WorkCenter_id').val();
