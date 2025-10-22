@@ -620,7 +620,7 @@ public class SalesInvoiceService {
                 	sh."Company_id" AS company_id,
                 	c."Name" AS company_name,
                 	sh."ShipDate" AS ship_date,
-                	sh."TotalQty" AS total_qty,
+                	ROUND(sh."TotalQty"::numeric, 2) AS total_qty,
                 	sh."TotalPrice" AS total_price,
                 	sh."TotalVat" AS total_vat,
                 	sh."TotalPrice" + sh."TotalVat" AS total_amount,

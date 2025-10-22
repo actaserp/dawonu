@@ -2488,9 +2488,7 @@
             showBarcode() {
                 let _this = this;
                 let select_jr = _this.grid.selectedItems[0];
-                let select_chasu = _this.chasuGrid.selectedItems;
-                let select_jr_array = [];
-                let totalHtml = [];
+                let select_chasu = _this.chasuGrid.itemsSource.items;
 
                 // ✅ jr_pk 읽기
                 let jr_pk = $('#tabBasic').find('#id').val();
@@ -2526,7 +2524,7 @@
                 let totalHtml = []
 
                 if (select_chasu.length > 0) {
-                    for (var i = 0; i < select_chasu.length; i++) {
+                    for (let i = 0; i < select_chasu.length; i++) {
                         select_jr_array.push(this.object_copy(select_jr))
                         select_jr_array[i]['chasu_good_qty'] = select_chasu[i].good_qty;
 
@@ -2539,16 +2537,16 @@
                 let $content = $(content);
 
                 // 바코드 갯수만큼 추가
-                for (var i = 0; i < select_jr_array.length; i++) {
+                for (let i = 0; i < select_jr_array.length; i++) {
                     $content.find('#barcodeArea').append(
                         "<div class='col-12'>"
                         + "<div class='title_box'>"
                         + "   <div class='left_align'>"
                         + "        Lot number"
-                        + "        <button type='button' class='btn-cancel' id='btnPrintLotNumberBarcode' data-labelCd='프린트'>프린트</button>"
+                        + "        <button type='button' class='btn-cancel' id='btnPrintLotNumberBarcode_" + i + "' data-labelCd='프린트'>프린트</button>"
                         + "    </div>"
                         + "</div>"
-                        + "<div class='col-12' id='LotNumberContainerDiv'>"
+                        + "<div class='col-12' id='LotNumberContainerDiv_" + i + "'>"
                         + "    <table class='table_1' style='width: 400px;border-collapse: collapse;'>"
                         + "        <tr>"
                         + "            <td class='tac'>품목코드</td>"
@@ -2569,15 +2567,11 @@
                         + "                                                                      "
                         + "      <tr>                                                            "
                         + "          <td class='tac'>생산일자</td>                               "
-                        + "          <td colspan='3'>" + select_jr_array[i].prod_date + " " + select_chasu[i].input_time + "</td>       "
-                        + "      </tr>                                                           "
-                        + "      <tr>                                                            "
-                        + "          <td class='tac'>유효기한</td>                               "
-                        + "          <td colspan='3'>" + select_jr_array[i].ValidDays + "</td>                       "
+                        + "          <td colspan='3'> " + select_chasu[i].input_time + "</td>       "
                         + "      </tr>                                                           "
                         + "      <tr>                                                            "
                         + "          <td colspan='4' class='barcode_td'>                         "
-                        + "              <svg class='svgBarcodeLotNumber'></svg>                    "
+                        + "              <svg id='svgBarcodeLotNumber_" + i + "'></svg>                    "
                         + "          </td>                                                       "
                         + "      </tr>                                                           "
                         + "  </table>                                                            "
@@ -2629,15 +2623,13 @@
 
                 totalHtml.push($workOrderContainerDiv.html())
 
-                for (var i = 0; i < select_jr_array.length; i++) {
-                    let lotContainer = $content.find('#LotNumberContainerDiv').eq(i)
+                for (let i = 0; i < select_jr_array.length; i++) {
+                    let $LotNumberContainerDiv = $content.find('#LotNumberContainerDiv_' + i);
 
-
-                    let $LotNumberContainerDiv = lotContainer
 
                     if (select_chasu.length > 0) {
-                        barcodeLabelText = select_chasu[i].lot_no + "(" + select_jr_array[i].mat_name + ")";
-                        $content.find(".svgBarcodeLotNumber").eq(i).JsBarcode(select_chasu[i].lot_no, {
+                        barcodeLabelText = select_chasu[i].lot_no + "(" + prod_mat_nm + ")";
+                        $content.find("#svgBarcodeLotNumber_" + i).JsBarcode(select_chasu[i].lot_no, {
                             format: 'code128', // 바코드 포맷 / default: code128 / options: EAN, UPC, CODE39, ITF-14, MSI, Pharmacode, Codabar (각 옵션들에 대한 설명은 사이트 참조)
                             width: 2, // 너비 / default: 2
                             height: 100, // 높이 / default: 100
@@ -2654,7 +2646,7 @@
                             margin: 10, // 바코드 영역 주변 여백 / default: 10
                         });
 
-                        $content.find('#btnPrintLotNumberBarcode').eq(i).click(function (e) {
+                        $content.find('#btnPrintLotNumberBarcode_' + i).click(function (e) {
                             let popupWindow = window.open("barcode_print", "_blank", "width=800px");
                             let css = $('#print_css')[0].outerHTML;
 
