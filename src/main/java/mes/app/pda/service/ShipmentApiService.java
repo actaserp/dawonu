@@ -47,6 +47,8 @@ public class ShipmentApiService {
     private ShipmentDoBService shipmentDoBService;
     @Autowired
     private MatLotConsRepository matLotConsRepository;
+    @Autowired
+    private ShipmentHeadRepository shipmentHeadRepository;
 
 
 	public List<Map<String, Object>> ApigetShipmentOrderList(String date_from, String date_to, String state, Integer comp_pk, Integer mat_grp_pk, Integer mat_pk, String keyword) {
@@ -368,6 +370,7 @@ public class ShipmentApiService {
 
 
 		List<Shipment> smList = shipmentRepository.findByShipmentHeadId(sh_id);
+		ShipmentHead sh = shipmentHeadRepository.findById(sh_id).orElse(null);
 
 		//region : 출하처리 로직
 		if (smList != null) {
@@ -386,6 +389,9 @@ public class ShipmentApiService {
 				}
 			}
 		}
+
+		sh.setState("Shipped");
+		shipmentHeadRepository.save(sh);
 		//TODO: 확인필요
 		//shipmentDoBService.updateShipmentStateComplete(sh_id, "");
 
