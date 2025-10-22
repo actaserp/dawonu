@@ -101,7 +101,7 @@ public class ProdOrderEditController {
 	public AjaxResult getSemiList(
 			@RequestParam(value="data_date", required=false) String data_date,
 			@RequestParam(value="mat_pk", required=false) Integer mat_pk,
-			@RequestParam(value="suju_qty", required=false) Integer suju_qty,
+			@RequestParam(value="suju_qty", required=false) Double suju_qty,
 			@RequestParam(value="suju_pk", required=false) Integer suju_pk) {
 		
 		List<Map<String, Object>> items = this.prodOrderEditService.getSemiList(data_date, mat_pk, suju_qty, suju_pk);

@@ -382,13 +382,13 @@
                         {binding: 'mat_name', header: '제품명', width: 180, align: 'left', isReadOnly: true},
                         {binding: 'Standard', header: '규격', width: 60, align: 'center', isReadOnly: true},
                         {binding: 'unit_name', header: '단위', width: 60, align: 'center', isReadOnly: true},
-                        {binding: 'SujuQty', header: '수주량', width: 60, align: 'right', isReadOnly: true},
+                        {binding: 'SujuQty', header: '수주량', width: 60, format: 'n2', align: 'right', isReadOnly: true},
                         {
                             binding: 'ordered_qty',
                             header: '기 지시량',
                             width: 80,
                             align: 'right',
-                            format: 'n0',
+                            format: 'n2',
                             isReadOnly: true
                         },
                         {
@@ -396,12 +396,13 @@
                             header: '잔여량',
                             width: 60,
                             align: 'right',
+                            format: 'n2',
                             isReadOnly: true
                         },
-                        {binding: 'AdditionalQty', header: '지시량', width: 60, align: 'right', isReadOnly: false}, // 수정 가능
+                        {binding: 'AdditionalQty', header: '지시량', width: 60, align: 'right', format: 'n2', isReadOnly: false}, // 수정 가능
                         {
                             binding: 'workcenter_id', header: '워크센터', width: 100, align: 'center',
-                            dataMap: workcenterMap, isReadOnly: false // 수정 가능
+                            dataMap: workcenterMap, isReadOnly: false, visible: false // 수정 가능
                         },
                         {
                             binding: 'prod_date',
@@ -432,6 +433,7 @@
                         if (panel.cellType === wijmo.grid.CellType.Cell) { // 일반 셀 확인
                             let column = panel.columns[col];
                             let item = panel.rows[row].dataItem;
+                            cell.style.backgroundColor = '';
 
                             if (column.binding === 'remain_qty' && item.remain_qty > 0) {
                                 cell.style.backgroundColor = '#ffd800'; // 잔여량이 0보다 크면 배경색 노란색
@@ -742,9 +744,9 @@
                         {binding: 'mat_code', header: '제품코드', width: 120, align: 'center', isReadOnly: true},
                         {binding: 'mat_name', header: '제품명', width: 120, isReadOnly: true, align: 'left'},
                         {binding: 'unit_name', header: '단위', width: 120, isReadOnly: true, align: 'center'},
-                        {binding: 'order_qty', header: '필요량', width: 120, align: 'right', isReadOnly: true},
-                        {binding: 'ordered_qty', header: '기지시량', width: 120, align: 'right', isReadOnly: true},
-                        {binding: 'AdditionalQty', header: '지시량', width: 120, align: 'right', isReadOnly: false},
+                        {binding: 'order_qty', header: '필요량', width: 120, align: 'right', format: 'n2', isReadOnly: true},
+                        {binding: 'ordered_qty', header: '기지시량', width: 120, align: 'right', format: 'n2', isReadOnly: true},
+                        {binding: 'AdditionalQty', header: '지시량', width: 120, align: 'right', format: 'n2', isReadOnly: false},
                         {binding: 'workcenter_id', header: '워크센터', width: 120, dataMap: workcenterMap, isReadOnly: false},
                         {binding: 'prod_date', header: '생산일', width: 140, align: 'center', isReadOnly: true},
                         {binding: 'workshift', header: '근무조', width: 120, dataMap: workshiftMap, isReadOnly: false},

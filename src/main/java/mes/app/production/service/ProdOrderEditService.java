@@ -233,7 +233,7 @@ public class ProdOrderEditService {
 	}
 	
 	// 반제품 작업지시 조회
-	public List<Map<String, Object>> getSemiList(String data_date, Integer mat_pk, Integer suju_qty, Integer suju_pk) {
+	public List<Map<String, Object>> getSemiList(String data_date, Integer mat_pk, Double suju_qty, Integer suju_pk) {
 		
 		MapSqlParameterSource dicParam = new MapSqlParameterSource();
 		dicParam.addValue("data_date", data_date);

@@ -986,9 +986,9 @@
                         {binding: 'mat_code', header: '품목코드', width: 90, align: 'center'},
                         {binding: 'mat_name', header: '품목', width: 180, align: 'left'},
                         {binding: 'standard', header: '규격', width: 80, align: 'center'},
-                        {binding: 'order_qty', header: '지시량', width: 80, align: 'right'},
-                        {binding: 'good_qty', header: '양품량', width: 80, align: 'right'},
-                        {binding: 'defect_qty', header: '부적합량', width: 80, align: 'right'},
+                        {binding: 'order_qty', header: '지시량', width: 80, format: 'n2', align: 'right'},
+                        {binding: 'good_qty', header: '양품량', width: 80, format: 'n2', align: 'right'},
+                        {binding: 'defect_qty', header: '부적합량', width: 80, format: 'n2', align: 'right'},
                         {binding: 'job_state', header: '상태', width: 100, align: 'center'},
                         {binding: 'mat_type', header: '품목구분', width: 100, align: 'center'},
                         {binding: 'unit', header: '단위', width: 80, align: 'center'},
@@ -1102,7 +1102,7 @@
                             header: '양품량',
                             width: 100,
                             align: 'right',
-                            format: 'n0',
+                            format: 'n2',
                             isReadOnly: false,
                             cssClass: 'background-blue'
                         },
@@ -1111,7 +1111,7 @@
                             header: '부적합량',
                             width: 100,
                             align: 'right',
-                            format: 'n0',
+                            format: 'n2',
                             isReadOnly: false,
                             cssClass: 'background-defect'
                         },
@@ -1208,7 +1208,7 @@
                             header: '부적합량',
                             width: 130,
                             align: 'right',
-                            format: 'n0',
+                            format: 'n2',
                             isReadOnly: false, // 편집 가능
                         },
                         {
@@ -1274,7 +1274,7 @@
                             header: '투입요청량',
                             width: 100,
                             align: 'right',
-                            format: 'n0',
+                            format: 'n2',
                             isReadOnly: true
                         },
                         {binding: 'unit_name', header: '단위', width: 80, align: 'center', isReadOnly: true},
@@ -1284,7 +1284,7 @@
                             header: '생산소모량',
                             width: 100,
                             align: 'right',
-                            format: 'n0',
+                            format: 'n2',
                             isReadOnly: true
                         },
                         {
@@ -1292,7 +1292,7 @@
                             header: '현재재고',
                             width: 100,
                             align: 'right',
-                            format: 'n0',
+                            format: 'n2',
                             isReadOnly: true
                         },
                         {binding: 'mat_type_name', header: '제품구분', width: 100, align: 'left', isReadOnly: true},
@@ -1340,7 +1340,7 @@
                             header: '로트투입량',
                             width: 100,
                             align: 'right',
-                            format: 'n0',
+                            format: 'n2',
                             isReadOnly: true
                         },
                         {
@@ -1348,7 +1348,7 @@
                             header: '소요량(BOM)',
                             width: 120,
                             align: 'right',
-                            format: 'n0',
+                            format: 'n2',
                             isReadOnly: true
                         },
                         {
@@ -1356,7 +1356,7 @@
                             header: '잔여량',
                             width: 100,
                             align: 'right',
-                            format: 'n0',
+                            format: 'n2',
                             isReadOnly: true
                         },
                         {
@@ -1364,7 +1364,7 @@
                             header: '실생산소모량',
                             width: 120,
                             align: 'right',
-                            format: 'n0',
+                            format: 'n2',
                             isReadOnly: true
                         },
                         {
@@ -1372,7 +1372,7 @@
                             header: '현재재고',
                             width: 100,
                             align: 'right',
-                            format: 'n0',
+                            format: 'n2',
                             isReadOnly: true
                         },
                         {binding: 'mat_type_name', header: '제품구분', width: 100, align: 'center', isReadOnly: true},
@@ -1384,7 +1384,7 @@
                             header: '로트 size',
                             width: 120,
                             align: 'right',
-                            format: 'n0',
+                            format: 'n2',
                             isReadOnly: true
                         }
                     ],
