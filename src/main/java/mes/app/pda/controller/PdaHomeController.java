@@ -52,10 +52,10 @@ public class PdaHomeController {
         return result;
     }
 
-    @GetMapping("/pda/app/version/sienpda_latest.apk")
+    @GetMapping("/pda/app/version/shinwoopda_latest.apk")
     public ResponseEntity<Resource> downloadApk(@RequestParam String version){
         try{
-            String apkPath = "C:/Temp/mes21/sienpda/" + "app_" + version + ".apk";
+            String apkPath = "C:/Temp/mes21/shinwoopda/" + "app_" + version + ".apk";
             File file = new File(apkPath);
 
             if(!file.exists()){
