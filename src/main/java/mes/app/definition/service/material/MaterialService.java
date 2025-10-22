@@ -371,7 +371,7 @@ public class MaterialService {
 							   WHERE sc."Code" = (
 								 SELECT mg."MaterialType"
 								 FROM mat_grp mg
-								 WHERE mg.id = 101
+								 WHERE mg.id = :matGroupId
 							   )
 							   LIMIT 1
 						 )
