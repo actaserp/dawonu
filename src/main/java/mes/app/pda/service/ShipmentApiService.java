@@ -82,7 +82,7 @@ public class ShipmentApiService {
 				, sh."Company_id" as company_id
 				, c."Name" as company_name
 				, sh."ShipDate" as ship_date
-				, sh."TotalQty" as total_qty
+				, ROUND(sh."TotalQty"::numeric, 2) AS total_qty
 				, sh."TotalPrice" as total_price
 				, sh."TotalVat" as total_vat
 				, sh."Description" as description
@@ -390,7 +390,7 @@ public class ShipmentApiService {
 			}
 		}
 
-		sh.setState("Shipped");
+		sh.setState("shipped");
 		shipmentHeadRepository.save(sh);
 		//TODO: 확인필요
 		//shipmentDoBService.updateShipmentStateComplete(sh_id, "");

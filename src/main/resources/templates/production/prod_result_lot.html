@@ -354,11 +354,11 @@
                                             완료 취소
                                         </button>
                                     </li>
-                                    <li>
-                                        <button class="btn" title="제품검사" disabled id="btnTest">
-                                            제품검사
-                                        </button>
-                                    </li>
+<!--                                    <li>-->
+<!--                                        <button class="btn" title="제품검사" disabled id="btnTest">-->
+<!--                                            제품검사-->
+<!--                                        </button>-->
+<!--                                    </li>-->
                                 </ul>
                             </div>
 
@@ -370,6 +370,7 @@
                                     <input type="hidden" id="mp_id" name="mp_id"/>
                                     <input type="hidden" id="mat_pk" name="mat_pk"/>
                                     <input type="hidden" id="prod_mat_id" name="prod_mat_id"/>
+                                    <input type="hidden" id="prod_mat_nm" name="prod_mat_nm"/>
                                     <input type="hidden" id="need_pro_mat_qty" name="need_pro_mat_qty"/>
                                     <input type="hidden" id="consumed_mode" name="consumed_mode"/>
                                     <input type="hidden" id="state" name="state"/>
@@ -1792,7 +1793,7 @@
 
                 if (this._hasRouting) {
                     AjaxUtil.fillSelectOptions($('#process_id'), 'routing_mat', '', process_id, routing_id);
-                    $('#tabBasic #prod_mat_id, #tabBasic #need_pro_mat_qty, #tabBasic #parent_jr_pk, #tabBasic #consumed_mode').prop('disabled', false);
+                    $('#tabBasic #prod_mat_id, #tabBasic #prod_mat_nm, #tabBasic #need_pro_mat_qty, #tabBasic #parent_jr_pk, #tabBasic #consumed_mode').prop('disabled', false);
 
                     if (!this._procCascadeBound) {
                         this.initProcessCascade();
@@ -1866,6 +1867,7 @@
                     order_qty: orderQty, prod_date: prodDate
                 })?.data || {};
                 $('#tabBasic #prod_mat_id').val(meta.pro_mat_id || '');
+                $('#tabBasic #prod_mat_nm').val(meta.pro_mat_nm || '');
                 $('#tabBasic #need_pro_mat_qty').val(meta.need_pro_mat_qty || '');
 
                 // PLAN/ACTUAL 판정
@@ -2485,11 +2487,41 @@
 
             showBarcode() {
                 let _this = this;
+                let select_jr = _this.grid.selectedItems[0];
+                let select_chasu = _this.chasuGrid.selectedItems;
+                let select_jr_array = [];
+                let totalHtml = [];
+
+                // ✅ jr_pk 읽기
+                let jr_pk = $('#tabBasic').find('#id').val();
+
+                // ✅ AjaxUtil로 LOT 상세 조회
+                let url = this.baseUrl + '/detail';
+                let param = { jr_pk: jr_pk };
+
+                let fnSuccess = function (res) {
+                    if (res.success && res.data) {
+                        let lotData = res.data;
+                        console.log('LOT 상세:', lotData);
+
+                        // 기존 바코드 로직 실행
+                        _this.buildBarcodeModal(select_jr, select_chasu, lotData);
+                    } else {
+                        Alert.alert('', res.message || 'LOT 상세 정보를 불러올 수 없습니다.');
+                    }
+                };
+
+                AjaxUtil.getAsyncData(url, param, fnSuccess);
+            }
+
+            buildBarcodeModal(select_jr, select_chasu, lotData) {
+                let _this = this;
                 // 바코드 출력
                 // 작업지시번호 바코드 설정
                 //
-                let select_jr = _this.grid.selectedItems[0];
-                let select_chasu = _this.chasuGrid.selectedItems;
+
+                let prod_mat_nm = $('#tabBasic').find('#prod_mat_nm').val();
+
                 let select_jr_array = []
                 let totalHtml = []
 
@@ -2497,6 +2529,8 @@
                     for (var i = 0; i < select_chasu.length; i++) {
                         select_jr_array.push(this.object_copy(select_jr))
                         select_jr_array[i]['chasu_good_qty'] = select_chasu[i].good_qty;
+
+                        select_jr_array[i]['lot_info'] = lotData;
 
                     }
                 }
@@ -2524,7 +2558,7 @@
                         + "      </tr>                                                           "
                         + "      <tr>                                                            "
                         + "          <td class='tac'>생산품명</td>                               "
-                        + "          <td colspan='3'>" + select_jr_array[i].mat_name + "</td>                        "
+                        + "          <td colspan='3'>" + prod_mat_nm + "</td>                        "
                         + "      </tr>                                                           "
                         + "      <tr>                                                            "
                         + "          <td class='tac'>양품수량</td>                               "

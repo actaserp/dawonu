@@ -309,9 +309,9 @@ public class ProductionResultService {
 			   , E.id                                         AS equipment_id
 			   , E."Name"                                     AS equipment
 			   , C."Description"                              AS description
-			   , B."OrderQty"                                 AS order_qty
-			   , B."GoodQty"                                  AS good_qty
-			   , B."DefectQty"                                AS defect_qty
+			   , ROUND(B."OrderQty"::numeric, 2)              AS order_qty
+			   , ROUND(B."GoodQty"::numeric, 2)              AS good_qty
+			   , ROUND(B."DefectQty"::numeric, 2)             AS defect_qty
 			   , B."LossQty"                                  AS loss_qty
 			   , B."ScrapQty"                                 AS scrap_qty
 			   , TO_CHAR(B."ProductionDate" + M."ValidDays", 'yyyy-mm-dd') AS "ValidDays"
@@ -374,11 +374,11 @@ public class ProductionResultService {
 				base_m."Name"                    AS mat_name,
 				base_m."LotSize"                 AS lot_size,
 				u."Name"                         AS unit,
-				COALESCE(base_jr."OrderQty",0)   AS order_qty,
-				COALESCE(base_jr."GoodQty",0)    AS good_qty,
-				COALESCE(base_jr."DefectQty",0)  AS defect_qty,
-				COALESCE(base_jr."LossQty",0)    AS loss_qty,
-				COALESCE(base_jr."ScrapQty",0)   AS scrap_qty,
+				ROUND(COALESCE(base_jr."OrderQty", 0)::numeric, 2)   AS order_qty,
+				 ROUND(COALESCE(base_jr."GoodQty", 0)::numeric, 2)    AS good_qty,
+				 ROUND(COALESCE(base_jr."DefectQty", 0)::numeric, 2)  AS defect_qty,
+				 ROUND(COALESCE(base_jr."LossQty", 0)::numeric, 2)    AS loss_qty,
+				 ROUND(COALESCE(base_jr."ScrapQty", 0)::numeric, 2)   AS scrap_qty,
 				to_char(base_jr."ProductionDate",'yyyy-mm-dd') AS prod_date,
 				to_char(c."StartTime",'hh24:mi')         AS start_time,
 				c."EndDate"                               AS end_date,
@@ -465,8 +465,8 @@ public class ProductionResultService {
 			 select id
 				  , "LotIndex" as chasu
 				  , "LotNumber" as lot_no
-				  , "GoodQty" as good_qty
-				  , "DefectQty" as defect_qty
+				  , ROUND("GoodQty"::numeric, 2) as good_qty
+				  , ROUND("DefectQty"::numeric, 2) as defect_qty
 				  , "LossQty" as loss_qty
 				  , "ScrapQty" as scrap_qty
 				  , to_char("EndTime", 'YYYY-MM-DD HH24:MI') as end_time
@@ -815,11 +815,13 @@ public class ProductionResultService {
 			 )
 			 SELECT
 			   t.pro_mat_id,
+			   m."Name" AS pro_mat_nm,
 			   t.bom_id,
 			   t.parent_bom_id,
 			   t.ratio_from_root,
 			   ( :orderQty::numeric * COALESCE(t.ratio_from_root,0) )::numeric AS need_pro_mat_qty  -- ★ 최상위 지시량 적용
 			 FROM targets t
+			 LEFT JOIN material m ON m.id = t.pro_mat_id
 			 ORDER BY t.lvl;
 	  """;
 

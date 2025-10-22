@@ -213,7 +213,7 @@ public class ProdOrderEditService {
 	            , s."Name" as "ShiftName"
 	            , m."Name" as mat_name
 	            , u."Name" as unit_name
-	            , jr."OrderQty" as "OrderQty"
+	            , ROUND(jr."OrderQty"::numeric, 2) as "OrderQty"
 	            , jr."WorkCenter_id" 
 	            , jr."Equipment_id"
 	            , jr."State" 

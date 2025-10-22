@@ -24,6 +24,7 @@ import mes.domain.model.AjaxResult;
 @RestController
 @RequestMapping("/api/dashboard")
 public class DashBoardController {
+
 	
 	@Autowired
 	private DashBoardService dashBoardService;
@@ -260,11 +261,12 @@ public class DashBoardController {
 	}*/
 
 	@GetMapping("/today_week_prod")
-	private AjaxResult todayWeekProd(
+	public AjaxResult todayWeekProd(
 			@RequestParam("spjangcd") String spjangcd
 	) {
-		
-		List<Map<String, Object>> items = this.dashBoardService.todayWeekProd(spjangcd);
+
+
+		List<Map<String, Object>> items = dashBoardService.todayWeekProd(spjangcd);
 		
 		AjaxResult result = new AjaxResult();
 		result.data = items;
@@ -273,11 +275,11 @@ public class DashBoardController {
 	}
 
 	@GetMapping("/today_prod")
-	private AjaxResult todayProd(
+	public AjaxResult todayProd(
 			@RequestParam("spjangcd") String spjangcd
 	) {
 		
-		List<Map<String, Object>> items = this.dashBoardService.todayProd(spjangcd);
+		List<Map<String, Object>> items = dashBoardService.todayProd(spjangcd);
 		
 		AjaxResult result = new AjaxResult();
 		result.data = items;
@@ -286,11 +288,11 @@ public class DashBoardController {
 	}
 	
 	@GetMapping("/year_def_prod")
-	private AjaxResult yearDefProd(
+	public AjaxResult yearDefProd(
 			@RequestParam("spjangcd") String spjangcd
 	) {
 		
-		List<Map<String, Object>> items = this.dashBoardService.yearDefProd(spjangcd);
+		List<Map<String, Object>> items = dashBoardService.yearDefProd(spjangcd);
 		
 		AjaxResult result = new AjaxResult();
 		result.data = items;
@@ -299,11 +301,11 @@ public class DashBoardController {
 	}
 	
 	@GetMapping("/mat_stock")
-	private AjaxResult matStock(
+	public AjaxResult matStock(
 			@RequestParam("spjangcd") String spjangcd
 	) {
 		
-		List<Map<String, Object>> items = this.dashBoardService.matStock(spjangcd);
+		List<Map<String, Object>> items = dashBoardService.matStock(spjangcd);
 		
 		AjaxResult result = new AjaxResult();
 		result.data = items;
@@ -312,11 +314,11 @@ public class DashBoardController {
 	}
 	
 	@GetMapping("/custom_order")
-	private AjaxResult customOrder(
+	public AjaxResult customOrder(
 			@RequestParam("spjangcd") String spjangcd
 	) {
 		
-		List<Map<String, Object>> items = this.dashBoardService.customOrder(spjangcd);
+		List<Map<String, Object>> items = dashBoardService.customOrder(spjangcd);
 		
 		AjaxResult result = new AjaxResult();
 		result.data = items;
@@ -325,10 +327,10 @@ public class DashBoardController {
 	}
 	
 	@GetMapping("/custom_service_stat")
-	private AjaxResult customServiceStat(
+	public AjaxResult customServiceStat(
 			@RequestParam(value="dateType", required=false) String dateType) 
 	{
-		Map<String, Object> items = this.dashBoardService.customServiceStat(dateType);
+		Map<String, Object> items = dashBoardService.customServiceStat(dateType);
 		
 		AjaxResult result = new AjaxResult();
 		result.data = items;
@@ -337,9 +339,9 @@ public class DashBoardController {
 	}
 	
 	@GetMapping("/custom_service_stat_result")
-	private AjaxResult customServiceStatResult() 
+	public AjaxResult customServiceStatResult()
 	{
-		List<Map<String, Object>> items = this.dashBoardService.customServiceStatResult();
+		List<Map<String, Object>> items = dashBoardService.customServiceStatResult();
 		
 		AjaxResult result = new AjaxResult();
 		result.data = items;
@@ -350,7 +352,7 @@ public class DashBoardController {
 	
 	
 	@GetMapping("/haccp_read")
-	private AjaxResult haccp_read(
+	public AjaxResult haccp_read(
 			@RequestParam("year_month") String year_month,
 			@RequestParam("data_year") String data_year,
 			@RequestParam("data_month") String data_month,
@@ -358,7 +360,7 @@ public class DashBoardController {
 			HttpServletRequest request
 			) {
 		
-		Map<String, Object> items = this.dashBoardService.haccpReadResult(year_month,data_year,data_month,auth);
+		Map<String, Object> items = dashBoardService.haccpReadResult(year_month,data_year,data_month,auth);
 		
 		AjaxResult result = new AjaxResult();
 		result.data = items;
@@ -368,13 +370,13 @@ public class DashBoardController {
 		
 		
 	@GetMapping("/getCppList")
-	private AjaxResult getCppList(
+	public AjaxResult getCppList(
 			@RequestParam("strDate") String strDate,
 			Authentication auth,
 			HttpServletRequest request
 			) {
 		
-		Map<String, Object> items = this.dashBoardService.getCppList(strDate,auth);
+		Map<String, Object> items = dashBoardService.getCppList(strDate,auth);
 		
 		AjaxResult result = new AjaxResult();
 		result.data = items;
@@ -385,12 +387,12 @@ public class DashBoardController {
 	
 	
 	@GetMapping("/detail_haccp_process")
-	private AjaxResult detail_haccp_process(
+	public AjaxResult detail_haccp_process(
 			Authentication auth,
 			HttpServletRequest request
 			) {
 		
-		Map<String, Object> haccpProcessItems = this.dashBoardService.getDetailHacpPro();
+		Map<String, Object> haccpProcessItems = dashBoardService.getDetailHacpPro();
 		
 		AjaxResult result = new AjaxResult();
 		result.data = haccpProcessItems;
