@@ -157,8 +157,8 @@ public class ProdResultListService {
                  , m.id as mat_pk, m."Code" as mat_code, m."Name" as mat_name
                  , m."LotSize"  as lot_size
                  , u."Name" as unit
-                 , jr."OrderQty" as order_qty
-                 , mp."GoodQty" as good_qty
+                 , ROUND(jr."OrderQty"::numeric, 2) as order_qty
+                 , ROUND(mp."GoodQty"::numeric, 2) as good_qty
                  , mp."DefectQty" as defect_qty
                  , mp."LossQty" as loss_qty
                  , mp."ScrapQty" as scrap_qty
