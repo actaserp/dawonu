@@ -297,24 +297,34 @@ public class ShipmentOrderController {
 
 				if (item != null) {
 					double qty = item.getSujuQty();
-					if (item.getVat() != null) {
-						double vat = item.getVat().doubleValue();
 
-
-						double UnitVat = vat / qty;
-						double VatSum = UnitVat * orderQty;
-
-						sm.setVat(VatSum);
-						totalVat += VatSum;
-					}
 					if (item.getPrice() != null) {
 
-						double UnitPrice = item.getUnitPrice();
-						double PriceSum = item.getPrice();
+						double UnitPrice = item.getUnitPrice(); //단가
+						double Standard = UtilClass.parseStandard(item.getStandard());
 
+						String invatyn = item.getInVatYN(); //부가세 포함 여부
 						sm.setUnitPrice(UnitPrice);
+
+						double price;
+						if (invatyn.equals("Y")) {
+							price = UnitPrice / 1.1; // 공급가 단가
+						} else {
+							price = UnitPrice;       // 이미 공급가 단가임
+						}
+
+						double PriceSum = price * orderQty * Standard;
+						double vat = PriceSum * 0.1;
+
+						// 반올림 (소수점 셋째자리에서)
+						PriceSum = Math.round(PriceSum * 100.0) / 100.0;
+						vat = Math.round(vat * 100.0) / 100.0;
+
 						sm.setPrice(PriceSum);
+						sm.setVat(vat);
 						totalPrice += PriceSum;
+						totalVat += vat;
+
 					}
 					sm.setSourceTableName("rela_data");
 				}
@@ -339,7 +349,7 @@ public class ShipmentOrderController {
 			orderSum += orderQty;
 		}
 
-		smh.setTotalQty((float)orderSum);
+		smh.setTotalQty((double)orderSum);
 		smh.setTotalPrice(totalPrice);
 		smh.setTotalVat(totalVat);
 

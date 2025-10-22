@@ -194,6 +194,8 @@ public class ShipmentDoBController {
 
 
 	            Float quantity = Float.valueOf((String)items.get(i).get("quantity"));
+				Double doubleQty = Double.valueOf(String.format("%.2f", quantity));
+
 	            Integer mlc_id = (Integer) items.get(i).get("mlc_id");
 
 				MatLotCons matlotcons = null;
@@ -208,7 +210,7 @@ public class ShipmentDoBController {
 					matlotcons.setSourceTableName("shipment");
 				}
 				matlotcons.setOutputDateTime(now);
-				matlotcons.setOutputQty(quantity);
+				matlotcons.setOutputQty(doubleQty.floatValue());
 				matlotcons.set_audit(user);
 
 				this.matLotConsRepository.save(matlotcons);

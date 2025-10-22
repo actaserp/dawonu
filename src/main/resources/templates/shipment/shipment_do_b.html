@@ -237,7 +237,7 @@
         let modalContainer;
         let SelectItem = [];
         let enterFlag = false;
-        let main_enterFlag = false;
+
 
         class ShipmentProcessPage {
             constructor() {
@@ -249,6 +249,7 @@
                 this.viewData2 = new wijmo.collections.CollectionView();
                 this.viewData3 = new wijmo.collections.CollectionView();
                 this.viewData4 = new wijmo.collections.CollectionView();
+                this.lastSelectedShipmentId = null;
 
 
                 this.init();
@@ -382,6 +383,7 @@
                         {binding: 'mat_code', header: '제품코드', maxWidth: 140, align: 'center', isReadOnly: true},
                         {binding: 'mat_name', header: '제품명', maxWidth: 200, align: 'left', isReadOnly: true},
                         {binding: 'unit_name', header: '단위', maxWidth: 100, align: 'center', isReadOnly: true},
+                        {binding: 'standard', header: '규격', maxWidth: 100, align: 'center', isReadOnly: true},
                         {binding: 'OrderQty', header: '지시수량', maxWidth: 100, align: 'right', isReadOnly: true},
                         {binding: 'Qty', header: '처리량', maxWidth: 100, align: 'right', isReadOnly: true},
                         {
@@ -418,18 +420,16 @@
                     }, 0); // 비동기로 처리하여 초기 선택 해제
                 });
 
-                this.shipmentListGrid.selectionChanged.addHandler((s, e) => {
-
-
-
-                    let selectedRowIndex = s.selection.row; // 선택된 행의 인덱스
-                    if (selectedRowIndex >= 0) { // 유효한 행이 선택되었는지 확인
-                        let selectedRowData = s.rows[selectedRowIndex].dataItem; // 선택된 행의 데이터
-
-                        _this.showMatLotConsumeList();
-                        console.log(`선택된 행 인덱스: ${selectedRowIndex}`);
-                        console.log('선택된 행 데이터:', selectedRowData);
-
+                this.shipmentListGrid.hostElement.addEventListener('click', (e) => {
+                    const ht = this.shipmentListGrid.hitTest(e);
+                    if (ht.cellType === wijmo.grid.CellType.Cell) {
+                        const rowIndex = ht.row;
+                        if (rowIndex >= 0) {
+                            const selectedRowData = this.shipmentListGrid.rows[rowIndex].dataItem;
+                            this.lastSelectedShipmentId = selectedRowData.shipment_id; // ✅ this 사용
+                            this.showMatLotConsumeList();
+                            console.log('클릭된 행:', rowIndex, selectedRowData);
+                        }
                     }
                 });
                 new FlexGridContextMenu(this.shipmentListGrid);
@@ -670,9 +670,8 @@
 
             showShipmentList(callback) {
 
-                console.log('호출')
-
-                ;                let headerItems = this.shipmentHeaderGrid.selectedItems;
+                console.log('호출');
+                let headerItems = this.shipmentHeaderGrid.selectedItems;
                 if (headerItems.length === 0 || headerItems === null || headerItems === undefined) {
                     Alert.alert('', '항목을 선택해 주세요.');
                     return;
@@ -852,31 +851,60 @@
                         let fnsuccess = function (result) {
                             if (result.success) {
                                 fnLotSearch();
-                                _this.showShipmentList(function(){
 
-                                    console.log('select', selectedId);
-                                    if(selectedId){
-                                        const view = _this.shipmentListGrid.collectionView;
-                                        const index = view.items.findIndex(item => item.shipment_id === selectedId);
+                                _this.showShipmentList(() => {
+                                    const lastId = _this.lastSelectedShipmentId;
+                                    if (!lastId) return;
 
-                                        if (index >= 0) {
-                                            _this.shipmentListGrid.select(index, 0);
-                                            const selectedRowData = view.items[index];
+                                    const view = _this.shipmentListGrid.collectionView;
+                                    if (!view || !view.items || view.items.length === 0) return;
 
-                                            // 선택 행에 맞게 디테일 재조회
-                                            _this.head_id = selectedRowData.id;
-                                            _this.ship_state = selectedRowData.state;
-                                            _this.issue_yn = selectedRowData.issue_yn;
+                                    const index = view.items.findIndex(item => String(item.shipment_id) === String(lastId));
+                                    if (index < 0) return;
 
-                                            // 선택된 행이 보이도록 스크롤
-                                            _this.shipmentListGrid.scrollIntoView(index, 0);
-                                        }
-                                    }
+                                    console.log(`이전 선택 행 복원 시도: ${index}`);
+
+                                    // ✅ 렌더 완료 후 DOM 탐색 (살짝 딜레이)
+                                    setTimeout(() => {
+                                        const grid = _this.shipmentListGrid;
+                                        const view = grid.collectionView;
+
+                                        if (!view || !view.items || view.items.length === 0) return;
+
+                                        const index = view.items.findIndex(
+                                            item => String(item.shipment_id) === String(_this.lastSelectedShipmentId)
+                                        );
+                                        if (index < 0) return;
+
+                                        console.log(`이전 선택 행 복원: ${index}`);
+
+                                        // 🔹 이벤트 일시 중단 (selectionChanged나 클릭 핸들러가 반응하지 않게)
+                                        const clickHandlers = grid.hostElement.onclick;
+                                        grid.hostElement.onclick = null;
+
+                                        const selHandlers = grid.selectionChanged._handlers ? [...grid.selectionChanged._handlers] : [];
+                                        grid.selectionChanged._handlers = [];
+
+                                        // 🔹 UI 업데이트 최소화
+                                        grid.deferUpdate(() => {
+                                            grid.select(index, 0);
+                                            grid.scrollIntoView(index, 0);
+                                        });
+
+                                        // 🔹 로직 직접 실행 (클릭 없이)
+                                        const selectedRowData = view.items[index];
+                                        _this.lastSelectedShipmentId = selectedRowData.shipment_id;
+                                        _this.showMatLotConsumeList();
+
+                                        // 🔹 이벤트 복구
+                                        grid.selectionChanged._handlers = selHandlers;
+                                        grid.hostElement.onclick = clickHandlers;
+
+                                        console.log('이전 선택 행 완전 복원 완료:', selectedRowData);
+                                    }, 0);
                                 });
-                                //_this.showMatLotConsumeList();
-                            }else{
+                            } else {
                                 Alert.alert('', result.message);
-
                             }
                         };
 
@@ -927,22 +955,63 @@
                 let fnSuccess = function (res) {
                     if (res.success) {
                         AjaxUtil.hideLoading();
-                        Notify.success("LOT지정 취소 완료.");
-                        _this.showShipmentList(function() {
-                            if (selectedId) {
-                                const view = _this.shipmentListGrid.collectionView;
-                                const index = view.items.findIndex(item => item.shipment_id === selectedId);
 
-                                if (index >= 0) {
-                                    // ✅ grid 데이터가 완전히 갱신된 후 select() 호출
-                                    _this.shipmentListGrid.loadedRows.addHandler(() => {
-                                        setTimeout(() => {
-                                            _this.shipmentListGrid.select(index, 0);
-                                            _this.shipmentListGrid.scrollIntoView(index, 0);
-                                        }, 0);
-                                    });
-                                }
-                            }
+                        Notify.success("LOT지정 취소 완료.");
+                        _this.showShipmentList(() => {
+                            const lastId = _this.lastSelectedShipmentId;
+                            if (!lastId) return;
+
+                            const view = _this.shipmentListGrid.collectionView;
+                            if (!view || !view.items || view.items.length === 0) return;
+
+                            const index = view.items.findIndex(item => String(item.shipment_id) === String(lastId));
+                            if (index < 0) return;
+
+                            console.log(`이전 선택 행 복원 시도: ${index}`);
+
+                            // ✅ 렌더 완료 후 DOM 탐색 (살짝 딜레이)
+                            setTimeout(() => {
+                                const grid = _this.shipmentListGrid;
+                                const view = grid.collectionView;
+
+                                if (!view || !view.items || view.items.length === 0) return;
+
+                                const index = view.items.findIndex(
+                                    item => String(item.shipment_id) === String(_this.lastSelectedShipmentId)
+                                );
+                                if (index < 0) return;
+
+                                console.log(`이전 선택 행 복원: ${index}`);
+
+                                // 🔹 이벤트 일시 중단 (selectionChanged나 클릭 핸들러가 반응하지 않게)
+                                const clickHandlers = grid.hostElement.onclick;
+                                grid.hostElement.onclick = null;
+
+                                const selHandlers = grid.selectionChanged._handlers ? [...grid.selectionChanged._handlers] : [];
+                                grid.selectionChanged._handlers = [];
+
+                                // 🔹 UI 업데이트 최소화
+                                grid.deferUpdate(() => {
+                                    grid.select(index, 0);
+                                    grid.scrollIntoView(index, 0);
+                                });
+
+                                // 🔹 로직 직접 실행 (클릭 없이)
+                                const selectedRowData = view.items[index];
+                                _this.lastSelectedShipmentId = selectedRowData.shipment_id;
+                                _this.showMatLotConsumeList();
+
+                                // 🔹 이벤트 복구
+                                grid.selectionChanged._handlers = selHandlers;
+                                grid.hostElement.onclick = clickHandlers;
+
+                                console.log('이전 선택 행 완전 복원 완료:', selectedRowData);
+                            }, 200);
+
+
+
+
+
                         });
 
                         if (shipment_id != null) {

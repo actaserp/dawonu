@@ -133,6 +133,7 @@ public class ShipmentDoBService {
 	        , u."Name" as unit_name 
 	        , s."OrderQty"
 	        , s."Qty"
+	        , suju."Standard" as standard
 	        , s."Description" as description
 	        , (select coalesce(sum(mlc."OutputQty" ), 0) as lot_qty from mat_lot_cons mlc where mlc."SourceDataPk" = s.id and mlc."SourceTableName"='shipment') as lot_qty
 	        from shipment s 
@@ -389,13 +390,14 @@ public class ShipmentDoBService {
                     s.id,
                     s."Material_id",
                     sh."Company_id",
-                    mcu."UnitPrice",
+                    --mcu."UnitPrice",
+                    coalesce(s."UnitPrice", mcu."UnitPrice") as "UnitPrice",
                     m."VatExemptionYN"
                 from A
                 inner join shipment s on s.id = A.id
                 inner join shipment_head sh on sh.id = s."ShipmentHead_id"
                 inner join material m on m.id = s."Material_id"
-                left join mat_comp_uprice mcu 
+                left join mat_comp_uprice mcu
                     on mcu."Material_id" = s."Material_id"
                     and mcu."Company_id" = sh."Company_id"
                     and mcu."ApplyStartDate" <= now()
@@ -407,8 +409,8 @@ public class ShipmentDoBService {
                     s.id,
                     A.qty,
                     UPC."UnitPrice",
-                    (A.qty * UPC."UnitPrice") as "Price",
-                    case when UPC."VatExemptionYN" = 'Y' then 0 else (A.qty * UPC."UnitPrice" * 0.1) end as "Vat",
+                    (A.qty * UPC."UnitPrice" * coalesce(nullif(regexp_replace(suju."Standard", '[^0-9\\.]', '', 'g'), '')::numeric,1)) as "Price",
+                    case when UPC."VatExemptionYN" = 'Y' then 0 else (A.qty * UPC."UnitPrice" * 0.1 * coalesce(nullif(regexp_replace(suju."Standard", '[^0-9\\.]', '', 'g'), '')::numeric,1)) end as "Vat",
                     COALESCE(suju."InVatYN", 'N') as invat
                 from shipment s
                 inner join suju suju on suju.id = s."SourceDataPk" and s."SourceTableName" = 'rela_data'
@@ -514,10 +516,11 @@ public class ShipmentDoBService {
 		        update
 		        shipment_head
 		        set
-		        "TotalQty" = A."TotalQty"
-		        ,"TotalVat" = A."TotalVat"
-		        , "TotalPrice" = A."TotalPrice"
-		        , "State" = 'shipped'
+		        --이거 lot 추가할때마다 head도 합산해서 수정해줌 그래서 아래는 주석함.
+		        --"TotalQty" = A."TotalQty"
+		        --,"TotalVat" = A."TotalVat"
+		        --, "TotalPrice" = A."TotalPrice"
+		        "State" = 'shipped'
 		        ,"Description" = :description
 		        from A
 		        where id=A.sh_id

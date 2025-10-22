@@ -29,7 +29,7 @@ public class ShipmentHead extends AbstractAuditModel{
 	Timestamp shipDate;
 	
 	@Column(name = "\"TotalQty\"")
-	Float totalQty;
+	Double totalQty;
 	
 	@Column(name = "\"TotalPrice\"")
 	Double totalPrice;

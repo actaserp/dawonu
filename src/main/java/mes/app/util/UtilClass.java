@@ -213,4 +213,20 @@ public class UtilClass {
         return input.substring(0, visibleLength) + "⋆".repeat(maskLength);
     }
 
+    /**
+     * standard 컬럼 (suju 테이블) 이 varchar라서 여러가지 값이 오는데
+     * 값들을 파싱해주는거. 캐스팅 불가하면 1로 리턴
+     * **/
+    public static double parseStandard(Object value){
+        if(value == null) return 1.0;
+        try{
+            if(value instanceof Number) return ((Number) value).doubleValue();
+            String str = value.toString().trim();
+            if(str.isEmpty()) return 1.0;
+            return Double.parseDouble(str);
+        }catch (Exception e){
+            return 1.0;
+        }
+    }
+
 }

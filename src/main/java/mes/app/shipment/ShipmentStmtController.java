@@ -170,9 +170,10 @@ public class ShipmentStmtController {
 
 						double price = 0;
 						double vat = 0;
+						double standard = UtilClass.parseStandard(item.get(i).get("standard"));
 
 						if(invatyn.equals("N")){
-							price = unit_price * qty;
+							price = unit_price * qty * standard;
 							vat = price * 0.1;
 
 							price_sum += price;
@@ -180,8 +181,8 @@ public class ShipmentStmtController {
 
 						}else{
 							double netUnit = unit_price / 1.1;               // 부가세 제거한 단가
-							price = netUnit * qty;                     // 공급가 합계(순액)
-							vat   = (unit_price * qty) - price;        // 총액 - 순액 = 부가세
+							price = netUnit * qty * standard;                     // 공급가 합계(순액)
+							vat   = (unit_price * qty * standard) - price;        // 총액 - 순액 = 부가세
 
 							price_sum += price;
 							vat_sum += vat;

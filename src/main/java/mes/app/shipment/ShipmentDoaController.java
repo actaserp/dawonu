@@ -115,7 +115,7 @@ public class ShipmentDoaController {
 				}
 				ShipmentStatus status = ShipmentStatus.SHIPPED;
 				smh.setState(status.getLabel());
-				smh.setTotalQty((float)orderSum);
+				smh.setTotalQty((double)orderSum);
 				smh.set_audit(user);
 				smh = this.shipmentHeadRepository.save(smh);
 			}
@@ -171,7 +171,7 @@ public class ShipmentDoaController {
 				}
 			}
 			smh.setState("shipped");
-			smh.setTotalQty((float)orderSum);
+			smh.setTotalQty((double)orderSum);
 			smh.set_audit(user);
 			smh = this.shipmentHeadRepository.save(smh);
 		}

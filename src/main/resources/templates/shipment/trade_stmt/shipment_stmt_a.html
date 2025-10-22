@@ -149,7 +149,7 @@
                     isReadOnly: true,
                     columns: [
 
-                        {binding: 'id', header: 'id', width: 60, align: 'right'},
+                        {binding: 'id', header: '출하번호', width: 70, align: 'center'},
                         {binding: 'company_name', header: '판매처', width: 100, align: 'left'},
                         {binding: 'order_date', header: '지시일', width: 100, align: 'center'},
                         {binding: 'total_qty', header: ' 총수량', width: 100, align: 'right'},
@@ -221,11 +221,12 @@
                     selectionMode: wijmo.grid.SelectionMode.Row, // 행 단위 선택
                     isReadOnly: false,
                     columns: [
-                        {binding: 'ship_pk', header: 'id', width: 70, align: 'right', isReadOnly: true},
+                        {binding: 'ship_pk', header: '출하상세번호', width: 100, align: 'center', isReadOnly: true},
                         {binding: 'mat_grp_name', header: '제품그룹', width: 100, align: 'left', isReadOnly: true},
                         {binding: 'mat_code', header: '제품코드', width: 100, align: 'center', isReadOnly: true},
-                        {binding: 'mat_name', header: '제품명', width: 260, align: 'left', isReadOnly: true},
-                        {binding: 'unit_name', header: '단위', width: 120, align: 'center', isReadOnly: true},
+                        {binding: 'mat_name', header: '제품명', width: 240, align: 'left', isReadOnly: true},
+                        {binding: 'unit_name', header: '단위', width: 110, align: 'center', isReadOnly: true},
+                        {binding: 'standard', header: '규격', width: 120, align: 'center', isReadOnly: true},
                         {binding: 'ship_qty', header: '출하량', width: 120, align: 'right', isReadOnly: true},
                         {
                             binding: 'unit_price',
@@ -350,6 +351,7 @@
                         mat_name: item['mat_name'],
                         unit_name: item['unit_name'],
                         ship_qty: item['ship_qty'],
+                        standard: item['standard'],
                         unit_price: item['unit_price'],
                         flag: flag,
                         material_id: item['material_id'],

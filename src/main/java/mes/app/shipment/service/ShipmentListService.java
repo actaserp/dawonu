@@ -129,7 +129,8 @@ public class ShipmentListService {
 	            	   when s."SourceTableName" = 'product'	
 						then '제품출하'
 					   else '알수없음'
-				end as shipment_flag	 
+				end as shipment_flag
+				, su."Standard" as standard	 
 				from shipment  s
 				inner join material m on m.id = s."Material_id" 
 				inner join mat_grp mg on mg.id = m."MaterialGroup_id"

@@ -56,9 +56,9 @@ public class ShipmentOrderService {
                 ,c2."Name" as "CompanyName"
 	            , fn_code_name('suju_state', suju."State") as "State"
 	            , suju."State" as State2
-	            , suju."Material_id"  
-	            , suju."SujuQty" 
-	            , suju."SujuQty2" 
+	            , suju."Material_id"
+	            , suju."SujuQty"
+	            , suju."SujuQty2"
                 , suju."Description"
                 , suju."Standard"
                 , sh."DeliveryName"
@@ -96,26 +96,26 @@ public class ShipmentOrderService {
             , s."SujuQty" as order_input_qty
             , s."SujuQty2" as prod_qty
             , s."Standard"
-            , sp.order_sum as order_qty 
+            , sp.order_sum as order_qty
             , sp.ship_sum  as shipment_qty
-            , m."CurrentStock" as cur_stock	
+            , m."CurrentStock" as cur_stock
             , u.id as unit_id
             , u."Name" as unit_name
             , case when sp.ship_sum > 0 then '출하' when sp.order_sum > 0 then '출하' else '' end as shipment_state
             , s."State"
             , s."DeliveryName"
-            from s  
+            from s
             left join sp on sp.suju_pk = s.suju_pk
-            inner join material m on m.id = s."Material_id" 
+            inner join material m on m.id = s."Material_id"
             inner join mat_grp mg on mg.id = m."MaterialGroup_id"
-            left join unit u on u.id = m."Unit_id" 
+            left join unit u on u.id = m."Unit_id"
             where 1 = 1
-           """;
+          """;
         
         if (StringUtils.isEmpty(keyword)==false)  sql += " and (m.\"Name\" ilike concat('%%',:keyword,'%%') or m.\"Code\" ilike concat('%%',:keyword,'%%')) ";
 		//부분출하는 제외
 		if ((notShip).equals("Y"))  sql += " and s.\"SujuQty\" > coalesce(sp.order_sum,0) and s.State2 <> 'force_completion'";
-		sql += " order by s.\"DueDate\", s.\"CompanyName\", m.\"Code\", m.\"Name\"";
+		sql += " order by s.\"DueDate\", s.\"JumunNumber\", m.\"Code\", m.\"Name\"";
         
         List<Map<String,Object>> items = this.sqlRunner.getRows(sql, paramMap);
 		
