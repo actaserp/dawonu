@@ -13,4 +13,5 @@ import java.util.Optional;
 public interface TB_InvoicementRepository extends JpaRepository<TB_Invoicement, Integer>  {
 
 
+  Optional<Object> findByMisnum(Integer id);
 }

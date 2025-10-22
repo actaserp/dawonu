@@ -6,15 +6,13 @@ import java.util.Map;
 import java.util.Optional;
 
 import javax.servlet.http.HttpServletRequest;
+import javax.transaction.Transactional;
 
 import lombok.extern.slf4j.Slf4j;
 import mes.app.balju.service.BaljuOrderService;
 import mes.app.sales.service.SujuService;
-import mes.domain.entity.BaljuHead;
-import mes.domain.entity.SujuHead;
-import mes.domain.repository.BalJuHeadRepository;
-import mes.domain.repository.SujuHeadRepository;
-import mes.domain.repository.SujuRepository;
+import mes.domain.entity.*;
+import mes.domain.repository.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
@@ -41,6 +39,15 @@ public class DashBoardController {
 
 	@Autowired
 	BalJuHeadRepository balJuHeadRepository;
+
+	@Autowired
+	TB_InvoicementRepository invoicementRepository;
+
+	@Autowired
+	TB_SalesmentRepository salesmentRepository;
+
+	@Autowired
+	TB_BANKTRANSITRepository banktransitRepository;
 
 	@GetMapping("/read")
 	public AjaxResult getSujuList(
@@ -70,7 +77,7 @@ public class DashBoardController {
 			@RequestParam("division") String division,
 			HttpServletRequest request) {
 		String key = (division == null) ? "" : division.trim();
-
+//		log.info("상세 - division:{}, id:{}", division, id);
 		List<Map<String, Object>> item;
 		switch (key) {
 			case "발주":
@@ -80,10 +87,16 @@ public class DashBoardController {
 				item = dashBoardService.getSujuDetail(id);
 				break;
 			case "매입":
-				item = dashBoardService.getInvoDetail(id);  // ✅ 매입 상세
+				item = dashBoardService.getInvoDetail(id);
 				break;
 			case "매출":
 				item = dashBoardService.getSalesDetail(id);
+				break;
+			case "입금":
+				item = dashBoardService.getReceiveDetail(id);
+				break;
+			case "출금":
+				item = dashBoardService.getPaymentDetail(id);
 				break;
 
 			default:
@@ -125,6 +138,12 @@ public class DashBoardController {
 			case "매출":
 				item = dashBoardService.getSalesHistory(id);
 				break;
+			case "입금":
+				item = dashBoardService.getReceiveHistory(id);
+				break;
+			case "출금":
+				item = dashBoardService.getPaymentHistory(id);
+				break;
 
 			default:
 				AjaxResult err = new AjaxResult();
@@ -153,6 +172,70 @@ public class DashBoardController {
 	}
 
 	@PostMapping("/memo/save")
+	@Transactional
+	public AjaxResult memoSave(
+			@RequestParam("head_id") int id,
+			@RequestParam("division") String division,
+			@RequestParam("description") String description) {
+
+		switch (division) {
+			case "발주": {
+				BaljuHead e = balJuHeadRepository.findById(id)
+						.orElseThrow(() -> new RuntimeException("발주 헤더 없음"));
+				e.setDescription(description);
+				balJuHeadRepository.save(e);
+				break;
+			}
+			case "수주": {
+				SujuHead e = sujuHeadRepository.findById(id)
+						.orElseThrow(() -> new RuntimeException("수주 헤더 없음"));
+				e.setDescription(description);
+				sujuHeadRepository.save(e);
+				break;
+			}
+			case "매입": {
+
+				TB_Invoicement e = (TB_Invoicement) invoicementRepository.findByMisnum(id)
+						.orElseThrow(() -> new RuntimeException("매입 전표 없음"));
+				// 목록/이력에서 사용한 컬럼: s.remark1
+				e.setRemark1(description);
+				invoicementRepository.save(e);
+				break;
+			}
+			case "매출": {
+				TB_Salesment e = (TB_Salesment) salesmentRepository.findByMisnum(id)
+						.orElseThrow(() -> new RuntimeException("매출 전표 없음"));
+				e.setRemark1(description);
+				salesmentRepository.save(e);
+				break;
+			}
+			case "입금": {
+				// tb_banktransit: 키는 ioid (입금/출금 공용)
+				TB_BANKTRANSIT e = banktransitRepository.findById(id)
+						.orElseThrow(() -> new RuntimeException("입금 내역 없음"));
+				e.setRemark1(description);
+				banktransitRepository.save(e);
+				break;
+			}
+			case "출금": {
+				TB_BANKTRANSIT e = banktransitRepository.findById(id)
+						.orElseThrow(() -> new RuntimeException("출금 내역 없음"));
+				e.setRemark1(description);
+				banktransitRepository.save(e);
+				break;
+			}
+			default:
+				throw new IllegalArgumentException("지원하지 않는 구분: " + division);
+		}
+
+		AjaxResult result = new AjaxResult();
+		result.success = true;
+		result.message = "저장을 성공했습니다.";
+		return result;
+	}
+
+
+	/*@PostMapping("/memo/save")
 	public AjaxResult memoSave(
 			@RequestParam("head_id") int id,
 			@RequestParam("division") String division,
@@ -174,7 +257,7 @@ public class DashBoardController {
 		result.message = "저장을 성공했습니다.";
 
 		return result;
-	}
+	}*/
 
 	@GetMapping("/today_week_prod")
 	private AjaxResult todayWeekProd(

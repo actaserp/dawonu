@@ -155,12 +155,15 @@ public class AccountsPayableListService {
          LEFT JOIN purchase_amt p ON c.id = p.cltcd
          LEFT JOIN payment_amt b ON c.id = b.cltcd
          WHERE COALESCE(f.prev_amt, 0) + COALESCE(p.purchase, 0) - COALESCE(b.payment, 0) <> 0
-         ORDER BY c.cltflag, c.cltname
     """;
 
     if (company != null) {
       sql += " AND c.id = :company ";
     }
+
+    sql += """
+         ORDER BY c.cltflag, c.cltname
+        """;
 
     List<Map<String, Object>> items = this.sqlRunner.getRows(sql, paramMap);
 //    log.info("미지급 현황 SQL: {}", sql);

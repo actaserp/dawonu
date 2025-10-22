@@ -18,4 +18,6 @@ public interface TB_SalesmentRepository extends JpaRepository<TB_Salesment, Inte
     List<TB_Salesment> findAllByMisnumIn(List<Integer> misnums);
 
     Optional<TB_Salesment> findByMgtkeyAndNtscfnum(String mgtkey, String ntscfnum);
+
+    Optional<Object> findByMisnum(Integer id);
 }

@@ -118,7 +118,7 @@
               {binding: 'cltname', header: '거래처명', width: 320, align: 'center'},
               {binding: 'payable', header: '전잔액', width: 220, align: 'right'},
               {binding: 'purchase', header: '매입액', width: 200, align: 'right'},
-              {binding: 'AmountPaid', header: '지급액', width: 200, align: 'right'},
+              {binding: 'amount_paid', header: '지급액', width: 200, align: 'right'},
               {binding: 'balance', header: '잔액', width: 210, align: 'right'}
             ]
           });
@@ -170,7 +170,7 @@
             autoGenerateColumns: false,
             selectionMode: wijmo.grid.SelectionMode.Row,
             headersVisibility: wijmo.grid.HeadersVisibility.Column,
-            isReadOnly: false,
+            isReadOnly: true,
             showMarquee: true,
             formatItem: (sender, e) => {
               const col = sender.columns[e.col];
@@ -255,7 +255,7 @@
           };
           let result = AjaxUtil.getSyncData(url + "/read", data);
           if (result.data != null) {
-            console.log('accounts_payable_list data : ', result.data)
+            // console.log('accounts_payable_list data : ', result.data)
             _this.grid.itemsSource = new wijmo.collections.CollectionView(result.data);
           }
         }
@@ -341,7 +341,8 @@
           }
           //상세 데이터도 같이 조회
           if (companyCode !== '') {
-            page.loadDetailData(companyCode);
+            const cltflag = $('#cboCltflag').val() || '0';
+            page.loadDetailData(companyCode, cltflag);
           } else {
             // 회사 선택 안 된 경우 상세 그리드 초기화
             page.grid3.itemsSource = [];

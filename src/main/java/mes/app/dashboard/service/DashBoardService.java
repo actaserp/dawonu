@@ -1,18 +1,18 @@
 package mes.app.dashboard.service;
 
+import lombok.extern.slf4j.Slf4j;
+import mes.app.sales.service.SujuService;
+import mes.domain.entity.User;
+import mes.domain.services.SqlRunner;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
+import org.springframework.security.core.Authentication;
+import org.springframework.stereotype.Service;
+
 import java.sql.Timestamp;
 import java.util.*;
 
-import mes.app.balju.service.BaljuOrderService;
-import mes.app.sales.service.SujuService;
-import org.springframework.security.core.Authentication;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
-import org.springframework.stereotype.Service;
-
-import mes.domain.entity.User;
-import mes.domain.services.SqlRunner;
-
+@Slf4j
 @Service
 public class DashBoardService {
 
@@ -29,6 +29,8 @@ public class DashBoardService {
 		List<Map<String, Object>> suju  = getSujuList(start, end, spjangcd, choComp);
 		List<Map<String, Object>> invo  = getInvoList(start, end, spjangcd, choComp);
 		List<Map<String, Object>> sales  = getSaleList(start, end, spjangcd, choComp);
+		List<Map<String, Object>> receive  = getReceiveList(start, end, spjangcd, choComp);
+		List<Map<String, Object>> payment  = getPaymentList(start, end, spjangcd, choComp);
 
 		// 2) 구분(division) 부여 + 키 표준화(필요 시)
 		balju.forEach(m -> {
@@ -52,13 +54,26 @@ public class DashBoardService {
 			m.put("division_group", "매출");
 			normalizeSalesRow(m);
 		});
+		receive.forEach(m -> {
+			m.put("division", "입금");
+			m.put("division_group", "입금");
+			normalizeReceiveRow(m);
+		});
+		payment.forEach(m -> {
+			m.put("division", "출금");
+			m.put("division_group", "출금");
+			normalizePaymentRow(m);
+		});
 
 		// 3) 병합 + 정렬(납기일 우선, 없으면 주문일)
-		List<Map<String, Object>> merged = new ArrayList<>(balju.size() + suju.size() + invo.size()+ sales.size());
+		List<Map<String, Object>> merged = new ArrayList<>(balju.size() +
+				suju.size() + invo.size()+ sales.size() + receive.size() + payment.size());
 		merged.addAll(balju);
 		merged.addAll(suju);
 		merged.addAll(invo);
 		merged.addAll(sales);
+		merged.addAll(receive);
+		merged.addAll(payment);
 
 		// due_date, order_date 모두 'YYYY-MM-DD' 문자열
 		Comparator<Map<String, Object>> byJumunDateDesc =
@@ -135,6 +150,30 @@ public class DashBoardService {
 		m.putIfAbsent("total_price", m.remove("totalamt"));
 		m.putIfAbsent("JumunDate", m.remove("misdate"));
 		m.putIfAbsent("BusinessNumber", m.remove("ivercorpnum"));
+	}
+
+	//입금 행 표준화
+	private void normalizeReceiveRow(Map<String, Object> m) {
+		m.putIfAbsent("head_id", m.remove("head_id"));
+		m.putIfAbsent("company_id", m.remove("cltcd"));
+		m.putIfAbsent("company_name", m.remove("company_name"));
+		m.putIfAbsent("state_name", m.remove("state_name"));
+		m.putIfAbsent("price", m.remove("price"));
+		m.putIfAbsent("vat", m.remove("vat"));
+		m.putIfAbsent("total_price", m.remove("total_price"));
+		m.putIfAbsent("JumunDate", m.remove("JumunDate"));
+
+	}
+	//출금 행 표준화
+	private void normalizePaymentRow(Map<String, Object> m) {
+		m.putIfAbsent("head_id", m.remove("head_id"));
+		m.putIfAbsent("company_id", m.remove("cltcd"));
+		m.putIfAbsent("company_name", m.remove("company_name"));
+		m.putIfAbsent("state_name", m.remove("state_name"));
+		m.putIfAbsent("price", m.remove("price"));
+		m.putIfAbsent("vat", m.remove("vat"));
+		m.putIfAbsent("total_price", m.remove("total_price"));
+		m.putIfAbsent("JumunDate", m.remove("JumunDate"));
 	}
 
 	public List<Map<String, Object>> getBaljuList(Timestamp start, Timestamp end, String spjangcd, String choComp) {
@@ -503,13 +542,38 @@ public class DashBoardService {
 				AND purchase_type_code."Code" = m.misgubun
 				WHERE 1=1
 				and m.spjangcd = :spjangcd
-				and to_date(m.misdate, 'YYYYMMDD') between :start and :end;
+				and to_date(m.misdate, 'YYYYMMDD') between :start and :end
+				AND (
+				  :choComp IS NULL OR :choComp = '' OR :choComp = '%' OR
+				  COALESCE(cu.name,'')      ILIKE :choComp OR
+				  COALESCE(cu.accname,'')   ILIKE :choComp OR
+				  COALESCE(cu."Code",'')    ILIKE :choComp OR
+				  COALESCE(cu.accnum,'')    ILIKE :choComp OR
+				  COALESCE(cu.cardnum,'')   ILIKE :choComp OR
+				  COALESCE(pcu.name,'')     ILIKE :choComp OR
+				  COALESCE(pcu.accname,'')  ILIKE :choComp OR
+				  COALESCE(pcu."Code",'')   ILIKE :choComp OR
+				  COALESCE(pcu.accnum,'')   ILIKE :choComp OR
+				  COALESCE(pcu.cardnum,'')  ILIKE :choComp OR
+				  COALESCE(c."BusinessNumber",'') ILIKE :choComp OR
+				  CAST(m.misnum AS TEXT)    ILIKE :choComp OR
+				  COALESCE(m.title,'')      ILIKE :choComp OR
+				  COALESCE(de.name,'')      ILIKE :choComp OR
+				  COALESCE(dp."Name",'')    ILIKE :choComp OR
+				  COALESCE(iz.cardnum,'')   ILIKE :choComp OR
+				  COALESCE(CASE
+				    WHEN ds.item_count > 1 THEN ds.first_itemnm || ' 외 ' || (ds.item_count - 1) || '개'
+				    WHEN ds.item_count = 1 THEN ds.first_itemnm
+				    ELSE ''
+				  END,'') ILIKE :choComp
+				);
 				""";
 		List<Map<String, Object>> itmes = this.sqlRunner.getRows(sql, dicParam);
 
 		return itmes;
 	}
 
+	//매출 리스트
 	public List<Map<String, Object>> getSaleList(Timestamp start, Timestamp end, String spjangcd, String choComp){
 
 		MapSqlParameterSource dicParam = new MapSqlParameterSource();
@@ -520,56 +584,251 @@ public class DashBoardService {
 		dicParam.addValue("choComp", pattern);
 		String sql = """
 				WITH detail_summary AS (
-					SELECT DISTINCT ON (misnum)
-						misnum,
-						itemnm AS first_itemnm,
-						COUNT(*) OVER (PARTITION BY misnum) AS item_count
-					FROM tb_salesdetail
-					ORDER BY misnum, misseq
-				 ) 
-					 SELECT
-						TO_CHAR(TO_DATE(m.misdate, 'YYYYMMDD'), 'YYYY-MM-DD') AS misdate,
-						m.misnum,
-						m.misgubun,
-						sale_type_code."Value" AS misgubun_name,  -- fn_code_name 제거
-						m.cltcd,
-						m.ivercorpnum,
-						m.ivercorpnm,
-						m.totalamt,
-						m.supplycost,
-						m.taxtotal,
-						m.statecode,
-						state_code."Value" AS statecode_name,
-						TO_CHAR(TO_TIMESTAMP(m.statedt, 'YYYYMMDDHH24MISS'), 'YYYY-MM-DD HH24:MI:SS') AS statedt_formatted,
-						m.iverceonm,
-						m.iveremail,
-						m.iveraddr,
-						m.taxtype,
-						issue_div."Value" AS issuediv_name,
-						m.issuediv,
-						m.modifycd,
-						CASE
-						 WHEN ds.item_count > 1 THEN ds.first_itemnm || ' 외 ' || (ds.item_count - 1) || '개'
-						 WHEN ds.item_count = 1 THEN ds.first_itemnm
-						 ELSE NULL
-						END AS item_summary                 
-					 FROM tb_salesment m                 
-					 LEFT JOIN tb_salesdetail d
-						ON m.misnum = d.misnum                 
-					 LEFT JOIN detail_summary ds
-						ON m.misnum = ds.misnum                 
-					 LEFT JOIN sys_code sale_type_code
-						ON sale_type_code."CodeType" = 'sale_type'
-						AND sale_type_code."Code" = m.misgubun                  
-					 LEFT JOIN sys_code issue_div
-						ON issue_div."CodeType" = 'issue_div'
-						AND issue_div."Code" = m.issuediv                 
-					 LEFT JOIN sys_code state_code
-						ON state_code."CodeType" = 'state_code_pb'
-						AND state_code."Code" = m.statecode::text                 
-					 WHERE 1 = 1
-					 and m.spjangcd = :spjangcd
-					 and to_date(m.misdate, 'YYYYMMDD') between :start and :end;					
+						 SELECT DISTINCT ON (misnum)
+										misnum,
+										itemnm AS first_itemnm,
+										COUNT(*) OVER (PARTITION BY misnum) AS item_count
+						 FROM tb_salesdetail
+						 ORDER BY misnum, misseq
+				 )
+				 SELECT
+						 TO_CHAR(TO_DATE(m.misdate, 'YYYYMMDD'), 'YYYY-MM-DD') AS misdate,
+						 m.misnum,
+						 m.misgubun,
+						 sale_type_code."Value" AS misgubun_name,
+						 m.cltcd,
+						 m.ivercorpnum,
+						 m.ivercorpnm,
+						 m.totalamt,
+						 m.supplycost,
+						 m.taxtotal,
+						 m.statecode,
+						 state_code."Value" AS statecode_name,
+						 TO_CHAR(TO_TIMESTAMP(m.statedt, 'YYYYMMDDHH24MISS'), 'YYYY-MM-DD HH24:MI:SS') AS statedt_formatted,
+						 m.iverceonm,
+						 m.iveremail,
+						 m.iveraddr,
+						 m.taxtype,
+						 issue_div."Value" AS issuediv_name,
+						 m.issuediv,
+						 m.modifycd,
+						 CASE
+							 WHEN ds.item_count > 1 THEN ds.first_itemnm || ' 외 ' || (ds.item_count - 1) || '개'
+							 WHEN ds.item_count = 1 THEN ds.first_itemnm
+							 ELSE NULL
+						 END AS item_summary
+				 FROM tb_salesment m
+				 LEFT JOIN detail_summary ds
+								ON m.misnum = ds.misnum
+				 LEFT JOIN sys_code sale_type_code
+								ON sale_type_code."CodeType" = 'sale_type'
+							 AND sale_type_code."Code"     = m.misgubun
+				 LEFT JOIN sys_code issue_div
+								ON issue_div."CodeType" = 'issue_div'
+							 AND issue_div."Code"     = m.issuediv
+				 LEFT JOIN sys_code state_code
+								ON state_code."CodeType" = 'state_code_pb'
+							 AND state_code."Code"     = m.statecode::text
+				 WHERE m.spjangcd = :spjangcd
+					 AND TO_DATE(m.misdate, 'YYYYMMDD') BETWEEN :start AND :end
+					 AND (
+				         :choComp IS NULL OR :choComp = '' OR :choComp = '%' OR
+				         m.ivercorpnm ILIKE :choComp OR
+				         m.ivercorpnum ILIKE :choComp OR
+				         CAST(m.cltcd AS TEXT) ILIKE :choComp OR
+				         CAST(m.misnum AS TEXT) ILIKE :choComp OR
+				         COALESCE(sale_type_code."Value",'') ILIKE :choComp OR
+				         COALESCE(issue_div."Value",'')      ILIKE :choComp OR
+				         COALESCE(state_code."Value",'')     ILIKE :choComp OR
+				         COALESCE(
+				           CASE
+				             WHEN ds.item_count > 1 THEN ds.first_itemnm || ' 외 ' || (ds.item_count - 1) || '개'
+				             WHEN ds.item_count = 1 THEN ds.first_itemnm
+				             ELSE ''
+				           END,''
+				         ) ILIKE :choComp
+				    )
+				 ORDER BY m.misdate, m.misnum;
+				""";
+		List<Map<String, Object>> itmes = this.sqlRunner.getRows(sql, dicParam);
+
+		return itmes;
+	}
+	
+	//입금 리스트
+	public List<Map<String, Object>> getReceiveList(Timestamp start, Timestamp end, String spjangcd, String choComp){
+
+		MapSqlParameterSource dicParam = new MapSqlParameterSource();
+		dicParam.addValue("start", start);
+		dicParam.addValue("end", end);
+		dicParam.addValue("spjangcd", spjangcd);
+		String pattern = (choComp == null || choComp.isBlank()) ? "%" : "%" + choComp + "%";
+		dicParam.addValue("choComp", pattern);
+		String sql = """
+				SELECT
+				    -- 숨김키
+				    b.ioid AS head_id,
+				    -- 구분(고정)
+				    '입금' AS division,
+				    -- 작성일자
+				    TO_CHAR(TO_DATE(b.trdate, 'YYYYMMDD'), 'YYYY-MM-DD') AS "JumunDate",
+				    -- 상태(입금 유형명: deposit_type 값 우선, 없으면 거래명)
+				    COALESCE(s."Value", t.tradenm) AS state_name,
+				    b.cltcd,
+				    -- 거래처명(클라이언트명)
+				    COALESCE(
+				        CASE
+				            WHEN b.cltflag = '0' THEN c."Name"      -- 회사
+				            WHEN b.cltflag = '1' THEN p."Name"      -- 개인
+				            WHEN b.cltflag = '2' THEN d2.accname    -- 계좌명
+				            WHEN b.cltflag = '3' THEN i.cardco      -- 카드사명
+				        END, ''
+				    ) AS company_name,
+				    -- 사업자번호(또는 식별자 대체)
+				    COALESCE(
+				        CASE
+				            WHEN b.cltflag = '0' THEN c."BusinessNumber" 
+				            WHEN b.cltflag = '1' THEN p."Code"           
+				            WHEN b.cltflag = '2' THEN d2.accnum         
+				            WHEN b.cltflag = '3' THEN i.cardnum          
+				        END, ''
+				    ) AS "BusinessNumber",
+				    
+				    -- 공급가액: 입금 금액
+				    COALESCE(b.accin, 0) AS price,
+				    -- 세액: 수수료 매핑(필요 시 0으로 두고 fee를 별도 컬럼으로 쓰세요)
+				    COALESCE(b.feeamt, 0) AS vat,
+				    -- 합계: 입금 + 수수료
+				    COALESCE(b.accin, 0) + COALESCE(b.feeamt, 0) AS total_price,
+				    -- 메모
+				    b.remark1 AS "Description"
+				FROM tb_banktransit b
+				LEFT JOIN tb_trade   t ON t.trid = b.trid
+				LEFT JOIN sys_code   s ON s."Code" = b.iotype AND s."CodeType" = 'deposit_type'
+				LEFT JOIN company    c ON c.id = b.cltcd
+				LEFT JOIN person     p ON p.id = b.cltcd
+				LEFT JOIN tb_account d2 ON d2.accid = b.cltcd
+				LEFT JOIN tb_iz010   i  ON i.id   = b.cltcd
+				WHERE b.ioflag = '0'                            -- 입금만
+				  AND TO_DATE(b.trdate, 'YYYYMMDD')
+				      BETWEEN :start AND :end
+				  AND b.spjangcd = :spjangcd
+				   AND (
+				         :choComp IS NULL OR :choComp = '' OR :choComp = '%' OR
+				         -- 이름/식별자
+				         COALESCE(
+				           CASE
+				             WHEN b.cltflag = '0' THEN c."Name"
+				             WHEN b.cltflag = '1' THEN p."Name"
+				             WHEN b.cltflag = '2' THEN d2.accname
+				             WHEN b.cltflag = '3' THEN i.cardco
+				           END,''
+				         ) ILIKE :choComp OR
+				         COALESCE(
+				           CASE
+				             WHEN b.cltflag = '0' THEN c."BusinessNumber"
+				             WHEN b.cltflag = '1' THEN p."Code"
+				             WHEN b.cltflag = '2' THEN d2.accnum
+				             WHEN b.cltflag = '3' THEN i.cardnum
+				           END,''
+				         ) ILIKE :choComp OR
+				         -- 유형/은행/계좌/메모
+				         COALESCE(s."Value",'')  ILIKE :choComp OR
+				         COALESCE(t.tradenm,'')  ILIKE :choComp OR
+				         COALESCE(b.banknm,'')   ILIKE :choComp OR
+				         COALESCE(b.accnum,'')   ILIKE :choComp OR
+				         COALESCE(b.memo,'')     ILIKE :choComp OR
+				         COALESCE(b.remark1,'')  ILIKE :choComp
+				    )
+				ORDER BY b.trdate DESC, b.ioid desc;
+				""";
+		List<Map<String, Object>> itmes = this.sqlRunner.getRows(sql, dicParam);
+
+		return itmes;
+	}
+	
+	//출금 리스트
+	public List<Map<String, Object>> getPaymentList(Timestamp start, Timestamp end, String spjangcd, String choComp){
+
+		MapSqlParameterSource dicParam = new MapSqlParameterSource();
+		dicParam.addValue("start", start);
+		dicParam.addValue("end", end);
+		dicParam.addValue("spjangcd", spjangcd);
+		String pattern = (choComp == null || choComp.isBlank()) ? "%" : "%" + choComp + "%";
+		dicParam.addValue("choComp", pattern);
+		String sql = """
+				SELECT
+				    -- 숨김키
+				    b.ioid AS head_id,				   
+				    '출금' AS division,
+				    -- 작성일자
+				    TO_CHAR(TO_DATE(b.trdate, 'YYYYMMDD'), 'YYYY-MM-DD') AS "JumunDate",
+				    COALESCE(s."Value", t.tradenm) AS state_name,
+				    b.cltcd,
+				    -- 거래처명(클라이언트명)
+				    COALESCE(
+				        CASE
+				            WHEN b.cltflag = '0' THEN c."Name"      -- 회사
+				            WHEN b.cltflag = '1' THEN p."Name"      -- 개인
+				            WHEN b.cltflag = '2' THEN d2.accname    -- 계좌명
+				            WHEN b.cltflag = '3' THEN i.cardco      -- 카드사명
+				        END, ''
+				    ) AS company_name,
+				    -- 사업자번호(또는 식별자 대체)
+				    COALESCE(
+				        CASE
+				            WHEN b.cltflag = '0' THEN c."BusinessNumber" -- 회사 사업자번호
+				            WHEN b.cltflag = '1' THEN p."Code"           -- 개인 코드(있으면 주민/사번 등)
+				            WHEN b.cltflag = '2' THEN d2.accnum          -- 계좌번호
+				            WHEN b.cltflag = '3' THEN i.cardnum          -- 카드번호
+				        END, ''
+				    ) AS "BusinessNumber",
+				    
+				    -- 공급가액: 입금 금액
+				    COALESCE(b.accout, 0) AS price,
+				    -- 세액: 수수료 매핑(필요 시 0으로 두고 fee를 별도 컬럼으로 쓰세요)
+				    COALESCE(b.feeamt, 0) AS vat,
+				    -- 합계: 입금 + 수수료
+				    COALESCE(b.accout, 0) + COALESCE(b.feeamt, 0) AS total_price,
+				    -- 메모
+				    b.remark1 AS "Description"
+				FROM tb_banktransit b
+				LEFT JOIN tb_trade   t ON t.trid = b.trid
+				LEFT JOIN sys_code   s ON s."Code" = b.iotype AND s."CodeType" = 'deposit_type'
+				LEFT JOIN company    c ON c.id = b.cltcd
+				LEFT JOIN person     p ON p.id = b.cltcd
+				LEFT JOIN tb_account d2 ON d2.accid = b.cltcd
+				LEFT JOIN tb_iz010   i  ON i.id   = b.cltcd
+				WHERE b.ioflag = '1'                            --출금만
+				  AND TO_DATE(b.trdate, 'YYYYMMDD')
+				      BETWEEN :start AND :end
+				  AND b.spjangcd = :spjangcd
+				  AND (
+				         :choComp IS NULL OR :choComp = '' OR :choComp = '%' OR
+				         COALESCE(
+				           CASE
+				             WHEN b.cltflag = '0' THEN c."Name"
+				             WHEN b.cltflag = '1' THEN p."Name"
+				             WHEN b.cltflag = '2' THEN d2.accname
+				             WHEN b.cltflag = '3' THEN i.cardco
+				           END,''
+				         ) ILIKE :choComp OR
+				         COALESCE(
+				           CASE
+				             WHEN b.cltflag = '0' THEN c."BusinessNumber"
+				             WHEN b.cltflag = '1' THEN p."Code"
+				             WHEN b.cltflag = '2' THEN d2.accnum
+				             WHEN b.cltflag = '3' THEN i.cardnum
+				           END,''
+				         ) ILIKE :choComp OR
+				         COALESCE(s."Value",'')  ILIKE :choComp OR
+				         COALESCE(t.tradenm,'')  ILIKE :choComp OR
+				         COALESCE(b.banknm,'')   ILIKE :choComp OR
+				         COALESCE(b.accnum,'')   ILIKE :choComp OR
+				         COALESCE(b.memo,'')     ILIKE :choComp OR
+				         COALESCE(b.remark1,'')  ILIKE :choComp
+				    )
+				ORDER BY b.trdate DESC, b.ioid desc;
 				""";
 		List<Map<String, Object>> itmes = this.sqlRunner.getRows(sql, dicParam);
 
@@ -888,9 +1147,69 @@ public class DashBoardService {
 				 (d.supplycost + d.taxtotal) AS total_amount,
 				 d.remark as description
 				from tb_salesdetail d
-				left join tb_salesment h on h.misdate = d.misdate
+				LEFT JOIN tb_salesment h
+				 ON h.misnum = d.misnum 
+				AND h.misdate = d.misdate
 				 WHERE d.misnum = :misnum
 				 ORDER BY d.misseq::int asc;
+				""";
+		return sqlRunner.getRows(sql, paramMap);
+	}
+	
+	//입금
+	public List<Map<String, Object>> getReceiveDetail(int id) {
+		MapSqlParameterSource paramMap = new MapSqlParameterSource();
+		paramMap.addValue("ioid", id);
+		String sql= """
+				SELECT
+				    b.ioid AS id,
+				    -- 구분(고정)
+				    '입금' AS division,
+				    TO_CHAR(TO_DATE(b.trdate, 'YYYYMMDD'), 'YYYY-MM-DD') AS "JumunDate",
+				    COALESCE(s."Value", t.tradenm) AS state_name,
+				    COALESCE(b.accin, 0) AS supply_amount,
+				    COALESCE(b.feeamt, 0) AS vat_amount,
+				    COALESCE(b.accin, 0) + COALESCE(b.feeamt, 0) AS total_amount,
+				    b.remark1 AS "description"
+				FROM tb_banktransit b
+				LEFT JOIN tb_trade t
+				       ON t.trid = b.trid
+				LEFT JOIN sys_code s
+				       ON s."Code" = b.iotype
+				      AND s."CodeType" = 'deposit_type'
+				WHERE b.ioflag = '0'  -- 입금만
+				  AND b.ioid  = :ioid
+				ORDER BY b.trdate DESC, b.ioid DESC;
+				""";
+		log.info("입금 상세 read SQL: {}", sql);
+    log.info("SQL Parameters: {}", paramMap.getValues());
+		return sqlRunner.getRows(sql, paramMap);
+	}
+
+	//출금
+	public List<Map<String, Object>> getPaymentDetail(int id) {
+		MapSqlParameterSource paramMap = new MapSqlParameterSource();
+		paramMap.addValue("ioid", id);
+		String sql= """
+				SELECT
+				    b.ioid AS id,
+				    -- 구분(고정)
+				    '출금' AS division,
+				    TO_CHAR(TO_DATE(b.trdate, 'YYYYMMDD'), 'YYYY-MM-DD') AS "JumunDate",
+				    COALESCE(s."Value", t.tradenm) AS state_name,
+				    COALESCE(b.accout, 0) AS supply_amount,                 -- 출금 금액
+				    COALESCE(b.feeamt, 0) AS vat_amount,                    -- 수수료(필요 시 0으로)
+				    COALESCE(b.accout, 0) + COALESCE(b.feeamt, 0) AS total_amount,
+				    b.remark1 AS "description"
+				FROM tb_banktransit b
+				LEFT JOIN tb_trade t
+				       ON t.trid = b.trid
+				LEFT JOIN sys_code s
+				       ON s."Code" = b.iotype
+				      AND s."CodeType" = 'deposit_type'   -- 출금 유형 코드타입이 따로 있으면 여기 변경
+				WHERE b.ioflag = '1'  -- 출금만				 
+				  AND b.ioid  = :ioid
+				ORDER BY b.trdate DESC, b.ioid DESC;
 				""";
 		return sqlRunner.getRows(sql, paramMap);
 	}
@@ -1139,6 +1458,64 @@ public class DashBoardService {
 				      AND sc."Code"     = m.misgubun
 				WHERE m.misnum = :id
 				ORDER BY d.misseq::int;
+				""";
+		return this.sqlRunner.getRows(HistorySql, paramMap);
+	}
+	
+	
+	//입금 이력
+	public List<Map<String, Object>> getReceiveHistory(int id) {
+		MapSqlParameterSource paramMap = new MapSqlParameterSource();
+		paramMap.addValue("id", id);
+		String HistorySql= """
+				SELECT
+							'receive' AS event_type,
+							NULL::text AS product_name,         
+							NULL::text AS standard,
+							COALESCE(s."Value", t.tradenm, '입금') AS state_name,
+							to_timestamp(COALESCE(NULLIF(b.trdt, ''), b.trdate || '000000'), 'YYYYMMDDHH24MISS')
+								AT TIME ZONE 'Asia/Seoul' AS event_time,
+							COALESCE(b.accin, 0)  AS supply_amount,        -- 입금금액
+						
+							COALESCE(b.accin, 0) + COALESCE(b.feeamt, 0) AS total_amount,
+							b.remark1 AS description
+						FROM tb_banktransit b
+						LEFT JOIN tb_trade t
+									 ON t.trid = b.trid
+						LEFT JOIN sys_code s
+									 ON s."Code" = b.iotype
+									AND s."CodeType" = 'deposit_type'
+						WHERE b.ioflag = '0'   -- 입금
+							AND b.ioid = :id
+						ORDER BY event_time;
+				""";
+		return this.sqlRunner.getRows(HistorySql, paramMap);
+	}
+
+	//입금 이력
+	public List<Map<String, Object>> getPaymentHistory(int id) {
+		MapSqlParameterSource paramMap = new MapSqlParameterSource();
+		paramMap.addValue("id", id);
+		String HistorySql= """
+				SELECT
+				  'payment' AS event_type,
+				  NULL::text AS product_name,                    -- 은행거래는 품목 없음
+				  NULL::text AS standard,
+				  COALESCE(s."Value", t.tradenm, '출금') AS state_name,
+				  to_timestamp(COALESCE(NULLIF(b.trdt, ''), b.trdate || '000000'), 'YYYYMMDDHH24MISS')
+				AT TIME ZONE 'Asia/Seoul' AS event_time,
+				  COALESCE(b.accout, 0) AS supply_amount,        -- 출금금액
+				  COALESCE(b.accout, 0) + COALESCE(b.feeamt, 0) AS total_amount,
+				  b.remark1 AS description
+				FROM tb_banktransit b
+				LEFT JOIN tb_trade t
+				       ON t.trid = b.trid
+				LEFT JOIN sys_code s
+				       ON s."Code" = b.iotype
+				  AND s."CodeType" = 'deposit_type'   -- 출금 전용 코드타입이 따로 있으면 여기 변경
+				WHERE b.ioflag = '1'   -- 출금
+				  AND b.ioid = :id
+				ORDER BY event_time;
 				""";
 		return this.sqlRunner.getRows(HistorySql, paramMap);
 	}
