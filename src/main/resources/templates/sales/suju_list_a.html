@@ -1256,83 +1256,54 @@
           calculateAmounts($row, 'unit'); // ← 'standard-change' 말고 'unit'으로
         });
 
-        // 숫자 포맷 (input 중 formatting)
-        /*$content.on('input', 'input[name^="quantity_"], input[name^="unitPrice_"], input[name^="supplyAmount_"], ' +
-          'input[name^="VatAmount_"], input[name^="totalAmount_"]', function () {
-          if (isInternalFormatting) return;
-          isInternalFormatting = true;
-
-          const $this = $(this);
-          const input = this;
-          const raw = $this.val().replace(/[^0-9]/g, '');
-          const cursor = input.selectionStart;
-          const prevLength = input.value.length;
-
-          if (raw === '') {
-            $this.val('');
-          } else {
-            const formatted = Number(raw).toLocaleString();
-            $this.val(formatted);
-
-            const diff = formatted.length - prevLength;
-            input.setSelectionRange(cursor + diff, cursor + diff);
-          }
-
-          isInternalFormatting = false;
-        });*/
         // 숫자 포맷 (input 중 formatting) - 소수점/천단위 지원
+        // 1) 입력 중: 포맷(천단위)만, 소수 고정 금지
         $content.off('input.numfmt')
           .on('input.numfmt', 'input[name^="quantity_"], input[name^="unitPrice_"], input[name^="supplyAmount_"], input[name^="VatAmount_"], input[name^="totalAmount_"]', function (e) {
             if (isInternalFormatting) return;
-            if (e.originalEvent && e.originalEvent.isComposing) return; // IME 조합중일 때 무시
-            isInternalFormatting = true;
+            if (e.originalEvent && e.originalEvent.isComposing) return;
 
-            const $this = $(this);
+            isInternalFormatting = true;
             const input = this;
+            const $this = $(this);
             const name  = input.name || '';
 
             // 커서 보정용
-            const prevLen   = input.value.length;
+            const prevLen = input.value.length;
             const cursorPos = input.selectionStart;
             const rightRemain = prevLen - cursorPos;
 
             let allowDecimal = false;
             let decimals = 0;
-
-            // 규칙: 수량만 소수 1자리 허용, 나머지(단가/금액)는 정수
             if (name.startsWith('quantity_')) { allowDecimal = true; decimals = 1; }
 
-            // 원본값에서 콤마만 제거
+            // 원본값에서 콤마 제거
             let raw = String($this.val() || '').replace(/,/g, '');
 
             if (allowDecimal) {
               // 숫자와 점만 허용 + 점은 하나만
               raw = raw.replace(/[^0-9.]/g, '').replace(/\.(?=.*\.)/g, '');
-              // 빈 값 처리
               if (raw === '' || raw === '.') {
                 $this.val('');
                 isInternalFormatting = false;
                 return;
               }
-              // 숫자화
-              let num = Number(raw);
-              if (!isFinite(num)) {
-                $this.val('');
-                isInternalFormatting = false;
-                return;
-              }
-              // 소수 자리 제한(초과 입력 컷)
-              const factor = Math.pow(10, decimals);
-              num = Math.floor(num * factor) / factor;
 
-              // 천단위 + 고정 소수 자리
-              const parts = num.toFixed(decimals).split('.');
-              parts[0] = Number(parts[0]).toLocaleString('ko-KR');
-              const formatted = decimals > 0 ? parts[0] + '.' + parts[1] : parts[0];
+              // 소수점이 있는지 여부(입력 중에는 .0 강제하지 않음)
+              const hasDot = raw.includes('.');
+              let [intPart, fracPart = ''] = raw.split('.');
+              intPart = intPart.replace(/^0+(?=\d)/, ''); // 선행 0 정리(유지 원하면 제거)
+
+              // 소수부 자릿수 제한(입력 컷)
+              if (fracPart.length > decimals) fracPart = fracPart.slice(0, decimals);
+
+              // 천단위는 정수부에만 적용
+              const intFormatted = (intPart === '' ? '0' : String(Number(intPart))).toLocaleString('ko-KR');
+              const formatted = hasDot ? `${intFormatted}.${fracPart}` : intFormatted;
 
               $this.val(formatted);
 
-              // 커서 재배치(오른쪽부터 보정)
+              // 커서 재배치
               const newLen = formatted.length;
               const pos = Math.max(0, newLen - rightRemain);
               input.setSelectionRange(pos, pos);
@@ -1356,6 +1327,44 @@
             isInternalFormatting = false;
           });
 
+        // 2) 포커스 아웃 시: 수량은 .0 제거(정수면 정수만), 소수는 최대 1자리
+        $content.off('blur.numfmt')
+          .on('blur.numfmt', 'input[name^="quantity_"], input[name^="unitPrice_"], input[name^="supplyAmount_"], input[name^="VatAmount_"], input[name^="totalAmount_"]', function () {
+            const $this = $(this);
+            const name = this.name || '';
+            let v = String($this.val() || '').replace(/,/g, '');
+
+            if (!v) return;
+
+            if (name.startsWith('quantity_')) {
+              // 수량: 숫자/점만 허용
+              v = v.replace(/[^0-9.]/g, '').replace(/\.(?=.*\.)/g, '');
+              if (v === '' || v === '.') { $this.val(''); return; }
+
+              let num = Number(v);
+              if (!isFinite(num)) { $this.val(''); return; }
+
+              // 소수 1자리 반올림
+              num = Math.round(num * 10) / 10;
+
+              // 정수/소수 분리
+              const parts = String(num).split('.');
+              const intStr = Number(parts[0]).toLocaleString('ko-KR');
+
+              // 소수부가 없거나 0이면 정수만, 그 외엔 소수 1자리
+              if (parts.length === 1 || parts[1] === '0') {
+                $this.val(intStr); // 예: 50
+              } else {
+                // parts[1]은 한 자리일 것. (반올림으로 보장)
+                $this.val(`${intStr}.${parts[1]}`); // 예: 50.3
+              }
+            } else {
+              // 단가/금액: 정수 유지
+              const iv = v.replace(/[^0-9]/g, '');
+              if (iv === '') { $this.val(''); return; }
+              $this.val(Number(iv).toLocaleString('ko-KR'));
+            }
+          });
 
         // 검색 버튼 클릭 시 팝업
         $content.on('click', 'a[title="품목 신규등록"]', function () {
