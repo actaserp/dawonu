@@ -63,11 +63,11 @@ public class ShipmentOrderController {
 			@RequestParam("keyword") String keyword ){
 
 		if(dateFrom.isEmpty()){
-			dateFrom = UtilClass.getDayByParamAdd(0); // 오늘날짜
+			//dateFrom = UtilClass.getDayByParamAdd(0); // 오늘날짜
 		}
 
 		if(dateTo.isEmpty()){
-			dateTo = UtilClass.getDayByParamAdd(7);
+			//dateTo = UtilClass.getDayByParamAdd(7);
 		}
 
 		List<Map<String, Object>> items = this.shipmentOrderService.getSujuList(dateFrom,dateTo,notShip,compPk,matGrpPk,matPk,keyword);
@@ -127,7 +127,7 @@ public class ShipmentOrderController {
 		smh.setState("ordered");
 		
 
-		int orderSum = 0;
+		double orderSum = 0;
 		double totalPrice = 0;
 		double totalVat = 0;
 
@@ -167,13 +167,13 @@ public class ShipmentOrderController {
 		//출하하려는 항목의 누적 클래스, 여기서만 사용하는 클래스라서 이너클래스로 생성함
 		class MatSummary {
 			String name;
-			int totalQty;
+			double totalQty;
 
-			public MatSummary(String name, int totalQty){
+			public MatSummary(String name, double totalQty){
 				this.name = name;
 				this.totalQty = totalQty;
 			}
-			public void addQty(int qty){
+			public void addQty(double qty){
 				this.totalQty += qty;
 			}
 		}
@@ -184,7 +184,9 @@ public class ShipmentOrderController {
 		for(Map<String, Object> item : data){
 			Integer matId = (Integer) item.get("mat_id");
 			String matName = item.get("mat_name").toString();
-			int orderQty = (Integer) item.get("order_qty");
+
+			double orderQty = ((Number) item.get("order_qty")).doubleValue();
+			//double orderQty = (double) item.get("order_qty");
 
 			GroupedMaterial.compute(matId, (id, summary) -> {
 				if(summary == null){
@@ -206,7 +208,7 @@ public class ShipmentOrderController {
 			MatSummary summary = GroupedMaterial.get(matid);
 
 			if(summary != null){
-				int totalQty = summary.totalQty; // 출하하려는 재고
+				double totalQty = summary.totalQty; // 출하하려는 재고
 				Float currentStock = material.getCurrentStock();
 				if (currentStock == null) {
 					result.success = false;
@@ -225,7 +227,9 @@ public class ShipmentOrderController {
 
 		for(int i = 0; i < data.size(); i++) {
 
-			int orderQty = Integer.parseInt(data.get(i).get("order_qty").toString());
+			//int orderQty = Integer.parseInt(data.get(i).get("order_qty").toString());
+
+			double orderQty = Double.parseDouble(data.get(i).get("order_qty").toString());
 
 			if (orderQty <=  0) {
 				continue;

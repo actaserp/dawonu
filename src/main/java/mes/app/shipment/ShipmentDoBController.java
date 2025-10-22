@@ -191,6 +191,8 @@ public class ShipmentDoBController {
 		this.transactionTemplate.executeWithoutResult(status->{
 			for (int i = 0; i < items.size(); i++) {
 	            Integer ml_id = (Integer) items.get(i).get("ml_id");
+
+
 	            Float quantity = Float.valueOf((String)items.get(i).get("quantity"));
 	            Integer mlc_id = (Integer) items.get(i).get("mlc_id");
 
@@ -317,7 +319,7 @@ public class ShipmentDoBController {
 
 			if (smList != null) {
 
-				int orderSum = 0;
+				double orderSum = 0;
 				for (int i = 0; i < smList.size(); i++) {
 					Shipment sm = smList.get(i);
 

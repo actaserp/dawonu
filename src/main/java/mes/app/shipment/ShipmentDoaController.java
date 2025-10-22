@@ -98,7 +98,7 @@ public class ShipmentDoaController {
 			
 			if(!smh.getState().equals("shipped")) {
 				List<Shipment> smList = shipmentRepository.findByShipmentHeadId(head_id);
-				int orderSum = 0;
+				double orderSum = 0;
 				
 				for(int j = 0; j < smList.size(); j++) {
 					//Shipment sm = new Shipment();
@@ -124,7 +124,8 @@ public class ShipmentDoaController {
 		
 		return result;
 	}
-	
+
+	@Deprecated //얘 쓰지마셈 쓸거면 님이 리팩터링 해야댐. 수량 int -> double
 	@PostMapping("/save_shipdata_a")
 	@Transactional
 	public AjaxResult savaShipdataA(

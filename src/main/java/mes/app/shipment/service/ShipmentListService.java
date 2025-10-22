@@ -65,7 +65,7 @@ public class ShipmentListService {
 			sql += " )";
 		}
 		sql += """ 
-		 		order by sh."ShipDate", sh.id desc
+		 		order by sh."ShipDate" desc, sh.id desc
 		 		""";
 		List<Map<String,Object>> items = this.sqlRunner.getRows(sql, paramMap);
 

@@ -43,7 +43,7 @@ public class RelationData extends AbstractAuditModel {
 	String char1;
 	
 	@Column(name = "\"Number1\"")
-	Integer number1;
+	Double number1;
 	
 	@Column(name = "\"Date1\"")
 	Timestamp Date1;

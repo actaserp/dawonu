@@ -198,7 +198,7 @@
                                 </select>
                             </dd>
                         </dl>
-                        <dl>
+                        <!--<dl>
                             <dt>
                                 <label>
                                     품목<span class="eq"></span>
@@ -208,7 +208,7 @@
                                 <select class="" id="cboMaterial2" name="cboMaterial" >
                                 </select>
                             </dd>
-                        </dl>
+                        </dl>-->
 
                         <dl>
                             <dt>
@@ -244,6 +244,17 @@
                         </li>
                     </dd>
                 </dl>
+
+                <dl>
+                            <dt>
+                                <label>
+                                    납품처<span class="eq"></span>
+                                </label>
+                            </dt>
+                            <dd>
+                                <input style='width: 80%' type="text" id="DeliveryName" name="DeliveryName" />
+                            </dd>
+                        </dl>
             </div>
             <div class="container-fluid">
                 <div id="suju_grid" style="height: 400px;"></div>
@@ -459,10 +470,10 @@
                 });
 
                 AjaxUtil.fillSelectOptions($('#cboMatGroup2'), 'material_group', 'all', '', 'product,semi,sangpum');
-                AjaxUtil.fillSelectOptions($('#cboMaterial2'), 'material', 'all', '', null);
+                //AjaxUtil.fillSelectOptions($('#cboMaterial2'), 'material', 'all', '', null);
                 $('#cboMatGroup2').change(function (e) {
                     let mat_grp_pk = $('#cboMatGroup2').val();
-                    AjaxUtil.fillSelectOptions($('#cboMaterial2'), 'material', 'all', '', mat_grp_pk);
+                    //AjaxUtil.fillSelectOptions($('#cboMaterial2'), 'material', 'all', '', mat_grp_pk);
                 });
 
                 this.suju_grid = new wijmo.grid.FlexGrid('#suju_grid', {
@@ -499,10 +510,10 @@
                             align: 'right',
                             isReadOnly: false, // 편집 가능
                             editor: new wijmo.input.InputNumber(document.createElement('div'), {
-                                format: 'n0', // 정수 형식
+                                format: 'n2', // 정수 형식
                                 min: 0,       // 최소값 설정
                                 max: 99999,   // 최대값 설정
-                                step: 1       // 증가/감소 단위
+                                step: 0.1       // 증가/감소 단위
                             })
                         },
                         {binding: 'shipment_qty', header: '출고량', width: '*', align: 'right', isReadOnly: true},
@@ -611,7 +622,12 @@
 
                 let selectedItems = SelectItem_sujuGrid;
                 let bucket = [];
+                let DeliveryName = $('#DeliveryName').val();
 
+                if(DeliveryName === '' || DeliveryName === undefined){
+                    Alert.alert('', '납품처를 입력해주세요.');
+                    return;
+                }
                 $.each(selectedItems, function (index, item) {
                     comp_pk = item._data.Company_id;
                     comp_name = item._data.CompanyName;
@@ -621,13 +637,14 @@
 
                     let order_input_qty = Number(item._data.order_input_qty);
 
+
                     if (!order_input_qty) {
                         Alert.alert('', '추가지시량을 입력해주세요.');
-                        return false;
+                        return;
                     }
                     if (order_input_qty < 0) {
                         Alert.alert('', '추가지시량을 확인해주세요.');
-                        return false;
+                        return;
                     }
                     if (isNaN(order_input_qty))
                         order_input_qty = 0;
@@ -658,6 +675,7 @@
                 data['ShipDate'] = getNowDate();
                 data['Description'] = '';
                 data['TableName'] = 'suju';
+                data['DeliveryName'] = DeliveryName
                 data['Q'] = JSON.stringify(bucket);
 
                 let fnSuccess = function (res) {
@@ -788,6 +806,7 @@
 
                 data['action'] = 'suju_list';
                 data['not_ship'] = not_ship;
+                data['cboMaterial'] = '';
                 let result = AjaxUtil.getSyncData("/api/shipment/shipment_order/suju_list", data);
 
                 if (result.data != null) {

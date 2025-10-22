@@ -44,22 +44,23 @@ public class ShipmentOrderService {
 		paramMap.addValue("matGrpPk", matGrpPk);
 		paramMap.addValue("matPk", matPk);
 		paramMap.addValue("keyword", keyword);
-		
+
         String sql = """ 
     			with s as (
                 select suju.id as suju_pk
-	            , suju."JumunNumber" 
+	            , suju."JumunNumber"
 	            , suju."JumunDate"
 	            , suju."DueDate"
 	            , suju."Company_id"
 	            --, suju."CompanyName"
-                ,c2."Name" as "CompanyName" 
+                ,c2."Name" as "CompanyName"
 	            , fn_code_name('suju_state', suju."State") as "State"
 	            , suju."State" as State2
 	            , suju."Material_id"  
 	            , suju."SujuQty" 
 	            , suju."SujuQty2" 
                 , suju."Description"
+                , suju."Standard"
                 , sh."DeliveryName"
 	            from suju suju
 	            inner join suju_head sh on sh.id = suju."SujuHead_id"
@@ -93,7 +94,8 @@ public class ShipmentOrderService {
             , m."Name" as mat_name
             , s."SujuQty" as suju_qty
             , s."SujuQty" as order_input_qty
-            , s."SujuQty2" as prod_qty 
+            , s."SujuQty2" as prod_qty
+            , s."Standard"
             , sp.order_sum as order_qty 
             , sp.ship_sum  as shipment_qty
             , m."CurrentStock" as cur_stock	

@@ -279,7 +279,7 @@
                         {binding: 'mat_name', header: '제품명', width: 120, align: 'left', isReadOnly: true},
                         {binding: 'suju_qty', header: '수주량', width: 80, align: 'right', isReadOnly: true},
                         {binding: 'cur_stock', header: '현재고', width: 80, align: 'right', isReadOnly: true},
-                        {binding: 'order_qty', header: '기지시량', width: 80, align: 'right', isReadOnly: true},
+                        {binding: 'Standard', header: '규격', width: 80, align: 'right', isReadOnly: true},
                         //{ binding: 'order_input_qty', header: '추가지시량', width: '*', align: 'right', isReadOnly: false },
                         {
                             binding: 'order_input_qty',
@@ -288,12 +288,13 @@
                             align: 'right',
                             isReadOnly: false, // 편집 가능
                             editor: new wijmo.input.InputNumber(document.createElement('div'), {
-                                format: 'n0', // 정수 형식
+                                format: 'n2', // 정수 형식
                                 min: 0,       // 최소값 설정
                                 max: 99999,   // 최대값 설정
-                                step: 1       // 증가/감소 단위
+                                step: 0.1       // 증가/감소 단위
                             })
                         },
+                        {binding: 'order_qty', header: '기지시량', width: 80, align: 'right', isReadOnly: true},
                         {binding: 'shipment_qty', header: '출하량', width: 80, align: 'right', isReadOnly: true},
                         {binding: 'CompanyName', header: '판매처', width: 100, align: 'left', isReadOnly: true},
                         {binding: 'JumunDate', header: '수주일', width: 100, align: 'center', isReadOnly: true},
@@ -348,6 +349,14 @@
                         if (e.panel.cellType === wijmo.grid.CellType.RowHeader) {
                             e.cell.textContent = (e.row + 1).toString();
                         }
+                        if(e.panel.cellType === wijmo.grid.CellType.Cell){
+                            let col = sender.columns[e.col];
+
+                            if(col.binding === 'order_qty'){
+                                e.cell.style.backgroundColor = '#ffd800';
+                                e.cell.style.color = 'black';
+                            }
+                        }
                     },
                     columns: [
                         {
@@ -376,10 +385,10 @@
                             align: 'right',
                             isReadOnly: false, // 편집 가능
                             editor: new wijmo.input.InputNumber(document.createElement('div'), {
-                                format: 'n0', // 정수 형식
+                                format: 'n2', // 정수 형식
                                 min: 0,       // 최소값 설정
                                 max: 99999,   // 최대값 설정
-                                step: 1       // 증가/감소 단위
+                                step: 0.1       // 증가/감소 단위
                             })
                         },
                         {binding: 'mat_grp', header: '제품그룹', width: 100, align: 'left', isReadOnly: true},
@@ -447,6 +456,7 @@
             searchMain() {
                 let source = $('#cboSource').val();
                 let data = FormUtil.extractForm($('#searchForm'));
+                let _this = this;
 
                 if (source == 'suju') {
                     let not_ship = $('#chkNotShipped').is(':checked') ? 'Y' : 'N';
@@ -456,6 +466,7 @@
 
                     if (result.data != null) {
                         this.viewData.sourceCollection = result.data;
+                        _this.grid_shipment_clear();
                     }
                 } else if (source == 'product') {
                     data['action'] = 'product_list';
@@ -463,6 +474,7 @@
                     let result = AjaxUtil.getSyncData(gUrl + "/product_list", data);
                     if (result.data != null) {
                         this.viewData3.sourceCollection = result.data;
+                        _this.grid_shipment_clear();
                     }
                 }
                 return;
@@ -471,6 +483,8 @@
             grid_shipment_clear() {
                 this.grid_shipment.itemsSource = new wijmo.collections.CollectionView([]);
                 document.getElementById('company_id').value = '';
+                document.getElementById('company_name').value = '';
+                document.getElementById('DeliveryName').value = '';
 
             }
 
