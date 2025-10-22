@@ -9,7 +9,18 @@
         #work-table td input{
             width: 100%;
         }
-        /* Wijmo 선택/호버가 덮어쓰면 우선순위 올리기 */
+
+        #result-grid .wj-row.row-depth-0 .wj-cell { background-color:#f7f7f7; } /* 부모 */
+        #result-grid .wj-row.row-depth-1 .wj-cell { background-color:#f7f7f7; } /* 자식 1 */
+        #result-grid .wj-row.row-depth-2 .wj-cell { background-color:#fffbe6; } /* 자식 2+ */
+
+        #result-grid .wj-row.row-type-parent .wj-cell { font-weight:600; }
+
+        /* 선택/호버 시 원래 배경 유지 */
+        #result-grid .wj-state-selected.wj-cell { background-color: inherit !important; }
+        #result-grid .wj-state-hover.wj-cell[class*="diff-"]   { background-color: inherit !important; }
+
+        /* diff-* 상태색은 그대로 유지 */
         #result-grid .wj-cell.diff-new              { background-color:#e6f7ff; }
         #result-grid .wj-cell.diff-modified_both    { background-color:#fff1b8; }
         #result-grid .wj-cell.diff-modified_bom     { background-color:#ffd666; }
@@ -18,10 +29,12 @@
         #result-grid .wj-cell.diff-unchanged        { background-color:#ffffff; }
         #result-grid .wj-cell.diff-new_parent       { background-color:#d9f7be; }
         #result-grid .wj-cell.diff-deleted_parent   { background-color:#f0f0f0; }
-
-        /* 선택/호버 상태에서도 유지 */
-        #result-grid .wj-state-selected.wj-cell[class*="diff-"] { background-color: inherit !important; }
-        #result-grid .wj-state-hover.wj-cell[class*="diff-"]    { background-color: inherit !important; }
+        #result-grid .wj-state-selected.wj-cell[class*="diff-"],
+        #result-grid .wj-state-hover   .wj-cell[class*="diff-"] { background-color: inherit !important; }
+        /* 그룹/푸터, 지브라 배경 제거 → 우리가 지정한 배경이 보이도록 */
+        #result-grid .wj-cell.wj-group { background: inherit !important; }
+        #result-grid .wj-cell.wj-alt   { background: inherit !important; }
+        /* 지브라 자체를 끄고 싶으면 JS로: this.resultGrid.alternatingRowStep = 0; */
 
     </style>
 </head>
@@ -197,12 +210,6 @@
                     'sales': '매출', 'sale': '매출', 'shipment': '매출', '출고': '매출',
                     // 매입(=매입·발주)
                     'purchase': '매입', 'buy': '매입', 'balju': '매입', '발주': '매입',
-                    // 수금
-                    'receipt': '수금', 'receive': '수금', 'deposit': '수금', '입금': '수금',
-                    // 지급
-                    'payment': '지급', 'payout': '지급', 'withdraw': '지급', '출금': '지급',
-                    // 대체거래(수입·지출)
-                    'transfer': '대체거래(수입·지출)', 'adjust': '대체거래(수입·지출)', 'etc': '대체거래(수입·지출)', 'etc_inout': '대체거래(수입·지출)'
                 };
 
                 // 색상(선택) — 기존 톤 유지 + 카테고리별 강조
@@ -210,9 +217,6 @@
                     '수주': '#1d4ed8',                // 파랑
                     '매출': '#10b981',                // 초록
                     '매입': '#dc2626',                // 빨강
-                    '수금': '#7c3aed',                // 보라
-                    '지급': '#f59e0b',                // 주황
-                    '대체거래(수입·지출)': '#6b7280'  // 회색
                 };
 
                 // 원본 division(문자열) → 라벨로 변환(소문자/트림 후 매핑)
@@ -220,7 +224,6 @@
                     const key = String(raw || '').trim().toLowerCase();
                     return DIVISION_LABEL_MAP[key] || raw || '';
                 }
-
 
                 this.grid = new wijmo.grid.FlexGrid('#prod-result-grid', {
                     autoGenerateColumns: false,
@@ -398,6 +401,22 @@
                 });
 
                 this.resultGrid.columnFooters.rows.push(new wijmo.grid.GroupRow());
+
+                this.resultGrid.loadedRows.addHandler((s, e) => {
+                    for (let r = 0; r < s.rows.length; r++) {
+                        const row  = s.rows[r];
+                        const item = row.dataItem || {};
+                        if (row._styled) continue;
+
+                        const depthCls = `row-depth-${Math.min(row.level || 0, 2)}`; // 0/1/2 이상은 2로
+                        const typeCls  = item.__type ? `row-type-${item.__type}` : '';
+
+                        row.cssClass = [row.cssClass, depthCls, typeCls].filter(Boolean).join(' ');
+                        row._styled = true;
+                    }
+                });
+
+
                 new FlexGridContextMenu(this.resultGrid);
                 this.resultGrid.downloadFileName = '상세 내역';
 
@@ -422,7 +441,7 @@
 
                 // Context Menu 추가
                 new FlexGridContextMenu(this.historyGrid);
-                this.historyGrid.downloadFileName = '차수별 생산 내역';
+                this.historyGrid.downloadFileName = '이력 내역';
 
             }
 
@@ -441,7 +460,7 @@
 
                 if (isSuju) {
                     // 수주일 때만 트리 변환 + 롤업
-                    const tree = toTree(result.data);  // (이미 만들어둔 함수)
+                    const tree = toTree(result.data);
                     this.resultGrid.itemsSource = new wijmo.collections.CollectionView(tree);
 
                     // 필요 시 기본으로 접기
@@ -473,7 +492,7 @@
                     }));
 
                     // 2) 그룹/정렬 설정
-                    const labelMap = { suju: '수주', job: '생산', shipment: '출고', balju: '발주', input: '입고' };
+                    const labelMap = { suju: '수주', job: '생산', shipment: '출고', balju: '발주', input: '입고', sales: "매출" , purchase:'매입' };
 
                     const cv = new wijmo.collections.CollectionView(rows);
                     // event_type으로 그룹 (정렬 키를 접두로 붙여 순서 고정)
@@ -620,39 +639,49 @@
             for (const p of byId.values()) {
                 if (p.children.length > 0) {
                     const sum = k => p.children.reduce((a, c) => a + (Number(c[k]) || 0), 0);
-
                     const hasChildAmounts = p.children.some(c =>
                         c.supply_amount != null || c.vat_amount != null || c.total_amount != null
                     );
 
                     if (hasChildAmounts) {
-                        // (배분 모드일 때만) 롤업 + 가중평균 단가
+                        // (배분 모드) 자식 합계 + 가중평균 단가
                         p.quantity      = sum('quantity');
                         p.supply_amount = sum('supply_amount');
                         p.vat_amount    = sum('vat_amount');
                         p.total_amount  = sum('total_amount');
                         p.unit_price    = p.quantity ? Math.round(p.total_amount / p.quantity) : null;
                     } else {
-                        // ★ 이번 모드: 헤더 원본 단가/금액 사용
+                        // (헤더 모드) 자식은 있으나 금액이 없으면 헤더 금액 사용
                         const n = v => (v == null ? null : Number(v));
                         const childQtySum = sum('quantity');
-
                         p.quantity      = n(p._display_quantity) ?? childQtySum ?? 0;
-                        p.unit_price    = n(p._display_unit_price);        // ★ 재계산 금지
+                        p.unit_price    = n(p._display_unit_price);
                         p.supply_amount = n(p._display_supply_amount) ?? 0;
                         p.vat_amount    = n(p._display_vat_amount) ?? 0;
                         p.total_amount  = n(p._display_total_amount) ?? 0;
 
-                        // 표시값 동기화
                         p._display_unit_price    = p.unit_price;
                         p._display_quantity      = p.quantity;
                         p._display_supply_amount = p.supply_amount;
                         p._display_vat_amount    = p.vat_amount;
                         p._display_total_amount  = p.total_amount;
                     }
+                } else {
+                    // 🔧 자식이 전혀 없는 부모(=fallback만 있었던 경우)도 헤더 표시값으로 채움
+                    const n = v => (v == null ? null : Number(v));
+                    p.quantity      = n(p._display_quantity) ?? 0;
+                    p.unit_price    = n(p._display_unit_price);
+                    p.supply_amount = n(p._display_supply_amount) ?? 0;
+                    p.vat_amount    = n(p._display_vat_amount) ?? 0;
+                    p.total_amount  = n(p._display_total_amount) ?? 0;
+
+                    p._display_unit_price    = p.unit_price;
+                    p._display_quantity      = p.quantity;
+                    p._display_supply_amount = p.supply_amount;
+                    p._display_vat_amount    = p.vat_amount;
+                    p._display_total_amount  = p.total_amount;
                 }
             }
-
             return Array.from(byId.values());
         }
 

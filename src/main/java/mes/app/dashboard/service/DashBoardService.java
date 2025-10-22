@@ -114,7 +114,7 @@ public class DashBoardService {
 		m.putIfAbsent("company_id", m.remove("cltcd"));
 		m.putIfAbsent("company_name", m.remove("cltnm"));
 		//m.putIfAbsent("type_name", m.remove("SujuTypeName"));
-		m.putIfAbsent("product_name", m.remove("title"));
+		m.putIfAbsent("product_name", m.remove("item_summary"));
 		m.putIfAbsent("price", m.remove("supplycost"));
 		m.putIfAbsent("vat", m.remove("taxtotal"));
 		m.putIfAbsent("total_price", m.remove("totalamt"));
@@ -694,80 +694,6 @@ public class DashBoardService {
         return this.sqlRunner.getRows(detailSql, paramMap);
 	}
 
-	/*public List<Map<String, Object>> getSujuDetail(int id) {
-
-		MapSqlParameterSource paramMap = new MapSqlParameterSource();
-		paramMap.addValue("id", id);
-
-		String detailSql = """
-			WITH shipment_status AS (
-				 SELECT "SourceDataPk", SUM("Qty") AS shipped_qty
-				 FROM shipment
-				 WHERE "SourceTableName" = 'rela_data'
-				 GROUP BY "SourceDataPk"
-			 ),
-			 suju_with_state AS (
-				 SELECT
-					 s.id,
-					 s."SujuHead_id" as head_id,
-					 s."Material_id",
-					 m."Code" AS "product_code",
-					 s."JumunDate",
-					 m."Name" AS "product_name",
-					 u."Name" AS "unit",
-					 s."SujuQty" AS "quantity",
-					 s."UnitPrice" AS "unit_price",
-					 s."Vat" AS "vat_amount",
-					 s."Price" AS "supply_amount",
-					 s."TotalAmount" AS "total_amount",
-					 s."Description" AS "description",
-					 s."State" AS "original_state",
-					 COALESCE(sh.shipped_qty, -1) AS "shipped_qty",
-					  s."Standard" as  standard,
-					 CASE
-						 WHEN sh.shipped_qty = -1 THEN s."State"
-						 WHEN sh.shipped_qty = 0 THEN 'force_completion'
-						 WHEN sh.shipped_qty >= s."SujuQty" THEN 'shipped'
-						 WHEN sh.shipped_qty < s."SujuQty" THEN 'partial'
-						 ELSE s."State"
-					 END AS final_state
-				 FROM suju s
-				 INNER JOIN material m ON m.id = s."Material_id"
-				 INNER JOIN mat_grp mg ON mg.id = m."MaterialGroup_id"
-				 LEFT JOIN unit u ON m."Unit_id" = u.id
-				 LEFT JOIN TB_DA003 p ON p."projno" = s.project_id
-				 LEFT JOIN shipment_status sh ON sh."SourceDataPk" = s.id
-				 WHERE s."SujuHead_id" = :id
-			 )
-
-			 SELECT
-				 s.id,
-				 s.head_id,
-				 s."Material_id",
-				 s."product_code",
-				 s."JumunDate",
-				 s."product_name",
-				 s."quantity",
-				 s."unit_price",
-				 s."vat_amount",
-				 s."supply_amount",
-				 s."total_amount",
-				 s.final_state AS "state",
-				 COALESCE(sc_ship."Value", sc_suju."Value") AS "state_name",
-				 s."description",
-				 s.standard
-			 FROM suju_with_state s
-			 LEFT JOIN sys_code sc_ship
-				 ON sc_ship."Code" = s.final_state AND sc_ship."CodeType" = 'shipment_state'
-			 LEFT JOIN sys_code sc_suju
-				 ON sc_suju."Code" = s.final_state AND sc_suju."CodeType" = 'suju_state'
-			 ORDER BY s.id
-
-		""";
-
-    return this.sqlRunner.getRows(detailSql, paramMap);
-	}
-*/
 	// 발주 디테일
 	public List<Map<String, Object>> getBaljuDetail(int id) {
 		MapSqlParameterSource paramMap = new MapSqlParameterSource();
@@ -956,7 +882,7 @@ public class DashBoardService {
 				 d.itemnm as product_name,
 				 d.spec as standard,
 				 d.qty as quantity,
-				 d.unitcost ,
+				 d.unitcost as unit_price,
 				 d.supplycost as supply_amount ,
 				 d.taxtotal as vat_amount,
 				 (d.supplycost + d.taxtotal) AS total_amount,
@@ -1173,7 +1099,23 @@ public class DashBoardService {
 		MapSqlParameterSource paramMap = new MapSqlParameterSource();
 		paramMap.addValue("id", id);
 		String HistorySql= """
-				
+				 SELECT
+				  'sales' AS event_type,
+				  d.itemnm  AS product_name,
+				  d.spec    AS standard,
+				  COALESCE(sc."Value", m.taxtype) AS state_name,
+				  (CASE
+				     WHEN pg_typeof(m._created)::text = 'timestamptz'
+				       THEN m._created
+				     ELSE m._created AT TIME ZONE 'Asia/Seoul'
+				   END) AS event_time
+				FROM tb_salesdetail d
+				JOIN tb_salesment  m ON m.misnum = d.misnum
+				LEFT JOIN sys_code  sc
+				       ON sc."CodeType" = 'tax_type'      -- 예: 과세/영세/면세 라벨 테이블이 있을 때
+				      AND sc."Code"     = m.taxtype
+				WHERE m.misnum = :id
+				ORDER BY d.misseq::int;
 				""";
 		return this.sqlRunner.getRows(HistorySql, paramMap);
 	}
@@ -1183,7 +1125,20 @@ public class DashBoardService {
 		MapSqlParameterSource paramMap = new MapSqlParameterSource();
 		paramMap.addValue("id", id);
 		String HistorySql= """
-				
+				SELECT
+				  'purchase' AS event_type, 
+				  d.itemnm  AS product_name,
+				  d.spec    AS standard,
+				  COALESCE(sc."Value", m.misgubun, '매입') AS state_name,			
+				  to_timestamp(m.misdate || '000000', 'YYYYMMDDHH24MISS')
+				    AT TIME ZONE 'Asia/Seoul' AS event_time
+				FROM tb_invoicedetail d
+				JOIN tb_invoicement  m ON m.misnum = d.misnum
+				LEFT JOIN sys_code sc
+				       ON sc."CodeType" = 'purchase_type'
+				      AND sc."Code"     = m.misgubun
+				WHERE m.misnum = :id
+				ORDER BY d.misseq::int;
 				""";
 		return this.sqlRunner.getRows(HistorySql, paramMap);
 	}

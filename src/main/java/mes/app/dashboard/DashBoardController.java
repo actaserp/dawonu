@@ -7,6 +7,7 @@ import java.util.Optional;
 
 import javax.servlet.http.HttpServletRequest;
 
+import lombok.extern.slf4j.Slf4j;
 import mes.app.balju.service.BaljuOrderService;
 import mes.app.sales.service.SujuService;
 import mes.domain.entity.BaljuHead;
@@ -21,6 +22,7 @@ import org.springframework.web.bind.annotation.*;
 import mes.app.dashboard.service.DashBoardService;
 import mes.domain.model.AjaxResult;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/dashboard")
 public class DashBoardController {
@@ -105,6 +107,7 @@ public class DashBoardController {
 
 		String key = (division == null) ? "" : division.trim();
 
+//		log.info("division:{}, id:{}", division, id);
 		List<Map<String, Object>> item;
 		switch (key) {
 			case "발주":
@@ -118,7 +121,7 @@ public class DashBoardController {
 			case "매입":
 				item = dashBoardService.getInvoHistory(id);
 				break;
-//
+
 			case "매출":
 				item = dashBoardService.getSalesHistory(id);
 				break;
