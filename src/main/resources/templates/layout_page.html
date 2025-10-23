@@ -191,38 +191,42 @@
     <script type="text/javascript">
 
 
-        function adjustHeights() {
-            var totalHeight = $(window).height(); // 부모 프레임 기준으로 찾아야 함
-            var headerHeight = window.parent.$('.dashboard-layout-header').is(':visible') ?
-                window.parent.$('.dashboard-layout-header').outerHeight() : 0;
-            var tabsHeight = window.parent.$('.page-tabs').is(':visible') ?
-                window.parent.$('.page-tabs').outerHeight() : 0;
-            // console.log('headerHeight', headerHeight);
-            // console.log('tabsHeight', tabsHeight);
-            var minusHeight = headerHeight + tabsHeight;
-            // 적용할 대상들 (현재 iframe 내부)
-            var $targets = $('.layout-contents, .nth-tabs, .tab-content, .tab-pane, .nth-tabs-content, .nth-tabs-frame');
-            $targets.each(function () {
-                var base = totalHeight; // 현재 iframe window 기준
-                $(this).height(base - minusHeight - 50);
-            });
-        }
-
         $(document).ready(function () {
-            adjustHeights();
-            $(window).resize(adjustHeights);
-            $('#btnHeaderCompress').click(function () {
-                window.parent.$('.dashboard-layout-header').toggle();
-                window.parent.$('.page-tabs').toggle();
-                adjustHeights();
-                // 토글 후 다시 계산
+            yullinAuth.removeWriteButton();
+            
+            var _wintitle = CommonUtil.getParameters('wintitle');
+            if (_wintitle != '') {
+                $('title').text(_wintitle);
+            }
+            authDisableBtn(''); // 버튼권한 처리==>정리대상
+            authDisableTab(''); // TAB권한 처리==>정리대상
+            var searchheight = parseInt($('.autoheight-search').height() === null ? '0' : $('.autoheight-search').height()) + 65;
+            if ($('.autoheight-div') !== null) {
+                $('.autoheight-div').height($(document).height() - searchheight);
+            }
+            if ($('section.popupcontent') !== null) {
+                $('section.popupcontent').height($(window).height() - 130);
+            }
+
+            $('#btnHedaerFilter').click(function (e) {
+                $(".table_box.search").toggle(300);
             });
-            $('.btnHeaderCompress').click(function () {
-                window.parent.$('.dashboard-layout-header').toggle();
+
+            $('#btnHeaderCompress').click(function (e) {
+                let $wrap = window.parent.$('.wrap');
+
+                window.parent.$('.header').toggle();
                 window.parent.$('.page-tabs').toggle();
-                adjustHeights();
-                // 토글 후 다시 계산
+                
+                if (window.parent.$('.header').css('display') == 'none') {
+                    $('#iCompress').replaceWith("<i class='fas fa-compress-alt' id='iCompress'></i>");
+                    $wrap.addClass('menu_close');
+                } else {
+                    $('#iCompress').replaceWith("<i class='fas fa-compress' id='iCompress'></i>");
+                    $wrap.removeClass('menu_close');
+                }
             });
+
         });
 
         // 셀 클릭 이벤트 처리

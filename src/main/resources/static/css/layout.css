@@ -1095,7 +1095,7 @@ section .section-top {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    gap: 20px;
+    gap: 15px;
     margin-bottom: 16px;
 }
 
@@ -2027,21 +2027,3 @@ table tr .btn table, table tr .btn-blue, table tr .btn-lightnavy {
     color: #EC193A;
 }
 
-@media (min-width: 1366px) {
-    #btnHeaderCompress {
-        display: none;
-    }
-    .btnHeaderCompress {
-        display: none !important;
-    }
-}
-
-/* 1366px 이하일 때 버튼 표시 */
-@media (max-width: 1365px) {
-    #btnHeaderCompress {
-        display: inline-flex; /* 필요 시 block/flex 로 변경 */
-    }
-    .btnHeaderCompress {
-        display: inline-flex !important; /* 필요 시 block/flex 로 변경 */
-    }
-}
