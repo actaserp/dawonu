@@ -701,7 +701,7 @@ public class DashBoardService {
 				    -- 합계: 입금 + 수수료
 				    COALESCE(b.accin, 0) + COALESCE(b.feeamt, 0) AS total_price,
 				    -- 메모
-				    b.remark1 AS "Description"
+				    b.memo AS "Description"
 				FROM tb_banktransit b
 				LEFT JOIN tb_trade   t ON t.trid = b.trid
 				LEFT JOIN sys_code   s ON s."Code" = b.iotype AND s."CodeType" = 'deposit_type'
@@ -791,7 +791,7 @@ public class DashBoardService {
 				    -- 합계: 입금 + 수수료
 				    COALESCE(b.accout, 0) + COALESCE(b.feeamt, 0) AS total_price,
 				    -- 메모
-				    b.remark1 AS "Description"
+				    b.memo AS "Description"
 				FROM tb_banktransit b
 				LEFT JOIN tb_trade   t ON t.trid = b.trid
 				LEFT JOIN sys_code   s ON s."Code" = b.iotype AND s."CodeType" = 'deposit_type'

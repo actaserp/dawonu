@@ -214,14 +214,14 @@ public class DashBoardController {
 				// tb_banktransit: 키는 ioid (입금/출금 공용)
 				TB_BANKTRANSIT e = banktransitRepository.findById(id)
 						.orElseThrow(() -> new RuntimeException("입금 내역 없음"));
-				e.setRemark1(description);
+				e.setMemo(description);
 				banktransitRepository.save(e);
 				break;
 			}
 			case "출금": {
 				TB_BANKTRANSIT e = banktransitRepository.findById(id)
 						.orElseThrow(() -> new RuntimeException("출금 내역 없음"));
-				e.setRemark1(description);
+				e.setMemo(description);
 				banktransitRepository.save(e);
 				break;
 			}
@@ -235,37 +235,10 @@ public class DashBoardController {
 		return result;
 	}
 
-
-	/*@PostMapping("/memo/save")
-	public AjaxResult memoSave(
-			@RequestParam("head_id") int id,
-			@RequestParam("division") String division,
-			@RequestParam("description") String description,
-			HttpServletRequest request) {
-
-		AjaxResult result = new AjaxResult();
-		if ("발주".equals(division)) {
-			BaljuHead baljuHead = balJuHeadRepository.findById(id).orElseThrow(() -> new RuntimeException("발주 헤더 없음"));;
-			baljuHead.setDescription(description);
-			balJuHeadRepository.save(baljuHead);
-		} else{
-			SujuHead sujuHead = sujuHeadRepository.findById(id).orElseThrow(() -> new RuntimeException("수주 헤더 없음"));;
-			sujuHead.setDescription(description);
-			sujuHeadRepository.save(sujuHead);
-		}
-
-		result.success = true;
-		result.message = "저장을 성공했습니다.";
-
-		return result;
-	}*/
-
 	@GetMapping("/today_week_prod")
 	public AjaxResult todayWeekProd(
 			@RequestParam("spjangcd") String spjangcd
 	) {
-
-
 		List<Map<String, Object>> items = dashBoardService.todayWeekProd(spjangcd);
 		
 		AjaxResult result = new AjaxResult();
