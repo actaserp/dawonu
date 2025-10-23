@@ -15,6 +15,7 @@
     <link rel="stylesheet" href="/css/animate.css">
     <link rel="stylesheet" href="/css/main.css">
     <link rel="stylesheet" href="/css/theme-top-mes.css">
+    <link rel="manifest" href="/manifest.json">
     <!--    <link rel="stylesheet" href="/css/theme-left-mes.css">-->
     <link rel="stylesheet" type="text/css" href="/css/import.css">
     <script src="/js/vendor/jquery-3.6.0.js"></script>
@@ -550,6 +551,15 @@
                                 });
                                 nthTabs.bindBookmarkEvent(objid, _bookmark);
                             }
+                            const winWidth = $(window).width();
+                            if (winWidth <= 1366) {
+                                $('.menu_area').addClass('hidden');
+                                $('#navbarBarMenu2 .open_menu').removeClass('menu_open'); // 버튼 상태 초기화
+                                $('.con_area, .tab-content').css({
+                                    'width': '100%',
+                                    'left': '0'
+                                });
+                            }
                         });
                     }
                 }
@@ -560,22 +570,46 @@
         Object.keys(dep2Mappings).forEach(FrontFolderId => {
             loadMenu(FrontFolderId, $(dep2Mappings[FrontFolderId]));
         });
+        
+        $(function () {
+            let userToggled = false; // 사용자가 직접 토글했는지 여부
 
-        $(window).on('load', function () {
-            setTimeout(() => {
-                $('#navbarBarMenu2 .open_menu').trigger('click');
-            }, 100); // ← 원하는 만큼 늘리세요 (ms)
-        });
+            function adjustMenu() {
+                const winWidth = $(window).width();
 
-        $('#navbarBarMenu2 .open_menu').click(function () {
-            $(this).toggleClass('menu_open'); // 메뉴 숨김 토글
+                // 사용자가 직접 토글하지 않았을 때만 자동 처리
+                if (!userToggled) {
+                    if (winWidth <= 1366) {
+                        $('.menu_area').addClass('hidden');
+                        $('.con_area, .tab-content').css({
+                            'width': '100%',
+                            'left': '0'
+                        });
+                    } else {
+                        $('.menu_area').removeClass('hidden');
+                        $('.con_area, .tab-content').css({
+                            'width': 'calc(100% - 250px)',
+                            'left': '250px'
+                        });
+                    }
+                }
+            }
 
-            $('.menu_area').toggleClass('hidden');
-            const isMenuHidden = $('.menu_area').hasClass('hidden');
+            // 페이지 로드/리사이즈 시 적용
+            $(window).on('load resize', adjustMenu);
 
-            $('.con_area, .tab-content').css({
-                'width': isMenuHidden ? '100%' : 'calc(100% - 250px)', // 메뉴가 닫히면 전체 확장
-                'left': isMenuHidden ? '0' : '250px' // 왼쪽으로 확장
+            // 토글 버튼 이벤트
+            $('#navbarBarMenu2 .open_menu').click(function () {
+                userToggled = true; // 사용자가 직접 조작했으므로 자동 모드 해제
+
+                $(this).toggleClass('menu_open');
+                $('.menu_area').toggleClass('hidden');
+
+                const isMenuHidden = $('.menu_area').hasClass('hidden');
+                $('.con_area, .tab-content').css({
+                    'width': isMenuHidden ? '100%' : 'calc(100% - 250px)',
+                    'left': isMenuHidden ? '0' : '250px'
+                });
             });
         });
 
