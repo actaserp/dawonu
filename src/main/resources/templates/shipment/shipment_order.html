@@ -159,7 +159,7 @@
                                 </label>
                             </dt>
                             <dd>
-                                <input class="" type="text" id="company_name" value="" placeholder="판매처를 선택하여 주십시오">
+                                <input class="" type="text" id="company_name" value="" placeholder="판매처를 입력후 엔터">
                                 <input class="" type="hidden" id="company_id" value="" placeholder="">
                             </dd>
                         </dl>
@@ -436,6 +436,7 @@
                         {binding: 'mat_code', header: '품목코드', width: 100, align: 'left'},
                         {binding: 'mat_name', header: '품목명', width: '*', align: 'left'},
                         {binding: 'unit_name', header: '단위', width: 80, align: 'center'},
+                        {binding: 'standard1', header: '규격', width: 80, align: 'center'},
                         {binding: 'cur_stock', header: '현재고', width: 80, align: 'right'}
                     ],
                     itemsSource: this.viewData3,
@@ -498,7 +499,7 @@
                     let hasError = false;
 
                     $.each(SelectItem, function (index, item) {
-                        console.log('item', SelectItem);
+
                         comp_pk = item._data.Company_id;
                         comp_name = item._data.CompanyName;
                         del_name = item._data.DeliveryName;
@@ -662,7 +663,7 @@
             saveShipOrder() {
                 let data = {}; // = FormUtil.extractForm($('#shipmentForm'));
                 let bucket = [];
-                console.log('list_data', this.grid_shipment.collectionView.items);
+
 
                 let list_data = this.grid_shipment.collectionView.items;
                 for (let i = 0; i < list_data.length; i++) {
@@ -680,7 +681,7 @@
                     data['TableName'] = 'suju'
 
                 data['Q'] = JSON.stringify(bucket);
-                console.log('data', data);
+
 
                 let fnSuccess = function (res) {
                     if (res.success) {
@@ -715,12 +716,8 @@
             }
 
             getShipMatRow(mat_pk) {
-                console.log();
+
                 for (let i = 0; i < this.grid_shipment.collectionView.items.length; i++) {
-                    console.log('mat', mat_pk);
-                    console.log('ma2t', this.grid_shipment.collectionView.items[i].mat_id);
-                    console.log('ma3t', this.grid_shipment.collectionView.items[i]);
-                    console.log('ma4t', this.grid_shipment.collectionView.items);
 
                     if (mat_pk == this.grid_shipment.collectionView.items[i].mat_id)
                         return i;
@@ -842,8 +839,6 @@
                     if (bottomCompanySelectBox != '' && bottomCompanySelectBox !== null) {
                         $.each(SelectItem, function (index, item) {
                             if (item._data.Company_id != bottomCompanySelectBox) {
-                                console.log('bottom', bottomCompanySelectBox);
-                                console.log('item', item._data.Company_id);
 
                                 return_a = 1;
                             }
@@ -934,21 +929,82 @@
                 page.grid_shipment_clear();
             });
 
+            /********************** 팝업 Function  region**************************/
             // 판매처 검색 팝업
-            $("#company_name").click(function () {
-                let poppage = new PopCompComponent();
-                let $poppage = $(poppage);
-                let searchcallback = function (items) {
-                    $('#company_id').val(items.id);
-                    $('#company_name').val(items.compname);
+            function openCompanyPopup(keyword) {
+                const hasKeyword = keyword !== undefined && keyword !== null && keyword.trim() !== '';
 
-                    // if ($Material_id.val() && $cboCompany.val()) {
-                    //     tryShowPrice();
-                    // }
+                // 1️⃣ 키워드가 없으면 → 바로 팝업 표시
+                if (!hasKeyword) {
+                    return showCompanyPopup();
+                }
+
+                // 2️⃣ 키워드가 있으면 → 서버 검색
+                const url = '/api/popup/search_Comp';
+                const data = { keyword: keyword.trim() };
+                const result = AjaxUtil.getSyncData(url, data);
+
+                // 결과 없으면 팝업
+                if (!result || !result.data || result.data.length === 0) {
+                    return showCompanyPopup(keyword);
+                }
+
+                // 3️⃣ 결과가 1건이면 바로 세팅
+                if (result.data.length === 1) {
+                    const item = result.data[0];
+                    $('#company_id').val(item.id).trigger('change');
+                    $('#company_name').val(item.compname).trigger('change');
+                    return;
+                }
+
+                // 4️⃣ 결과 여러 건이면 팝업
+                showCompanyPopup(keyword);
+            }
+
+            // 팝업 띄우기 공통 함수
+            function showCompanyPopup(keyword) {
+                const poppage = new PopCompComponent(keyword);
+                const callback = (item) => {
+                    $('#company_id').val(item.id).trigger('change');
+                    $('#company_name').val(item.compname).trigger('change');
                 };
+                poppage.show(callback);
+            }
 
-                poppage.show(searchcallback);
+
+            $("#company_name").on("keydown", function (e) {
+                if (e.key === "Enter" || e.keyCode === 13) {
+                    e.preventDefault(); // 기본 Enter 동작(폼 제출 등) 방지
+
+                    let keyword = document.getElementById('company_name').value;
+
+                    openCompanyPopup(keyword);
+                }
             });
+
+            //판매처 값 없으면 id 값도 초기화
+            $('#company_name').on('input', function(){
+                if($(this).val().trim() === ''){
+                    $('#company_id').val('').trigger('change');
+                }
+            })
+
+            function updateCompanyNameStyle() {
+                const hasId = $('#company_id').val().trim() !== '';
+                $('#company_name').css('background-color', hasId ? '#f0f0f0' : '');
+            }
+
+            // 페이지 로드 시 한 번 체크
+            updateCompanyNameStyle();
+
+            // company_id 값이 변할 때마다 체크
+            $('#company_id').on('change input', updateCompanyNameStyle);
+
+            //clear 버튼 클릭 시도 초기화
+            $(document).on('click', '.btn-clear', function(){
+                $('#company_id').val('').trigger('change');
+            })
+            /********************** 팝업 Function  endregion**************************/
 
             page.searchMain();
 

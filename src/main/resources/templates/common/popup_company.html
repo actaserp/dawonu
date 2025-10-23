@@ -80,12 +80,13 @@
         class PopCompComponent {
             static currentInstance = null;
 
-            constructor() {
+            constructor(keyword) {
                 if (PopCompComponent.currentInstance) {
                     PopCompComponent.currentInstance.close(); // 이전 인스턴스 닫기
                 }
                 PopCompComponent.currentInstance = this;
 
+                this.$keyword = keyword;
                 this.grid = null;
                 this.viewData = new wijmo.collections.CollectionView();
                 this.selectedItem = null;
@@ -98,6 +99,7 @@
                 this.$compCode = null;
                 this.$business_number = null;
                 this.previousFocus = null;
+
             }
 
             searchDataBind() {
@@ -186,12 +188,18 @@
                     new FlexGridContextMenu(this.grid);
                     this.grid.downloadFileName = '거래처 내역';
 
+
+                    if(this.$keyword){
+                        $('#compName').val(this.$keyword);
+                    }
+
                     this.$btnCompSearch = $content.find('#btnCompSearch');
                     this.$compCode = $content.find('#compCode');
                     this.$compName = $content.find('#compName');
                     this.$business_number = $content.find('#business_number');
                     this.$btnCompSelect = $content.find('#btnCompSelect');
                     this.$businessNumber = $content.find('#business_number');
+
 
 
                     this.$btnCompSearch.click(function (e) {
@@ -261,6 +269,7 @@
                         $(document).off('keydown.popupesc', this._escHandler);
                     };
                 }, 50);
+
             }
 
             close() {

@@ -137,6 +137,7 @@ public class ShipmentOrderService {
                 , m."Name" as mat_name
                 , u.id as unit_id
                 , u."Name" as unit_name
+                , m."Standard1" as standard1
                 , m."CurrentStock" as cur_stock
                 from material m
                 left join mat_grp mg on mg.id = m."MaterialGroup_id" 

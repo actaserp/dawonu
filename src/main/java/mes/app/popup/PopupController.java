@@ -500,6 +500,7 @@ public class PopupController {
 	public AjaxResult getSearchComp(
 			@RequestParam(value = "compCode", required = false) String compCode,
 			@RequestParam(value = "compName", required = false) String compName,
+			@RequestParam(value = "keyword", required = false) String keyword,
 			@RequestParam(value = "business_number", required = false) String business_number){
 
 		MapSqlParameterSource paramMap = new MapSqlParameterSource();
@@ -526,6 +527,12 @@ public class PopupController {
             OR "CompanyType" = 'sale-purchase')
             and "relyn" = '0'
 			""";
+
+		if (keyword != null && !keyword.isEmpty()){
+			sql += "AND (\"Code\" LIKE '%' || :keyword || '%' " +
+					"OR \"Name\" LIKE '%' || :keyword || '%')";
+			paramMap.addValue("keyword", keyword);
+		}
 
 		if (compCode != null && !compCode.isEmpty()) {
 			sql += " AND \"Code\" ILIKE :compCode ";

@@ -133,7 +133,7 @@ public class ShipmentDoBService {
 	        , u."Name" as unit_name 
 	        , s."OrderQty"
 	        , s."Qty"
-	        , suju."Standard" as standard
+	        , COALESCE(suju."Standard", m."Standard1") as standard
 	        , s."Description" as description
 	        , (select coalesce(sum(mlc."OutputQty" ), 0) as lot_qty from mat_lot_cons mlc where mlc."SourceDataPk" = s.id and mlc."SourceTableName"='shipment') as lot_qty
 	        from shipment s 
@@ -525,7 +525,7 @@ public class ShipmentDoBService {
 		        from A
 		        where id=A.sh_id
 				""";
-		
+
         this.sqlRunner.execute(sql, paramMap);  
 	}
 	
