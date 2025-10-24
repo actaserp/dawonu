@@ -110,4 +110,8 @@ public class Suju extends AbstractAuditModel {
 
 	@Column(name="\"Standard\"")
 	String standard;
+
+	@Column(name="\"Material_Name\"")
+	String Material_Name;
+
 }

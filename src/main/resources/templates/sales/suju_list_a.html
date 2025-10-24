@@ -340,7 +340,7 @@
                             <label for="Description">비고</label>
                         </th>
                         <td colspan="3">
-                            <textarea id="Description" name="Description" style="height:40px;"></textarea>
+                            <textarea id="Description" name="Description" style="height:80px;"></textarea>
                         </td>
                     </tr>
                     <tr>
@@ -1009,8 +1009,12 @@
             const items = [];
             for (let i = 0; i < page.sujuListIndex; i++) {
               const materialId = data[`Material_id_${i}`];
-              if (!materialId) continue;
+              const normMaterialId = (materialId === '' || materialId == null) ? null : Number(materialId);
 
+              const productName = data[`txtProductName_${i}`];
+
+              //if (!materialId) continue;
+              if (!productName) continue;
               // ✅ 상세 JSON 파싱
               let standardDetails = [];
               try {
@@ -1020,10 +1024,11 @@
 
               items.push({
                 suju_id: data[`suju_id_${i}`] || '',
-                Material_id: materialId,
+                Material_id: normMaterialId,
                 MaterialGroupName: data[`MaterialGroupName_${i}`] || '',
                 product_code: data[`product_code_${i}`] || '',
-                txtProductName: data[`txtProductName_${i}`] || '',
+                txtProductName: productName,
+                //txtProductName: data[`txtProductName_${i}`] || '',
                 quantity: (data[`quantity_${i}`] || '0').replace(/,/g, ''),
                 unitPrice: (data[`unitPrice_${i}`] || '0').replace(/,/g, ''),
                 supplyAmount: (data[`supplyAmount_${i}`] || '0').replace(/,/g, ''),
@@ -1116,12 +1121,32 @@
         }
 
         // 빈 값은 항상 숫자 0으로 처리
-        function getNumericValue($input, def = 0) {
+        /*function getNumericValue($input, def = 0) {
           if ($input.length === 0) return def;
           const raw = (($input.val() || '') + '').replace(/[^0-9.]/g, '').trim();
           if (raw === '') return def;
           const n = parseFloat(raw);
           return Number.isFinite(n) ? n : def;
+        }*/
+        // 빈 값은 항상 숫자 0으로 처리
+        function getNumericValue($input, def = 0, allowNegative = false) {
+          if ($input.length === 0) return def;
+          let raw = (($input.val() || '') + '');
+          // 허용 문자만 남기기
+          raw = raw.replace(allowNegative ? /[^0-9.\-]/g : /[^0-9.]/g, '').trim();
+          if (allowNegative) {
+            // 선행 '-' 하나만 허용, 그 외 '-' 제거
+            raw = raw.replace(/(?!^)-/g, '');
+          }
+          if (raw === '' || raw === '-' || raw === '.') return def;
+          const n = parseFloat(raw);
+          return Number.isFinite(n) ? n : def;
+        }
+
+
+        function isAdjustmentRow($row) {
+          const code = (($row.find('input[name^="product_code_"]').val() ?? '') + '').trim();
+          return code === ''; // 상품코드 비어있으면 단수정리 행
         }
 
         let isInternalFormatting = false;
@@ -1135,55 +1160,62 @@
             const unitPrice = getNumericValue($row.find('input[name^="unitPrice_"]'), 0);
             const $standard = $row.find('input[type="text"][name^="standard_"]');
 
-            // 규격: 순수 양수 숫자(정수/소수, 0 포함)만 인정
+            // 규격 숫자 여부
             const standardRaw    = (($standard.val() ?? '') + '').trim();
-            const standardNumStr = standardRaw.replace(/,/g, ''); // 천단위 콤마 제거
+            const standardNumStr = standardRaw.replace(/,/g, '');
             const isStandardNumeric = standardNumStr !== '' && /^\d+(\.\d+)?$/.test(standardNumStr);
             const standardNum = isStandardNumeric ? parseFloat(standardNumStr) : 0;
 
-            // 계산용 수량: 규격 숫자면 규격*수량, 아니면 수량 그대로
             const baseQty    = Number.isFinite(quantity) ? quantity : 0;
             const qtyForCalc = isStandardNumeric ? (standardNum * baseQty) : baseQty;
 
             const isVatIncluded = $row.find('input[name^="VatIncluded_"]').is(':checked');
             const isVatExempt   = false;
 
-            let supplyAmount    = getNumericValue($row.find('input[name^="supplyAmount_"]'), 0);
-            let vatAmount       = getNumericValue($row.find('input[name^="VatAmount_"]'), 0);
+            let supplyAmount     = getNumericValue($row.find('input[name^="supplyAmount_"]'), 0);
+            let vatAmount        = getNumericValue($row.find('input[name^="VatAmount_"]'), 0);
             const isSupplyEdited = $row.data('supplyEdited') === true;
             const isVatEdited    = $row.data('vatEdited') === true;
 
-            // 자동계산: 단가/수량/규격/부가세체크 변경 or 사용자가 금액칸 직접 수정 안했을 때
-            const shouldAuto = (source === 'unit') || (!isSupplyEdited && !isVatEdited);
+            const adjustment = isAdjustmentRow($row); // ← 추가
+
+            // 자동계산: 조정 행이 아닐 때만 수행
+            const shouldAuto = !adjustment && ((source === 'unit') || (!isSupplyEdited && !isVatEdited));
             if (shouldAuto) {
               const lineTotal = qtyForCalc * unitPrice;
 
               if (isVatExempt) {
-                supplyAmount = lineTotal;        // 면세
+                supplyAmount = lineTotal;
                 vatAmount    = 0;
               } else if (isVatIncluded) {
-                supplyAmount = Math.round(lineTotal / 1.1); // 포함가 → 공급가 역산
+                supplyAmount = Math.round(lineTotal / 1.1);
                 vatAmount    = lineTotal - supplyAmount;
               } else {
-                supplyAmount = lineTotal;        // 별도
+                supplyAmount = lineTotal;
                 vatAmount    = Math.floor(supplyAmount * 0.1);
               }
 
               if (!isSupplyEdited) {
-                $row.find('input[name^="supplyAmount_"]')
-                  .val(supplyAmount === 0 ? '' : supplyAmount.toLocaleString());
+                $row.find('input[name^="supplyAmount_"]').val(supplyAmount === 0 ? '' : supplyAmount.toLocaleString());
               }
               if (!isVatEdited) {
-                $row.find('input[name^="VatAmount_"]')
-                  .val(isVatExempt ? '면세' : (vatAmount === 0 ? '' : vatAmount.toLocaleString()));
+                $row.find('input[name^="VatAmount_"]').val(isVatExempt ? '면세' : (vatAmount === 0 ? '' : vatAmount.toLocaleString()));
               }
             }
 
             // 합계(표시용)
             const sNum = getNumericValue($row.find('input[name^="supplyAmount_"]'), 0);
             const vNum = getNumericValue($row.find('input[name^="VatAmount_"]'), 0);
-            const sumTotal = sNum + vNum;
-            $row.find('input[name^="totalAmount_"]').val(sumTotal === 0 ? '' : sumTotal.toLocaleString());
+            const autoSum = sNum + vNum;
+
+            if (!adjustment) {
+              // 일반 행: 자동 합계로 덮어쓰기
+              $row.find('input[name^="totalAmount_"]').val(autoSum === 0 ? '' : autoSum.toLocaleString());
+            } else {
+              // 조정 행: 사용자가 입력한 totalAmount_를 보존, 표시만 정리
+              const userTotalNum = getNumericValue($row.find('input[name^="totalAmount_"]'), 0, true);
+              $row.find('input[name^="totalAmount_"]').val(userTotalNum === 0 ? '' : userTotalNum.toLocaleString());
+            }
 
             // 수량 / 단가 표시 포맷팅
             $row.find('input[name^="quantity_"]').val(quantity  === 0 ? '' : quantity.toLocaleString());
@@ -1191,10 +1223,9 @@
 
             calculateTotalSum();
           } finally {
-            isInternalFormatting = false; // 에러 나도 플래그 복구
+            isInternalFormatting = false;
           }
         }
-
         function calculateTotalSum() {
           let sum = 0;
 
@@ -1202,16 +1233,15 @@
             const $row = $(this);
             const $totalInput = $row.find('input[name^="totalAmount_"]');
 
-            const raw = ($totalInput.val() || '').replace(/[^0-9.]/g, '').trim();
-            if (raw !== '') {
+            // 음수 허용
+            const raw = (($totalInput.val() || '') + '').replace(/,/g, '').trim();
+            if (raw !== '' && raw !== '-' && raw !== '.') {
               const total = parseFloat(raw);
-              if (!isNaN(total)) {
-                sum += total;
-              }
+              if (!isNaN(total)) sum += total;
             }
           });
 
-          $content.find('#totalAmountSum').val(sum > 0 ? sum.toLocaleString() : '');
+          $content.find('#totalAmountSum').val(sum !== 0 ? sum.toLocaleString() : '');
         }
 
         // 수량/단가 입력 시
@@ -1258,111 +1288,134 @@
 
         // 숫자 포맷 (input 중 formatting) - 소수점/천단위 지원
         // 1) 입력 중: 포맷(천단위)만, 소수 고정 금지
+        // 숫자 포맷 (input 중 formatting)
         $content.off('input.numfmt')
-          .on('input.numfmt', 'input[name^="quantity_"], input[name^="unitPrice_"], input[name^="supplyAmount_"], input[name^="VatAmount_"], input[name^="totalAmount_"]', function (e) {
-            if (isInternalFormatting) return;
-            if (e.originalEvent && e.originalEvent.isComposing) return;
+          .on('input.numfmt',
+            'input[name^="quantity_"], input[name^="unitPrice_"], input[name^="supplyAmount_"], input[name^="VatAmount_"], input[name^="totalAmount_"]',
+            function (e) {
+              if (isInternalFormatting) return;
+              if (e.originalEvent && e.originalEvent.isComposing) return;
 
-            isInternalFormatting = true;
-            const input = this;
-            const $this = $(this);
-            const name  = input.name || '';
+              isInternalFormatting = true;
+              const input = this;
+              const $this = $(this);
+              const name  = input.name || '';
+              const $row  = $this.closest('tr');
 
-            // 커서 보정용
-            const prevLen = input.value.length;
-            const cursorPos = input.selectionStart;
-            const rightRemain = prevLen - cursorPos;
+              // 커서 보정
+              const prevLen = input.value.length;
+              const cursorPos = input.selectionStart;
+              const rightRemain = prevLen - cursorPos;
 
-            let allowDecimal = false;
-            let decimals = 0;
-            if (name.startsWith('quantity_')) { allowDecimal = true; decimals = 1; }
+              // ── totalAmount_ 전용: 조정 행일 때만 '-' 허용 ──
+              if (name.startsWith('totalAmount_')) {
+                const adjustment = isAdjustmentRow($row);
+                let raw = String($this.val() || '').replace(/,/g, '');
+                raw = raw.replace(adjustment ? /[^0-9.\-]/g : /[^0-9.]/g, '');
+                if (adjustment) raw = raw.replace(/(?!^)-/g, ''); // 선행 '-' 하나만
+                // 점 하나만
+                raw = raw.replace(/\.(?=.*\.)/g, '');
+                if (raw === '' || raw === '-' || raw === '.') { isInternalFormatting = false; return; }
+                const num = Number(raw);
+                if (!isFinite(num)) { isInternalFormatting = false; return; }
+                const formatted = num.toLocaleString('ko-KR');
+                $this.val(formatted);
 
-            // 원본값에서 콤마 제거
-            let raw = String($this.val() || '').replace(/,/g, '');
-
-            if (allowDecimal) {
-              // 숫자와 점만 허용 + 점은 하나만
-              raw = raw.replace(/[^0-9.]/g, '').replace(/\.(?=.*\.)/g, '');
-              if (raw === '' || raw === '.') {
-                $this.val('');
+                const newLen = formatted.length;
+                const pos = Math.max(0, newLen - rightRemain);
+                input.setSelectionRange(pos, pos);
                 isInternalFormatting = false;
                 return;
               }
 
-              // 소수점이 있는지 여부(입력 중에는 .0 강제하지 않음)
-              const hasDot = raw.includes('.');
-              let [intPart, fracPart = ''] = raw.split('.');
-              intPart = intPart.replace(/^0+(?=\d)/, ''); // 선행 0 정리(유지 원하면 제거)
+              // ── 이하 기존 로직(수량 소수1자리, 그 외 정수) ──
+              let allowDecimal = false;
+              let decimals = 0;
+              if (name.startsWith('quantity_')) { allowDecimal = true; decimals = 1; }
 
-              // 소수부 자릿수 제한(입력 컷)
-              if (fracPart.length > decimals) fracPart = fracPart.slice(0, decimals);
+              let raw = String($this.val() || '').replace(/,/g, '');
 
-              // 천단위는 정수부에만 적용
-              const intFormatted = (intPart === '' ? '0' : String(Number(intPart))).toLocaleString('ko-KR');
-              const formatted = hasDot ? `${intFormatted}.${fracPart}` : intFormatted;
-
-              $this.val(formatted);
-
-              // 커서 재배치
-              const newLen = formatted.length;
-              const pos = Math.max(0, newLen - rightRemain);
-              input.setSelectionRange(pos, pos);
-
-            } else {
-              // 정수만
-              raw = raw.replace(/[^0-9]/g, '');
-              if (raw === '') {
-                $this.val('');
-                isInternalFormatting = false;
-                return;
-              }
-              const formatted = Number(raw).toLocaleString('ko-KR');
-              $this.val(formatted);
-
-              const newLen = formatted.length;
-              const pos = Math.max(0, newLen - rightRemain);
-              input.setSelectionRange(pos, pos);
-            }
-
-            isInternalFormatting = false;
-          });
-
-        // 2) 포커스 아웃 시: 수량은 .0 제거(정수면 정수만), 소수는 최대 1자리
-        $content.off('blur.numfmt')
-          .on('blur.numfmt', 'input[name^="quantity_"], input[name^="unitPrice_"], input[name^="supplyAmount_"], input[name^="VatAmount_"], input[name^="totalAmount_"]', function () {
-            const $this = $(this);
-            const name = this.name || '';
-            let v = String($this.val() || '').replace(/,/g, '');
-
-            if (!v) return;
-
-            if (name.startsWith('quantity_')) {
-              // 수량: 숫자/점만 허용
-              v = v.replace(/[^0-9.]/g, '').replace(/\.(?=.*\.)/g, '');
-              if (v === '' || v === '.') { $this.val(''); return; }
-
-              let num = Number(v);
-              if (!isFinite(num)) { $this.val(''); return; }
-
-              // 소수 1자리 반올림
-              num = Math.round(num * 10) / 10;
-
-              // 정수/소수 분리
-              const parts = String(num).split('.');
-              const intStr = Number(parts[0]).toLocaleString('ko-KR');
-
-              // 소수부가 없거나 0이면 정수만, 그 외엔 소수 1자리
-              if (parts.length === 1 || parts[1] === '0') {
-                $this.val(intStr); // 예: 50
+              if (allowDecimal) {
+                raw = raw.replace(/[^0-9.]/g, '').replace(/\.(?=.*\.)/g, '');
+                if (raw === '' || raw === '.') { $this.val(''); isInternalFormatting = false; return; }
+                const hasDot = raw.includes('.');
+                let [intPart, fracPart = ''] = raw.split('.');
+                intPart = intPart.replace(/^0+(?=\d)/, '');
+                if (fracPart.length > decimals) fracPart = fracPart.slice(0, decimals);
+                const intFormatted = (intPart === '' ? '0' : String(Number(intPart))).toLocaleString('ko-KR');
+                const formatted = hasDot ? `${intFormatted}.${fracPart}` : intFormatted;
+                $this.val(formatted);
+                const newLen = formatted.length;
+                const pos = Math.max(0, newLen - rightRemain);
+                input.setSelectionRange(pos, pos);
               } else {
-                // parts[1]은 한 자리일 것. (반올림으로 보장)
-                $this.val(`${intStr}.${parts[1]}`); // 예: 50.3
+                raw = raw.replace(/[^0-9]/g, '');
+                if (raw === '') { $this.val(''); isInternalFormatting = false; return; }
+                const formatted = Number(raw).toLocaleString('ko-KR');
+                $this.val(formatted);
+                const newLen = formatted.length;
+                const pos = Math.max(0, newLen - rightRemain);
+                input.setSelectionRange(pos, pos);
               }
-            } else {
-              // 단가/금액: 정수 유지
-              const iv = v.replace(/[^0-9]/g, '');
-              if (iv === '') { $this.val(''); return; }
-              $this.val(Number(iv).toLocaleString('ko-KR'));
+
+              isInternalFormatting = false;
+            }
+          );
+
+// 블러 시: totalAmount_는 조정 행에서 음수 유지
+        $content.off('blur.numfmt')
+          .on('blur.numfmt',
+            'input[name^="quantity_"], input[name^="unitPrice_"], input[name^="supplyAmount_"], input[name^="VatAmount_"], input[name^="totalAmount_"]',
+            function () {
+              const $this = $(this);
+              const name = this.name || '';
+              const $row = $this.closest('tr');
+              let v = String($this.val() || '').replace(/,/g, '');
+              if (!v) return;
+
+              if (name.startsWith('totalAmount_')) {
+                const adjustment = isAdjustmentRow($row);
+                v = v.replace(adjustment ? /[^0-9.\-]/g : /[^0-9.]/g, '');
+                if (adjustment) v = v.replace(/(?!^)-/g, '');
+                v = v.replace(/\.(?=.*\.)/g, '');
+                if (v === '' || v === '-' || v === '.') { $this.val(''); return; }
+                const num = Number(v);
+                if (!isFinite(num)) { $this.val(''); return; }
+                $this.val(num.toLocaleString('ko-KR'));
+                return;
+              }
+
+              if (name.startsWith('quantity_')) {
+                v = v.replace(/[^0-9.]/g, '').replace(/\.(?=.*\.)/g, '');
+                if (v === '' || v === '.') { $this.val(''); return; }
+                let num = Number(v);
+                if (!isFinite(num)) { $this.val(''); return; }
+                num = Math.round(num * 10) / 10;
+                const parts = String(num).split('.');
+                const intStr = Number(parts[0]).toLocaleString('ko-KR');
+                if (parts.length === 1 || parts[1] === '0') $this.val(intStr);
+                else $this.val(`${intStr}.${parts[1]}`);
+              } else {
+                const iv = v.replace(/[^0-9]/g, '');
+                if (iv === '') { $this.val(''); return; }
+                $this.val(Number(iv).toLocaleString('ko-KR'));
+              }
+            }
+          );
+
+        $content.off('change.productCodeGuard')
+          .on('change.productCodeGuard', 'input[name^="product_code_"]', function () {
+            const $row = $(this).closest('tr');
+            const code = (this.value ?? '').toString().trim();
+            if (code !== '') {
+              // totalAmount_에서 음수 제거 후 재계산
+              const $tot = $row.find('input[name^="totalAmount_"]');
+              const cleaned = (($tot.val() ?? '') + '').replace(/,/g, '').replace(/-/g, '');
+              $tot.val(cleaned ? Number(cleaned).toLocaleString('ko-KR') : '');
+              // 일반 모드 강제 재계산
+              $row.removeData('supplyEdited');
+              $row.removeData('vatEdited');
+              calculateAmounts($row, 'unit');
             }
           });
 

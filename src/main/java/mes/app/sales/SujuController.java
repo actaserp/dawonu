@@ -245,7 +245,10 @@ public class SujuController {
 
 			String invatyn = item.get("VatIncluded").toString();
 
-			suju.setMaterialId(Integer.parseInt(item.get("Material_id").toString()));
+			//suju.setMaterialId(Integer.parseInt(item.get("Material_id").toString()));
+			Integer mid = toIntegerOrNull(item.get("Material_id"));
+			suju.setMaterialId(mid);
+			suju.setMaterial_Name((String)item.get("txtProductName") );
 			suju.setSujuQty(Double.parseDouble(item.get("quantity").toString()));
 			suju.setSujuQty2(Double.parseDouble(item.get("quantity").toString()));
 			suju.setUnitPrice(Integer.parseInt(item.get("unitPrice").toString()));
@@ -306,6 +309,19 @@ public class SujuController {
 
 		result.success = true;
 		return result;
+	}
+	private static Integer toIntegerOrNull(Object v) {
+		if (v == null) return null;
+		if (v instanceof Number) return ((Number) v).intValue(); // 이미 숫자면 그대로
+
+		String s = v.toString().trim().replace(",", ""); // 공백/콤마 정리
+		if (s.isEmpty() || s.equals("-") || s.equals(".")) return null; // 빈값/중간입력 방어
+
+		try {
+			return Integer.valueOf(s);
+		} catch (NumberFormatException e) {
+			return null; // 필요하다면 throw로 바꿔 로깅
+		}
 	}
 
 	private static String numStr(Object o) {
@@ -1036,6 +1052,7 @@ public class SujuController {
 			} else {
 				material.setRoutingId(10);
 			}
+			material.setStoreHouseId(3);	// 자재창고가 기본으로
 			material.setMatUserCode(cboMaterialMid);
 			material.set_audit(user);
 

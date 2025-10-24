@@ -165,110 +165,106 @@ public class SujuService {
 
 		String detailSql = """ 
 			WITH shipment_status AS (
-				     SELECT "SourceDataPk", SUM("Qty") AS shipped_qty
-				     FROM shipment
-				     WHERE "SourceTableName" = 'rela_data'
-				     GROUP BY "SourceDataPk"
+				   SELECT "SourceDataPk", SUM("Qty") AS shipped_qty
+				   FROM shipment
+				   WHERE "SourceTableName" = 'rela_data'
+				   GROUP BY "SourceDataPk"
 				 ),
 				 suju_with_state AS (
-				     SELECT
-				         s.id AS suju_id,
-				         s."SujuHead_id",
-				         s."Material_id",
-				         m."Code" AS "product_code",
-				         m."Name" AS "txtProductName",
-				         mg."Name" AS "MaterialGroupName",
-				         mg.id AS "MaterialGroup_id",
-				         u."Name" AS "unit",
-				         s."SujuQty" AS "quantity",
-				         to_char(s."JumunDate", 'yyyy-mm-dd') AS "JumunDate",
-				         to_char(s."DueDate", 'yyyy-mm-dd') AS "DueDate",
-				         s."CompanyName",
-				         s."Company_id",
-				         s."SujuType",
-				         s."UnitPrice" AS "unitPrice",
-				         s."Vat" AS "VatAmount",
-				         s."Price" AS "supplyAmount",
-				         s."TotalAmount" AS "totalAmount",
-				         to_char(s."_created", 'yyyy-mm-dd') AS "create_date",
-				         s.project_id AS "projectHidden",
-				         p.projnm AS "project",
-				         s."Description" AS "description",
-				         s."InVatYN" AS "invatyn",
-				         s."SujuQty2",
-				         s."AvailableStock",
-				         s."ReservationStock",
-				         s."State" AS "original_state",
-				         COALESCE(sh.shipped_qty, -1) AS "shipped_qty",
-				          s."Standard" as  standard,
-				          NULLIF(btrim(
-										COALESCE(m."Standard1",'') || ' ' || COALESCE(m."Standard2",'')
-									),'') AS spec_master,
-									-- 잠금 여부(마스터 규격이 존재하면 Y, 없으면 N)
-									CASE
-										WHEN NULLIF(btrim(
-													 COALESCE(m."Standard1",'') || ' ' || COALESCE(m."Standard2",'')
-												 ),'') IS NOT NULL THEN 'Y'
-										ELSE 'N'
-									END AS standard_locked,
-				         CASE
-				             WHEN sh.shipped_qty = -1 THEN s."State"
-				             WHEN sh.shipped_qty = 0 THEN 'force_completion'
-				             WHEN sh.shipped_qty >= s."SujuQty" THEN 'shipped'
-				             WHEN sh.shipped_qty < s."SujuQty" THEN 'partial'
-				             ELSE s."State"
-				         END AS final_state
-				 
-				     FROM suju s
-				     INNER JOIN material m ON m.id = s."Material_id"
-				     INNER JOIN mat_grp mg ON mg.id = m."MaterialGroup_id"
-				     LEFT JOIN unit u ON m."Unit_id" = u.id
-				     LEFT JOIN TB_DA003 p ON p."projno" = s.project_id
-				     LEFT JOIN shipment_status sh ON sh."SourceDataPk" = s.id
-				     WHERE s."SujuHead_id" = :id
-				 )
-				 
-				 SELECT
-				     s."suju_id",
+				   SELECT
+				     s.id AS suju_id,
 				     s."SujuHead_id",
 				     s."Material_id",
-				     s."product_code",
-				     s."txtProductName",
-				     s."MaterialGroupName",
-				     s."MaterialGroup_id",
-				     s."unit",
-				     s."quantity",
-				     s."JumunDate",
-				     s."DueDate",
+				     -- 코드/품명: material 없으면 공란 또는 suju.Material_Name 사용
+				     m."Code" AS "product_code",
+				     COALESCE(m."Name", s."Material_Name") AS "txtProductName",
+				     mg."Name" AS "MaterialGroupName",
+				     mg.id AS "MaterialGroup_id",
+				     u."Name" AS "unit",
+				     s."SujuQty" AS "quantity",
+				     to_char(s."JumunDate", 'yyyy-mm-dd') AS "JumunDate",
+				     to_char(s."DueDate", 'yyyy-mm-dd') AS "DueDate",
 				     s."CompanyName",
 				     s."Company_id",
 				     s."SujuType",
-				     s."unitPrice",
-				     s."VatAmount",
-				     s."supplyAmount",
-				     s."totalAmount",
-				     s.final_state AS "State",
-				     
-				     COALESCE(sc_ship."Value", sc_suju."Value") AS "suju_StateName",
-				 
-				     s."invatyn",
+				     s."UnitPrice" AS "unitPrice",
+				     s."Vat"       AS "VatAmount",
+				     s."Price"     AS "supplyAmount",
+				     s."TotalAmount" AS "totalAmount",
+				     to_char(s."_created", 'yyyy-mm-dd') AS "create_date",
+				     s.project_id AS "projectHidden",
+				     p.projnm     AS "project",
+				     s."Description" AS "description",
+				     s."InVatYN"  AS "invatyn",
 				     s."SujuQty2",
 				     s."AvailableStock",
 				     s."ReservationStock",
-				     s."create_date",
-				     s."projectHidden",
-				     s."project",
-				     s."description",
-				     s.standard,
-				  		s.spec_master,
-				     s.standard_locked
+				     s."State"    AS "original_state",
+				     COALESCE(sh.shipped_qty, -1) AS "shipped_qty",
+				     s."Standard" AS standard,
+				
+				     -- 마스터 규격 문자열(없으면 NULL)
+				     NULLIF(btrim(COALESCE(m."Standard1",'') || ' ' || COALESCE(m."Standard2",'')),'') AS spec_master,
+				
+				     -- 마스터 규격이 있으면 잠금 Y, 없으면 N
+				     CASE WHEN NULLIF(btrim(COALESCE(m."Standard1",'') || ' ' || COALESCE(m."Standard2",'')),'') IS NOT NULL
+				          THEN 'Y' ELSE 'N' END AS standard_locked,
+				
+				     -- 최종 상태
+				     CASE
+				       WHEN sh.shipped_qty = -1 THEN s."State"
+				       WHEN sh.shipped_qty = 0  THEN 'force_completion'
+				       WHEN sh.shipped_qty >= s."SujuQty" THEN 'shipped'
+				       WHEN sh.shipped_qty <  s."SujuQty" THEN 'partial'
+				       ELSE s."State"
+				     END AS final_state
+				   FROM suju s
+				   -- ★★★ 여기부터 LEFT JOIN으로 변경 ★★★
+				   LEFT JOIN material  m  ON m.id = s."Material_id"
+				   LEFT JOIN mat_grp   mg ON mg.id = m."MaterialGroup_id"
+				   LEFT JOIN unit      u  ON u.id  = m."Unit_id"
+				   LEFT JOIN TB_DA003  p  ON p."projno" = s.project_id
+				   LEFT JOIN shipment_status sh ON sh."SourceDataPk" = s.id
+				   WHERE s."SujuHead_id" = :id
+				 )
+				 SELECT
+				   s."suju_id",
+				   s."SujuHead_id",
+				   s."Material_id",
+				   s."product_code",
+				   s."txtProductName",
+				   s."MaterialGroupName",
+				   s."MaterialGroup_id",
+				   s."unit",
+				   s."quantity",
+				   s."JumunDate",
+				   s."DueDate",
+				   s."CompanyName",
+				   s."Company_id",
+				   s."SujuType",
+				   s."unitPrice",
+				   s."VatAmount",
+				   s."supplyAmount",
+				   s."totalAmount",
+				   s.final_state AS "State",
+				   COALESCE(sc_ship."Value", sc_suju."Value") AS "suju_StateName",
+				   s."invatyn",
+				   s."SujuQty2",
+				   s."AvailableStock",
+				   s."ReservationStock",
+				   s."create_date",
+				   s."projectHidden",
+				   s."project",
+				   s."description",
+				   s.standard,
+				   s.spec_master,
+				   s.standard_locked
 				 FROM suju_with_state s
 				 LEFT JOIN sys_code sc_ship
-				     ON sc_ship."Code" = s.final_state AND sc_ship."CodeType" = 'shipment_state'
+				   ON sc_ship."Code" = s.final_state AND sc_ship."CodeType" = 'shipment_state'
 				 LEFT JOIN sys_code sc_suju
-				     ON sc_suju."Code" = s.final_state AND sc_suju."CodeType" = 'suju_state'
-				 ORDER BY s."JumunDate",s.suju_id;
-				 
+				   ON sc_suju."Code" = s.final_state AND sc_suju."CodeType" = 'suju_state'
+				 ORDER BY s."JumunDate", s.suju_id;
 		""";
 
 		Map<String, Object> sujuHead = this.sqlRunner.getRow(sql, paramMap);
