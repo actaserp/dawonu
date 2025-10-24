@@ -115,7 +115,7 @@ public class CompanyService {
             , "ManageRemark" as manage_remark
             , "GroupName" as group_name
              , relyn as relyn
-            from company c 
+            from company c
             Where id = :company_id
 			""";
 		

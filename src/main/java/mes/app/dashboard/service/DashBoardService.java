@@ -367,18 +367,28 @@ public class DashBoardService {
 		String sql = """
 				WITH suju_state_summary AS (
 				  SELECT
-					sh.id AS suju_head_id,
-					-- 상태 요약 계산
-					CASE
-					  WHEN COUNT(DISTINCT s."State") = 1 THEN MIN(s."State")
-					  WHEN BOOL_AND(s."State" IN ('received', 'planned')) AND BOOL_OR(s."State" = 'planned') THEN 'part_planned'
-					  WHEN BOOL_AND(s."State" IN ('received', 'ordered', 'planned')) AND BOOL_OR(s."State" = 'ordered') THEN 'part_ordered'
-					  ELSE '기타'
-					END AS summary_state
-				   
+				    sh.id AS suju_head_id,
+				    CASE
+				      WHEN BOOL_OR(s."State" = 'planned' AND jr."State" IS NOT NULL)
+				        THEN MIN(jr."State")
+				      ELSE MIN(s."State")
+				    END AS summary_state,
+				    BOOL_OR(s."State" = 'planned' AND jr."State" IS NOT NULL) AS used_job_state,
+				    CASE
+				      WHEN BOOL_OR(s."State" = 'planned' AND jr."State" IS NOT NULL)
+				        THEN 'job_state'
+				      ELSE 'suju_state'
+				    END AS code_type
 				  FROM suju_head sh
 				  JOIN suju s ON s."SujuHead_id" = sh.id
-				   
+				  LEFT JOIN (
+				    SELECT DISTINCT ON ("SourceDataPk")
+				           "SourceDataPk", "State"
+				    FROM job_res
+				    WHERE "SourceTableName" = 'suju'
+				    ORDER BY "SourceDataPk", "_created" DESC
+				  ) jr
+				  ON jr."SourceDataPk" = s.id
 				  GROUP BY sh.id
 				),
 				shipment_summary AS (
@@ -401,7 +411,6 @@ public class DashBoardService {
 					  ) shp ON shp."SourceDataPk" = s.id
 					  GROUP BY s."SujuHead_id"
 				)
-				   
 				SELECT
 				  sh.id,
 				  sh."JumunNumber",
@@ -437,7 +446,9 @@ public class DashBoardService {
 				LEFT JOIN company c ON c.id = sh."Company_id"
 				LEFT JOIN shipment_summary ss ON ss."SujuHead_id" = sh.id
 				LEFT JOIN suju_state_summary sss ON sss.suju_head_id = sh.id
-				LEFT JOIN sys_code sc_state ON sc_state."Code" = sss.summary_state AND sc_state."CodeType" = 'suju_state'
+				LEFT JOIN sys_code sc_state
+				           ON sc_state."Code" = sss.summary_state
+				          AND sc_state."CodeType" = sss.code_type
 				LEFT JOIN sys_code sc_type ON sc_type."Code" = sh."SujuType" AND sc_type."CodeType" = 'suju_type'
 				LEFT JOIN sys_code sc_ship ON sc_ship."Code" = ss.shipment_state AND sc_ship."CodeType" = 'shipment_state'
 					where 1 = 1

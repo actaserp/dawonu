@@ -99,19 +99,10 @@
             <div class="tab-wrap" style="flex: 1; min-width: 0;">
 
                 <ul class="tab-links">
-                    <li><a href="#tabHistory" name="tabHistory">이력</a></li>
                     <li><a href="#tabCompany" name="tabCompany">거래처</a></li>
-
+                    <li><a href="#tabHistory" name="tabHistory">이력</a></li>
                 </ul>
                 <div>
-                    <section class="tab-item" id="tabHistory" style="border-top-left-radius: 0;">
-                        <div class="grid_box">
-                            <div class="container-fluid">
-                                <div id="history-grid"></div>
-                            </div>
-                        </div>
-
-                    </section>
                     <section class="tab-item" id="tabCompany" style="border-top-left-radius: 0;">
                         <div class="section-top">
 
@@ -140,7 +131,7 @@
                                         <tr>
                                             <th><label for="address">사업장 주소</label></th>
                                             <td>
-                                                <input id="address" name="address" readonly />
+                                                <textarea id="address" name="address" readonly ></textarea>
                                             </td>
                                         </tr>
                                         <tr>
@@ -169,12 +160,19 @@
                                             <td><input type="text" id="fax_number" name="fax_number" readonly /></td>
                                         </tr>
                                         <tr>
-                                            <th><label for="description">설명</label></th>
+                                            <th><label for="description">메모</label></th>
                                             <td><textarea id="description" name="description" readonly></textarea></td>
                                         </tr>
                                         </tbody>
                                     </table>
                                 </form>
+                            </div>
+                        </div>
+                    </section>
+                    <section class="tab-item" id="tabHistory" style="border-top-left-radius: 0;">
+                        <div class="grid_box">
+                            <div class="container-fluid">
+                                <div id="history-grid"></div>
                             </div>
                         </div>
                     </section>
@@ -565,6 +563,8 @@
                     d.tel_number      = formatPhone(d.tel_number);
                     d.fax_number      = formatPhone(d.fax_number);
                     FormUtil.BindDataForm(d, $('#companyForm'));
+                    document.getElementById('description').value = it.Description;
+
                 }
 
             };
