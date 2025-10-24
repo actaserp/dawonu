@@ -2,6 +2,7 @@ package mes.app.sales;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
+import mes.app.definition.service.BomService;
 import mes.app.definition.service.material.UnitPriceService;
 import mes.app.sales.service.SujuService;
 import mes.app.sales.service.SujuUploadService;
@@ -40,6 +41,8 @@ import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+
+import static mes.domain.services.CommonUtil.tryIntNull;
 
 @Slf4j
 @RestController
@@ -92,6 +95,16 @@ public class SujuController {
 	private ObjectMapper objectMapper;
 	@Autowired
 	private ShipmentRepository shipmentRepository;
+
+	@Autowired
+	BomRepository bomRepository;
+
+	@Autowired
+	BomComponentRepository bomCompRepository;
+
+	@Autowired
+	BomService bomService;
+
 
 	// 수주 목록 조회 
 	@GetMapping("/read")
@@ -213,19 +226,39 @@ public class SujuController {
 				Integer sujuId = Integer.parseInt(item.get("suju_id").toString());
 				suju = SujuRepository.findById(sujuId).orElse(new Suju());
 
-				int suju_pk = suju.getId();
+				// 클라값 미리 파싱 (저장 전에 비교용)
+				Integer mid = toIntegerOrNull(item.get("Material_id"));
+				Double  qty = null;
+				try { qty = Double.valueOf(String.valueOf(item.get("quantity"))); } catch (Exception ignore) {}
+				Integer unitPrice = null;
+				try { unitPrice = Integer.valueOf(String.valueOf(item.get("unitPrice"))); } catch (Exception ignore) {}
+				Date newDueDate = dueDate; // 이미 위에서 만든 dueDate
 
-				Optional<Shipment> shipment = shipmentRepository.findById(suju_pk);
+				boolean isAdjustmentLine = (mid == null); // 단수정리 라인
 
-				//출하계획 or 부분출하는 수정하게 하면 안됨 , 자바스크립트로 막는것도 좋지만
-				//어떤 변수가 있을지 몰라서 서버측에서 방어하면 안전함 서버측은 동기화면에서 강함
-				//주석처럼 result로 던져버리면 트랜잭션 롤백이 안됨. 예외를 발생시켜야 스프링에서 프록시로 가로채서 롤백가능
-				if(shipment.isPresent()){
-					//result.success = false;
-					//result.message = "출하계획 또는 진행중인 수주입니다.";
-					//return result;
+				// 기존 DB 값과 핵심 변경 비교
+				boolean coreChanged =
+						!java.util.Objects.equals(suju.getMaterialId(), mid) ||
+								!java.util.Objects.equals(suju.getSujuQty(),    qty) ||
+								!java.util.Objects.equals(suju.getUnitPrice(),  unitPrice) ||
+								!java.util.Objects.equals(suju.getDueDate(),    newDueDate);
+
+				// 정확한 출하 연동 여부 확인 (SourceTableName/SourceDataPk 기준)
+				boolean hasShipment = shipmentRepository
+						.existsBySourceTableNameAndSourceDataPk("rela_data", sujuId);
+				// ← Repository에 아래 시그니처 추가 필요:
+				// boolean existsBySourceTableNameAndSourceDataPk(String sourceTableName, Integer sourceDataPk);
+
+				// 출하 연동 + 핵심값 변경 + 단수정리 라인이 아니면 차단
+				if (hasShipment && coreChanged && !isAdjustmentLine) {
 					throw new RuntimeException("출하계획 또는 진행중인 수주입니다.");
 				}
+
+				// (필요하면) 변경 없음이면 스킵
+				 boolean nothingChanged = !coreChanged
+				     && java.util.Objects.equals(suju.getTotalAmount(), tryIntNull(item.get("totalAmount")))
+				     && java.util.Objects.equals(suju.getDescription(), (String) item.get("description"));
+				 if (nothingChanged) continue;
 
 			} else {
 				suju = new Suju(); // 신규일 경우
@@ -1059,6 +1092,8 @@ public class SujuController {
 			// 저장
 			Material saved = materialRepository.save(material);
 
+			createOrReuseDefaultBom(saved, spjangcd, user);
+
 			String unitName = unitRepository.findById(Unit_id)
 					.map(Unit::getName)
 					.orElse(null);
@@ -1082,6 +1117,62 @@ public class SujuController {
 			result.message= "저장 실패: " + e.getMessage();
 			return result;
 		}
+	}
+
+	private void createOrReuseDefaultBom(Material saved, String spjangcd, User user) {
+		final String bomType  = "manufacturing";
+		final String version  = "1.0";
+
+		// 기간
+		String startDateStr = java.time.LocalDate.now().toString() + " 00:00:00";
+		String endDateStr   = "2100-12-31 00:00:00";
+		java.sql.Timestamp startTs = java.sql.Timestamp.valueOf(startDateStr);
+		java.sql.Timestamp endTs   = java.sql.Timestamp.valueOf(endDateStr);
+
+		Integer bomId = null;
+
+		// 1) 같은 Version 존재 여부
+		boolean sameVer = bomService.checkSameVersion(null, saved.getId(), bomType, version);
+		if (sameVer) {
+			// 이미 있으면 끝 (필요 시 가져와서 사용)
+			return;
+		}
+
+		// 2) 기간 중복 여부
+		boolean dupPeriod = bomService.checkDuplicatePeriod(null, saved.getId(), bomType, startDateStr, endDateStr);
+		if (dupPeriod) {
+			// 기간 겹치면 StartDate만 'now'로 좁혀서 재시도
+			startTs = new java.sql.Timestamp(System.currentTimeMillis());
+		}
+
+		// 3) 생성
+		Bom bom = new Bom();
+		bom.setName(saved.getName()); // 표시용(선택)
+		bom.setMaterialId(saved.getId());
+		bom.setOutputAmount(1F);
+		bom.setBomType(bomType);
+		bom.setVersion(version);
+		bom.setStartDate(startTs);
+		bom.setEndDate(endTs);
+		bom.setSpjangcd(spjangcd);
+		bom.set_audit(user);
+
+		Bom savedBom = bomService.saveBom(bom);
+		bomId = savedBom.getId();
+		// 중복 검사
+		boolean exists = bomService.checkDuplicateBomComponent(bomId, saved.getId());
+		if (exists) return;
+
+		BomComponent bc = new BomComponent();
+		bc.setBomId(bomId);
+		bc.setMaterialId(10853);
+		bc.setAmount(1); // 필수
+		bc.set_order(1);
+		bc.setDescription(null);
+		bc.setSpjangcd(spjangcd);
+		bc.set_audit(user);
+
+		bomService.saveBomComponent(bc);
 	}
 
 	@GetMapping("/detail_list")

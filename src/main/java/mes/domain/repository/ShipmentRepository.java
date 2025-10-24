@@ -17,4 +17,6 @@ public interface ShipmentRepository extends JpaRepository<Shipment, Integer>{
 	List<Shipment> findByShipmentHeadId(Integer head_id);
 
 	Shipment getByShipmentHeadId(Integer sh_id);
+
+  boolean existsBySourceTableNameAndSourceDataPk(String relaData, Integer sujuId);
 }

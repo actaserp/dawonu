@@ -264,7 +264,7 @@ public class SujuService {
 				   ON sc_ship."Code" = s.final_state AND sc_ship."CodeType" = 'shipment_state'
 				 LEFT JOIN sys_code sc_suju
 				   ON sc_suju."Code" = s.final_state AND sc_suju."CodeType" = 'suju_state'
-				 ORDER BY s."JumunDate", s.suju_id;
+				 ORDER BY s."JumunDate", s.suju_id;			 
 		""";
 
 		Map<String, Object> sujuHead = this.sqlRunner.getRow(sql, paramMap);
