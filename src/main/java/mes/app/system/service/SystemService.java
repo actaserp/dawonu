@@ -14,6 +14,8 @@ import mes.domain.entity.User;
 import mes.domain.entity.UserGroup;
 import mes.domain.services.SqlRunner;
 
+import javax.transaction.Transactional;
+
 @Repository
 public class SystemService {
 
@@ -226,7 +228,7 @@ public class SystemService {
         from bookmark bm 
         inner join menu_item mi on bm."MenuCode" = mi."MenuCode" 
         where bm."User_id" = :user_id
-        order by created
+        order by "order"
 		""";
 		
 		MapSqlParameterSource dicParam = new MapSqlParameterSource();
@@ -235,31 +237,63 @@ public class SystemService {
         List<Map<String, Object>> items = this.sqlRunner.getRows(sql, dicParam);        
         return items;
 	}
-	
+
 	public int saveBookmark(String menucode, String isbookmark, User user) {
 		int iRowEffected = 0;
-		
+
 		MapSqlParameterSource namedParameters = new MapSqlParameterSource();
 		namedParameters.addValue("menucode", menucode);
 		namedParameters.addValue("user_id", user.getId());
 
 		if ("false".equals(isbookmark)) {
-			// isbookmark가 'false'일 경우, 북마크 추가
-			String sql = """
-                insert into bookmark ("User_id", "MenuCode", _created) values(:user_id, :menucode, now())
-                """;
-			iRowEffected = this.jdbcTemplate.update(sql, namedParameters);
+			// isbookmark가 'false' → 북마크 추가
+
+			// 🔹 현재 유저의 가장 큰 order 값 조회
+			String sqlGetMaxOrder = """
+				select coalesce(max("order"), 0) + 1 from bookmark where "User_id" = :user_id
+			""";
+			int nextOrder = this.jdbcTemplate.queryForObject(sqlGetMaxOrder, namedParameters, Integer.class);
+
+			// 🔹 새 북마크 추가 (order 포함)
+			String sqlInsert = """
+				insert into bookmark ("User_id", "MenuCode", "_created", "order")
+				values (:user_id, :menucode, now(), :order)
+			""";
+
+			namedParameters.addValue("order", nextOrder);
+			iRowEffected = this.jdbcTemplate.update(sqlInsert, namedParameters);
+
 		} else {
-			// isbookmark가 'true'일 경우, 북마크 삭제
-			String sql = """
-                delete from bookmark where "User_id"=:user_id and "MenuCode"=:menucode
-                """;
-			iRowEffected = this.jdbcTemplate.update(sql, namedParameters);
-		}    
-		
+			// isbookmark가 'true' → 북마크 삭제
+			String sqlDelete = """
+				delete from bookmark
+						where "User_id" = :user_id
+						  and "MenuCode" = :menucode
+					""";
+			iRowEffected = this.jdbcTemplate.update(sqlDelete, namedParameters);
+		}
+
 		return iRowEffected;
 	}
-	
+
+	@Transactional
+	public void updateBookmarkOrder(List<Map<String, Object>> bookmarks, int userId) {
+		String sql = """
+			update bookmark
+			set "order" = :order
+			where "User_id" = :user_id and "MenuCode" = :menucode
+		""";
+
+		for (int i = 0; i < bookmarks.size(); i++) {
+			Map<String, Object> bm = bookmarks.get(i);
+			MapSqlParameterSource params = new MapSqlParameterSource();
+			params.addValue("user_id", userId);
+			params.addValue("menucode", bm.get("menucode"));
+			params.addValue("order", i + 1);
+			this.jdbcTemplate.update(sql, params);
+		}
+	}
+
 	public List<Map<String, Object>> getLabelList(String lang_code, String gui_code, String template_key){
 		
 		String sql = """

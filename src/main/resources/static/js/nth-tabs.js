@@ -167,9 +167,9 @@
                                 var isBookmarked = bookmarkButton.classList.contains('on');
                                 let csrf = document.querySelector('[name=_csrf]').value;
 
-                                // 현재 탭의 제목을 가져옴
+                                // 현재 탭의 제목과 URL 가져오기
                                 var currentTabTitle = $('#main-tabs').find('a[href="#' + objid + '"] span').text();
-                                var menuUrl = bookmarkButton.getAttribute('menuurl');  // URL도 가져오기
+                                var menuUrl = bookmarkButton.getAttribute('menuurl');
 
                                 // 북마크 상태 저장
                                 $.ajax({
@@ -177,35 +177,45 @@
                                     type: 'POST',
                                     data: {
                                         menucode: menuCode,
-                                        isbookmark: isBookmarked ? 'true' : 'false', // 북마크 상태를 반전시켜 전송
+                                        isbookmark: isBookmarked ? 'true' : 'false',
                                         '_csrf': csrf
                                     },
                                     success: function (response) {
                                         if (response.success) {
 
-                                            if (!isBookmarked) { // 북마크를 추가하는 경우
-
-                                                // 탭의 data-isbookmark 속성 업데이트
+                                            if (!isBookmarked) { // ✅ 북마크 추가 시
                                                 $('a[href="#' + objid + '"]').closest('li').attr('data-isbookmark', 'true');
 
-                                                // 북마크 메뉴에 항목 추가
+                                                // 1️⃣ 북마크 메뉴 추가
                                                 if ($('#bookmark-menu a[data-objid="' + menuCode + '"]').length === 0) {
-                                                    $('#bookmark-menu').append('<li><a  data-objid="' + menuCode + '" menuurl="' + menuUrl + '">' + currentTabTitle + '</a></li>');
+                                                    $('#bookmark-menu').append(
+                                                        '<li><a data-objid="' + menuCode + '" menuurl="' + menuUrl + '">' + currentTabTitle + '</a></li>'
+                                                    );
                                                 }
 
-                                            } else { // 북마크를 제거하는 경우
+                                                // 2️⃣ header-menu 버튼 추가
+                                                if ($('.header-menu .menu-btn[data-objid="' + menuCode + '"]').length === 0) {
+                                                    $('.header-menu').append(
+                                                        '<button class="menu-btn" data-objid="' + menuCode + '" menuurl="' + menuUrl + '">' + currentTabTitle + '</button>'
+                                                    );
+                                                }
 
-                                                // 탭의 data-isbookmark 속성 업데이트
+                                            } else { // ✅ 북마크 제거 시
                                                 $('a[href="#' + objid + '"]').closest('li').attr('data-isbookmark', 'false');
 
-                                                // 북마크 메뉴에서 항목 제거
+                                                // 1️⃣ 북마크 메뉴 제거
                                                 $('#bookmark-menu a[data-objid="' + menuCode + '"]').parent('li').remove();
+
+                                                // 2️⃣ header-menu 버튼 제거
+                                                $('.header-menu .menu-btn[data-objid="' + menuCode + '"]').remove();
                                             }
-                                            // 메인 창에 북마크가 변경되었음을 알림
+
+                                            // 메인창 북마크 변경 이벤트 전달
                                             if (window.opener) {
                                                 var event = new CustomEvent('bookmarkChanged');
                                                 window.opener.dispatchEvent(event);
                                             }
+
                                         } else {
                                             console.error('Failed to save bookmark.');
                                         }
@@ -218,6 +228,7 @@
                         }
                     };
                 }
+
             },
 
             // 위치 지정 탭

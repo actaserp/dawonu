@@ -76,6 +76,71 @@
             }
         }
 
+        .header-info {
+            display: grid;
+            grid-template-columns: 1fr auto; /* 왼쪽은 가변, 오른쪽은 고정 */
+            align-items: center;
+            width: 100%;
+            gap: 10px;
+        }
+
+
+        /* 왼쪽 영역 */
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            min-width: 0; /* ✅ grid 셀에서 줄어들도록 */
+        }
+
+        /* 오른쪽 영역 */
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .header-menu {
+            display: flex;
+            flex-wrap: nowrap;
+            gap: 8px;
+            overflow-x: auto;
+            overflow-y: hidden;
+            white-space: nowrap;
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+        }
+        .header-menu::-webkit-scrollbar {
+            display: none; /* ✅ Chrome, Safari */
+        }
+
+        /* help 버튼 */
+        a.help {
+            background-color: #0056b3;
+            color: #fff;
+            border-radius: 5px;
+            padding: 5px 10px;
+            font-size: 13px;
+            text-decoration: none;
+            transition: 0.2s;
+        }
+
+        a.help:hover {
+            background-color: #0066cc;
+        }
+
+        .header-menu .menu-btn {
+            user-select: none;
+        }
+
+        .header-menu .menu-btn.dragging {
+            opacity: 0.5;
+            transform: scale(0.95);
+        }
+
+
+
+
     </style>
 </head>
 
@@ -98,96 +163,106 @@
                     </div>
                 </div>
                 <div class="header-info">
-                    <div class="weather">
-                        <div class="wt-main">
-                            <p id="area"></p>
-                            <div class="wt-graphic">
-                                <img id="weatherIcon" src="" alt="">
-                                <!--                            <p id="temperature"></p> &lt;!&ndash; 기존의 <span> 태그를 제거 -->
-                                <p id="temperature"></p>
-                            </div>
-                            <!--<p id="lastUpdated" style="font-size: 12px; color: gray;"></p>-->
-                            <p id="lastUpdated" style="display: none;"></p>
+                    <div class="header-left">
+    <!--                    <div class="weather">-->
+    <!--                        <div class="wt-main">-->
+    <!--                            <p id="area"></p>-->
+    <!--                            <div class="wt-graphic">-->
+    <!--                                <img id="weatherIcon" src="" alt="">-->
+    <!--                                &lt;!&ndash;                            <p id="temperature"></p> &lt;!&ndash; 기존의 <span> 태그를 제거 &ndash;&gt;-->
+    <!--                                <p id="temperature"></p>-->
+    <!--                            </div>-->
+    <!--                            &lt;!&ndash;<p id="lastUpdated" style="font-size: 12px; color: gray;"></p>&ndash;&gt;-->
+    <!--                            <p id="lastUpdated" style="display: none;"></p>-->
+    <!--                        </div>-->
+    <!--                        <div class="wt-detail">-->
+    <!--                            <ul>-->
+    <!--                                <li>-->
+    <!--                                    <img src="/images/icon/ico-umbrella.svg" alt="강수">-->
+    <!--                                    <p id="precipitationProbability"></p>-->
+    <!--                                </li>-->
+    <!--                                <li>-->
+    <!--                                    <img src="/images/icon/ico-water.svg" alt="습도">-->
+    <!--                                    <p id="humidity"></p>-->
+    <!--                                </li>-->
+    <!--                                <li>-->
+    <!--                                    <img src="/images/icon/ico-wind.svg" alt="풍속">-->
+    <!--                                    <p id="windSpeed"></p>-->
+    <!--                                </li>-->
+    <!--                            </ul>-->
+    <!--                        </div>-->
+    <!--                    </div>-->
+                        <!-- 알람 -->
+    <!--                    <a href="#" class="alarm" title="알람">-->
+    <!--                        <img src="/images/icon/ico-bell.svg" alt="알람 아이콘">-->
+    <!--                        <span>알람</span>-->
+    <!--                        <span class="num">0</span>-->
+    <!--                    </a>-->
+    <!--                    <div class="alarm-box" style="width: 1000px;">-->
+    <!--                        <ul class="alarm-tab-links">-->
+    <!--                            <li class="active">-->
+    <!--                                <a href="#alarm-tab1" title="주문의뢰">주문의뢰(0)</a> &lt;!&ndash; 동적으로 업데이트 &ndash;&gt;-->
+    <!--                            </li>-->
+    <!--                        </ul>-->
+    <!--                        <div class="alarm-tab-contents">-->
+    <!--                            <div class="alarm-tab-item" id="alarm-tab1">-->
+    <!--                                <div class="table-wrap">-->
+    <!--                                    <table>-->
+    <!--                                        <caption>알람 테이블</caption>-->
+    <!--                                        <colgroup>-->
+    <!--                                            <col class="wp30"> &lt;!&ndash; 날짜 &ndash;&gt;-->
+    <!--                                            <col class="wp45"> &lt;!&ndash; 업체 이름 &ndash;&gt;-->
+    <!--                                            <col class="wp25"> &lt;!&ndash; 주문 상태 &ndash;&gt;-->
+    <!--                                        </colgroup>-->
+    <!--                                        <thead>-->
+    <!--                                        <tr>-->
+    <!--                                            <th>날 짜</th>-->
+    <!--                                            <th>업체 이름</th>-->
+    <!--                                            <th>주문 상태</th>-->
+    <!--                                        </tr>-->
+    <!--                                        </thead>-->
+    <!--                                        <tbody>-->
+    <!--                                        &lt;!&ndash; 알림 데이터가 여기 동적으로 추가됨 &ndash;&gt;-->
+    <!--                                        </tbody>-->
+    <!--                                    </table>-->
+    <!--                                </div>-->
+    <!--                            </div>-->
+    <!--                            <a href="#" title="확인" class="btn-gray" id="AlarmOk" onclick="AlarmOk()">확인</a>-->
+    <!--                        </div>-->
+    <!--                    </div>-->
+                        <!-- 알람 -->
+                        <!-- 사용자 로그인 상태-->
+                        <div id="spjangSelectWrapper" style="visibility: hidden; width: 0;">
+                            <!-- 사업장 리스트 -->
                         </div>
-                        <div class="wt-detail">
+                        <div class="header-menu">
+
+                        </div>
+                    </div>
+                    <div class="header-right">
+                        <a class="help" title="원격접속" href="https://939.co.kr/onit" target="_blank" rel="noopener noreferrer">
+                            원격접속
+                        </a>
+                        <a class="user" title="사용자">
+                            <span style="padding:0 5px">·</span>
+                            <span th:text="${ groupname }"></span>
+                            <span style="padding:0 5px">·</span>
+                            <span id="userName2" th:text="${ username }"></span>
+                            <span>(</span>
+                            <span id="userName3" th:text="${ userid }"></span>
+                            <span>)</span>
+                            <span style="padding-right: 8px">님</span>
+                        </a>
+                        <div class="user-box">
                             <ul>
                                 <li>
-                                    <img src="/images/icon/ico-umbrella.svg" alt="강수">
-                                    <p id="precipitationProbability"></p>
+                                    <a id="myinfo" href="#" title="내 정보" data-popup="popup1">내 정보</a>
                                 </li>
-                                <li>
-                                    <img src="/images/icon/ico-water.svg" alt="습도">
-                                    <p id="humidity"></p>
-                                </li>
-                                <li>
-                                    <img src="/images/icon/ico-wind.svg" alt="풍속">
-                                    <p id="windSpeed"></p>
+                                <li id="logout">
+                                    <a href="#" title="로그아웃">로그아웃</a>
                                 </li>
                             </ul>
                         </div>
-                    </div>
-                    <!-- 알람 -->
-                    <a href="#" class="alarm" title="알람">
-                        <img src="/images/icon/ico-bell.svg" alt="알람 아이콘">
-                        <span>알람</span>
-                        <span class="num">0</span>
-                    </a>
-                    <div class="alarm-box" style="width: 1000px;">
-                        <ul class="alarm-tab-links">
-                            <li class="active">
-                                <a href="#alarm-tab1" title="주문의뢰">주문의뢰(0)</a> <!-- 동적으로 업데이트 -->
-                            </li>
-                        </ul>
-                        <div class="alarm-tab-contents">
-                            <div class="alarm-tab-item" id="alarm-tab1">
-                                <div class="table-wrap">
-                                    <table>
-                                        <caption>알람 테이블</caption>
-                                        <colgroup>
-                                            <col class="wp30"> <!-- 날짜 -->
-                                            <col class="wp45"> <!-- 업체 이름 -->
-                                            <col class="wp25"> <!-- 주문 상태 -->
-                                        </colgroup>
-                                        <thead>
-                                        <tr>
-                                            <th>날 짜</th>
-                                            <th>업체 이름</th>
-                                            <th>주문 상태</th>
-                                        </tr>
-                                        </thead>
-                                        <tbody>
-                                        <!-- 알림 데이터가 여기 동적으로 추가됨 -->
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-                            <a href="#" title="확인" class="btn-gray" id="AlarmOk" onclick="AlarmOk()">확인</a>
-                        </div>
-                    </div>
-                    <!-- 알람 -->
-                    <!-- 사용자 로그인 상태-->
-                    <div id="spjangSelectWrapper">
-                        <!-- 사업장 리스트 -->
-                    </div>
-                    <a class="user" title="사용자">
-                        <span style="padding:0 5px">·</span>
-                        <span th:text="${ groupname }"></span>
-                        <span style="padding:0 5px">·</span>
-                        <span id="userName2" th:text="${ username }"></span>
-                        <span>(</span>
-                        <span id="userName3" th:text="${ userid }"></span>
-                        <span>)</span>
-                        <span style="padding-right: 8px">님</span>
-                    </a>
-                    <div class="user-box">
-                        <ul>
-                            <li>
-                                <a id="myinfo" href="#" title="내 정보" data-popup="popup1">내 정보</a>
-                            </li>
-                            <li id="logout">
-                                <a href="#" title="로그아웃">로그아웃</a>
-                            </li>
-                        </ul>
                     </div>
                 </div>
             </div>
@@ -594,6 +669,12 @@
                 }
             }
 
+            $(window).on('load', function () {
+                setTimeout(() => {
+                    $('#navbarBarMenu2 .open_menu').trigger('click');
+                }, 100); // ← 원하는 만큼 늘리세요 (ms)
+            });
+
             // 페이지 로드/리사이즈 시 적용
             $(window).on('load resize', adjustMenu);
 
@@ -616,16 +697,30 @@
         $.getJSON('/api/system/bookmark', function (result) {
             let _data = result.data;
             var litagbook = '';
+            var btnHtml = '';
 
             // 북마크 메뉴 생성
             for (var i = 0; i < _data.length; i++) {
-                litagbook += '<li><a href="#" data-objid="' + _data[i].code + '" menuurl="' + _data[i].url + '">' + i18n.getMenuText(_data[i].name) + '</a></li>';
+                let name = i18n.getMenuText(_data[i].name);
+                let code = _data[i].code;
+                let url = _data[i].url;
+
+                // 기존 ul/li 메뉴
+                litagbook += '<li><a href="#" data-objid="' + code + '" menuurl="' + url + '">' + name + '</a></li>';
+
+                // header-menu 버튼 추가
+                btnHtml += `
+                    <button class="menu-btn" data-objid="${code}" menuurl="${url}" draggable="true">
+                        ${name}
+                    </button>
+                `;
             }
 
             $('#bookmark-menu').html(litagbook);
+            $('.header-menu').html(btnHtml);
 
             // 클릭 이벤트 바인딩
-            $('#bookmark-menu').on('click', 'a', function (e) {
+            $(document).on('click', '#bookmark-menu a, .header-menu .menu-btn', function (e) {
                 e.preventDefault();
                 $('#bookmark-menu li').removeClass('on');
                 $(this).parent('li').addClass('on');
@@ -648,6 +743,81 @@
                     });
                 }
             });
+
+            // 🔹 드래그 가능하도록 설정
+            const headerMenu = document.querySelector('.header-menu');
+            let draggedBtn = null;
+
+            headerMenu.addEventListener('dragstart', (e) => {
+                if (e.target.classList.contains('menu-btn')) {
+                    draggedBtn = e.target;
+                    e.target.classList.add('dragging');
+                }
+            });
+
+            headerMenu.addEventListener('dragend', (e) => {
+                if (draggedBtn) {
+                    draggedBtn.classList.remove('dragging');
+                    draggedBtn = null;
+                    saveBookmarkOrder(); // 🔹 드래그 끝나면 순서 저장
+                }
+            });
+
+            headerMenu.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                const afterElement = getDragAfterElement(headerMenu, e.clientX);
+                const dragging = document.querySelector('.dragging');
+                if (afterElement == null) {
+                    headerMenu.appendChild(dragging);
+                } else {
+                    headerMenu.insertBefore(dragging, afterElement);
+                }
+            });
+
+            function getDragAfterElement(container, x) {
+                const draggableElements = [...container.querySelectorAll('.menu-btn:not(.dragging)')];
+                return draggableElements.reduce((closest, child) => {
+                    const box = child.getBoundingClientRect();
+                    const offset = x - box.left - box.width / 2;
+                    if (offset < 0 && offset > closest.offset) {
+                        return { offset: offset, element: child };
+                    } else {
+                        return closest;
+                    }
+                }, { offset: Number.NEGATIVE_INFINITY }).element;
+            }
+
+            // 🔹 순서 저장 AJAX
+            function saveBookmarkOrder() {
+                const buttons = document.querySelectorAll('.header-menu .menu-btn');
+                const newOrder = [];
+                buttons.forEach((btn, index) => {
+                    newOrder.push({
+                        menucode: btn.getAttribute('data-objid'),
+                        order: index + 1
+                    });
+                });
+
+                let csrf = document.querySelector('[name=_csrf]').value;
+
+                $.ajax({
+                    url: '/api/system/bookmark/reorder',
+                    type: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify(newOrder),
+                    headers: { 'X-CSRF-TOKEN': csrf },
+                    success: function (res) {
+                        if (res.success) {
+                            console.log('북마크 순서 저장 완료');
+                        } else {
+                            console.error('북마크 순서 저장 실패');
+                        }
+                    },
+                    error: function () {
+                        console.error('서버 통신 중 오류 발생');
+                    }
+                });
+            }
 
             // default_menu 처리
             $.getJSON('/api/system/usergroup/defaultmenu', function (result) {

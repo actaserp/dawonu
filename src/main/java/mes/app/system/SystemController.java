@@ -10,11 +10,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import mes.app.system.service.SystemService;
 import mes.domain.entity.User;
@@ -131,7 +127,16 @@ public class SystemController {
         result.data = this.systemService.saveBookmark(menucode, isbookmark, user);
         result.success = true;
 		return result;
-	}	
+	}
+
+	@PostMapping("/bookmark/reorder")
+	public AjaxResult reorderBookmark(@RequestBody List<Map<String, Object>> bookmarks, Authentication auth) {
+		User user = (User) auth.getPrincipal();
+		systemService.updateBookmarkOrder(bookmarks, user.getId());
+		AjaxResult result = new AjaxResult();
+		result.success = true;
+		return result;
+	}
 	
 	@GetMapping("/storyboard")
 	public AjaxResult storyBoard() {	

@@ -215,8 +215,8 @@ header .right {
 }
 
 header .right .header-info {
-    display: flex;
-    justify-content: flex-end;
+    /*display: flex;*/
+    /*justify-content: flex-end;*/
     align-items: center;
     gap: 10px;
     width: 100%;
