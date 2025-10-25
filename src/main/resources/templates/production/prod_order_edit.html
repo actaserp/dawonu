@@ -161,6 +161,11 @@
                                         작업 지시 수정
                                     </a>
                                 </li>
+                                <li>
+                                    <a class="btn" title="생산지시서 출력" id="btnJobResPrint">
+                                        생산지시서 출력
+                                    </a>
+                                </li>
                             </ul>
                         </div>
                     </div>
@@ -276,6 +281,7 @@
 <th:block layout:fragment="scripts">
     <!--    <th:block th:replace="/common/columns_setting :: columns_setting"></th:block>-->
     <!--    <script type="text/javascript" src="/js/grid.js"></script>-->
+    <th:block th:replace="/common/print_report :: print_report"></th:block>
     <script type="text/javascript">
 
         class ProductionOrder {
@@ -380,9 +386,9 @@
                         {binding: 'DueDate', header: '납기일', width: 100, align: 'center', isReadOnly: true},
                         {binding: 'CompanyName', header: '판매처', width: 120, align: 'left', isReadOnly: true},
                         {binding: 'mat_name', header: '제품명', width: 180, align: 'left', isReadOnly: true},
-                        {binding: 'Standard', header: '규격', width: 60, align: 'center', isReadOnly: true},
                         {binding: 'unit_name', header: '단위', width: 60, align: 'center', isReadOnly: true},
-                        {binding: 'SujuQty', header: '수주량', width: 60, format: 'n2', align: 'right', isReadOnly: true},
+                        {binding: 'Standard', header: '규격', width: 60, align: 'center', isReadOnly: true},
+                        {binding: 'SujuQty', header: '수주량', width: 80, format: 'n2', align: 'right', isReadOnly: true},
                         {
                             binding: 'ordered_qty',
                             header: '기 지시량',
@@ -834,18 +840,44 @@
                     selectionMode: wijmo.grid.SelectionMode.Row,
                     headersVisibility: wijmo.grid.HeadersVisibility.Column,
                     isReadOnly: true,
-                    formatItem: (sender, e) => {
+                    showMarquee: true,
+                    childItemsPath: 'items',
+                    formatItem: function (s, e) {
                         if (e.panel.cellType === wijmo.grid.CellType.ColumnHeader) {
                             e.cell.style.textAlign = 'center';
                         }
+                        if (e.panel.cellType === wijmo.grid.CellType.Cell) {
+                            const row = s.rows[e.row];
+                            const item = row.dataItem;
+
+                            // 하위행이면 별도 출력
+                            if (item && item.suju_id && !item.WorkOrderNumber) {
+                                const col = s.columns[e.col];
+                                e.cell.style.backgroundColor = 'transparent';
+
+                                // 셀 내부 div를 찾음
+                                const cellContent = e.cell.querySelector('.wj-cell') || e.cell;
+
+                                if (col.binding === 'standard') {
+                                    e.cell.style.textAlign = 'center';
+                                    cellContent.textContent = item.Standard;
+                                } else if (col.binding === 'OrderQty') {
+                                    e.cell.style.textAlign = 'right';
+                                    cellContent.textContent = item.Qty;
+                                } else if (!['standard', 'OrderQty'].includes(col.binding)) {
+                                    cellContent.textContent = '';
+                                }
+                            }
+                        }
                     },
                     columns: [
-                        {binding: 'WorkOrderNumber', header: '작업지시번호', width: 140, align: 'center'},
+                        {binding: 'WorkOrderNumber', header: '작업지시번호', width: 170, align: 'center'},
                         {binding: 'ProductionDate', header: '생산일', width: 120, align: 'center'},
+                        {binding: 'CompanyName', header: '판매처', width: 120, align: 'left'},
                         {binding: 'ShiftName', header: '근무조', width: 120, align: 'center'},
                         {binding: 'mat_code', header: '제품코드', width: 120, align: 'center'},
                         {binding: 'mat_name', header: '제품명', width: 200, align: 'left'},
-                        {binding: 'unit_name', header: '단위', width: 100, align: 'center'},
+                        {binding: 'standard', header: '규격', width: 100, align: 'center'},
                         {binding: 'OrderQty', header: '지시량', width: 100, align: 'right'},
                         {binding: 'WorkcenterName', header: '워크센터', width: 120, align: 'center'},
                         {binding: 'StateName', header: '상태', width: 100, align: 'center'}
@@ -881,6 +913,74 @@
                     };
                     AjaxUtil.getAsyncData(url, data, fnsuccess);
                 });
+
+                $('#btnJobResPrint').click(function (e) {
+                    let allData = _this.jobResGrid?.collectionView?.items || [];
+                    console.log('btnJobResPrint allData', allData);
+
+                    // ✅ 조건 필터링: 지시량 0이거나 취소 상태 제외
+                    let items = allData.filter(item =>
+                        (parseFloat(item.OrderQty) || 0) > 0 &&
+                        (item.StateName !== '취소')
+                    );
+
+                    if (items.length === 0) {
+                        Alert.alert('', '출력할 데이터가 없습니다.');
+                        return;
+                    }
+
+                    let allHtml = `
+                        <html>
+                        <head>
+                            <title>생산지시서 출력</title>
+                            <style>
+                                body { font-family: 'Malgun Gothic'; margin: 20px; }
+                                @media print {
+                                    .print-page { page-break-after: always; }
+                                }
+                            </style>
+                        </head>
+                        <body>
+                    `;
+
+                    for (const item of items) {
+                        const date = item.ProductionDate || '';
+                        const [y, m, d] = (date.includes('-') ? date.split('-') : ['', '', '']);
+
+                        const data = {
+                            title: '생 산 지 시 서',
+                            CompanyName: item.CompanyName,
+                            ProductionDate: date,
+                            WorkcenterName: item.WorkcenterName,
+                            mat_name: item.mat_name,
+                            standard: item.standard,
+                            unit_name: item.unit_name,
+                            OrderQty: item.OrderQty,
+                            ShiftName: item.ShiftName,
+                            month: m,
+                            day: d,
+                            items: item.items || [],
+                            totalMeter: (item.items || []).reduce((sum, v) => sum + parseFloat(v.Standard || 0), 0)
+                        };
+                        const html = tmpl('print_report', data);
+
+                        allHtml += `<div class="print-page">${html}</div>`;
+                    }
+
+                    allHtml += `</body></html>`;
+
+                    const printWindow = window.open('', '_blank', 'width=850,height=1000');
+                    printWindow.document.open();
+                    printWindow.document.write(allHtml);
+                    printWindow.document.close();
+
+                    printWindow.onload = function () {
+                        printWindow.focus();
+                        printWindow.print();
+                        // setTimeout(() => printWindow.close(), 300);
+                    };
+                });
+
             }
 
             // 해당 반제품생산지시 내역
@@ -1015,6 +1115,7 @@
 
             // 해당제품 생산지시 조회
             loadJobResList(item) {
+                console.log('item', item);
 
                 $('#btnJobResDetail').attr('disabled', true);
 
@@ -1022,6 +1123,10 @@
                 let _this = this;
                 let fnsuccess = function (result) {
                     if (result.data != null) {
+                        result.data.forEach(row => {
+                            row.CompanyName = item.CompanyName ?? ''; // item에 CompanyName이 있으면 복사
+                        });
+                        console.log('jobResGrid result', result.data );
                         _this.jobResGrid.itemsSource = result.data;
                     }
                 };

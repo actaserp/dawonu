@@ -110,7 +110,7 @@ public class ProdOrderEditService {
 	            , s."SujuQty2" as "SujuQty2"
 	            , s."ReservationStock" as "ReservationStock"
 	            , coalesce(q.ordered_qty,0) as ordered_qty
-	            , greatest(0, s."SujuQty2"- coalesce (q.ordered_qty,0)) as remain_qty
+	            , round(greatest(0, s."SujuQty2" - coalesce(q.ordered_qty, 0))::numeric, 2) as remain_qty
 	            , 0 as "AdditionalQty"
 	            , s.description
 	            , s."StateName", s."State"
@@ -165,38 +165,59 @@ public class ProdOrderEditService {
 		dicParam.addValue("suju_id", suju_id);
 		
 		String sql = """
-				select jr.id
-	            , jr."WorkOrderNumber"
-	            , jr."ProductionDate"
-	            , jr."ShiftCode" 
-	            , s."Name" as "ShiftName"
-	            , m."Code" as mat_code
-	            , m."Name" as mat_name
-	            , u."Name" as unit_name
-	            , jr."OrderQty" as "OrderQty"
-	            , jr."WorkCenter_id" 
-	            , wc."Name" as "WorkcenterName"
-	            , jr."Equipment_id"
-	            , e."Name" as "EquipmentName"
-	            , jr."State" 
-	            , fn_code_name('job_state', jr."State") as "StateName"
-	            from job_res jr 
-	            inner join material m on m.id = jr."Material_id" 
-	            inner join mat_grp mg on mg.id = m."MaterialGroup_id" 
-	            left join unit u on u.id = m."Unit_id" 
-	            left join shift s on s."Code" = jr."ShiftCode" 
-	            left join work_center wc on wc.id = jr."WorkCenter_id"
-	            left join equ e on e.id = jr."Equipment_id"
-	            where jr."SourceDataPk"=:suju_id
-	            and jr."SourceTableName" ='suju'
-	            and mg."MaterialType" in ('product')
-	            order by jr."WorkOrderNumber" desc, jr.id
-				""";
+			select jr.id
+			, jr."WorkOrderNumber"
+			, jr."ProductionDate"
+			, jr."ShiftCode" 
+			, s."Name" as "ShiftName"
+			, m."Code" as mat_code
+			, m."Name" as mat_name
+			, u."Name" as unit_name
+			, ROUND(jr."OrderQty"::numeric, 2) as "OrderQty"
+			, jr."WorkCenter_id" 
+			, wc."Name" as "WorkcenterName"
+			, jr."Equipment_id"
+			, e."Name" as "EquipmentName"
+			, jr."State" 
+			, fn_code_name('job_state', jr."State") as "StateName"
+			, sju."Standard" as standard
+			, sju.id as suju_id
+			from job_res jr 
+			inner join material m on m.id = jr."Material_id" 
+			inner join mat_grp mg on mg.id = m."MaterialGroup_id" 
+			left join unit u on u.id = m."Unit_id" 
+			left join shift s on s."Code" = jr."ShiftCode" 
+			left join work_center wc on wc.id = jr."WorkCenter_id"
+			left join equ e on e.id = jr."Equipment_id"
+			LEFT JOIN suju sju ON sju.id = jr."SourceDataPk"
+			where jr."SourceDataPk"=:suju_id
+			and jr."SourceTableName" ='suju'
+			and mg."MaterialType" in ('product')
+			order by jr."WorkOrderNumber" desc, jr.id
+			""";
 
-		List<Map<String, Object>> items = this.sqlRunner.getRows(sql, dicParam);
+		List<Map<String, Object>> job_res = this.sqlRunner.getRows(sql, dicParam);
 
-		return items;
+		String sql_suju_detail = """
+			SELECT
+				sd.id,
+				sd."suju_id",
+				sd."Standard",
+				sd."Qty"
+			FROM suju_detail sd
+			WHERE sd."suju_id" = :suju_id
+			ORDER BY sd.id
+		""";
+
+		List<Map<String, Object>> suju_detail = this.sqlRunner.getRows(sql_suju_detail, dicParam);
+
+		for (Map<String, Object> job : job_res) {
+			job.put("items", suju_detail);
+		}
+
+		return job_res;
 	}
+
 
 	// 제품 지시내역 상세조회
 	public Map<String, Object> getJobOrderDetail(Integer jobres_id) {
