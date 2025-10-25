@@ -131,11 +131,10 @@ public class MaterialController {
 
 		AjaxResult result = new AjaxResult();
 
-		if (this.materialService.saveMaterial(data) > 0) {
+		int saveMatId = this.materialService.saveMaterial(data);
 
-		} else {
-			result.success = false;
-		};
+		// bom 디폴트 save
+
 
 		return result;
 	}

@@ -275,12 +275,10 @@
                         },
                         {binding: 'JumunNumber', header: '수주번호', width: 130, align: 'center', isReadOnly: true},
                         {binding: 'DueDate', header: '납기일', width: 100, align: 'center', isReadOnly: true},
+                        {binding: 'CompanyName', header: '판매처', width: 100, align: 'left', isReadOnly: true},
                         {binding: 'mat_code', header: '제품코드', width: 90, align: 'center', isReadOnly: true},
                         {binding: 'mat_name', header: '제품명', width: 120, align: 'left', isReadOnly: true},
                         {binding: 'suju_qty', header: '수주량', width: 80, align: 'right', isReadOnly: true},
-                        {binding: 'cur_stock', header: '현재고', width: 80, align: 'right', isReadOnly: true},
-                        {binding: 'Standard', header: '규격', width: 80, align: 'right', isReadOnly: true},
-                        //{ binding: 'order_input_qty', header: '추가지시량', width: '*', align: 'right', isReadOnly: false },
                         {
                             binding: 'order_input_qty',
                             header: '지시량',
@@ -294,6 +292,10 @@
                                 step: 0.1       // 증가/감소 단위
                             })
                         },
+                        {binding: 'cur_stock', header: '현재고', width: 80, align: 'right', isReadOnly: true},
+                        {binding: 'Standard', header: '규격', width: 80, align: 'right', isReadOnly: true},
+                        //{ binding: 'order_input_qty', header: '추가지시량', width: '*', align: 'right', isReadOnly: false },
+
                         {binding: 'order_qty', header: '기지시량', width: 80, align: 'right', isReadOnly: true},
                         {binding: 'shipment_qty', header: '출하량', width: 80, align: 'right', isReadOnly: true},
                         {binding: 'CompanyName', header: '판매처', width: 100, align: 'left', isReadOnly: true},

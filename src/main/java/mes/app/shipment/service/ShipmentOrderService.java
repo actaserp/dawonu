@@ -75,16 +75,18 @@ public class ShipmentOrderService {
         if (StringUtils.isEmpty(matGrpPk)==false)  sql += " and m.\"MaterialGroup_id\"  = cast(:matGrpPk as Integer) ";
         sql += """
         		), SP as (
-                select s.suju_pk
-                , sum(RD."Number1") as order_sum
-                , sum(sp."Qty") as ship_sum
-                from S
-                inner join rela_data RD on RD."DataPk1" = S.suju_pk
-                and RD."TableName1" = 'suju'
-                inner join shipment sp on sp.id = RD."DataPk2"
-                and RD."TableName2" = 'shipment'
-                group by s.suju_pk
-            )
+				       select s.suju_pk
+				            , sum(RD."Number1") as order_sum
+				            , sum(sp."Qty") as ship_sum
+				         from S
+				         left join rela_data RD
+				           on RD."DataPk1" = S.suju_pk
+				          and RD."TableName1" = 'suju'
+				          and RD."TableName2" = 'shipment'
+				         left join shipment sp
+				           on sp.id = RD."DataPk2"
+				        group by s.suju_pk
+				   )
             select s.suju_pk, s."JumunNumber",s."JumunDate",s."DueDate"
             ,s."Company_id",s."CompanyName", s."Description" as remark
             , m.id as mat_id
@@ -114,7 +116,15 @@ public class ShipmentOrderService {
         
         if (StringUtils.isEmpty(keyword)==false)  sql += " and (m.\"Name\" ilike concat('%%',:keyword,'%%') or m.\"Code\" ilike concat('%%',:keyword,'%%')) ";
 		//부분출하는 제외
-		if ((notShip).equals("Y"))  sql += " and s.\"SujuQty\" > coalesce(sp.order_sum,0) and s.State2 <> 'force_completion'";
+		if ("Y".equals(notShip)) {
+			sql += """
+        and (
+            sp.order_sum is null
+            or s."SujuQty" > coalesce(sp.order_sum, 0)
+        )
+        and s.State2 <> 'force_completion'
+    """;
+		}
 		sql += " order by s.\"DueDate\", s.\"JumunNumber\", m.\"Code\", m.\"Name\"";
         
         List<Map<String,Object>> items = this.sqlRunner.getRows(sql, paramMap);

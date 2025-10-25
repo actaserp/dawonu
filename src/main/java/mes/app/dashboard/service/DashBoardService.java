@@ -414,8 +414,8 @@ public class DashBoardService {
 				SELECT
 				  sh.id,
 				  sh."JumunNumber",
-				  to_char(sh."JumunDate", 'yyyy-mm-dd') AS "JumunDate",
-				  to_char(sh."DeliveryDate", 'yyyy-mm-dd') AS "DueDate",
+				  -- to_char(sh."JumunDate", 'yyyy-mm-dd') AS "JumunDate",
+				  to_char(sh."DeliveryDate", 'yyyy-mm-dd') AS "JumunDate",
 				  sh."Company_id",
 				  c."BusinessNumber",
 				  SUM(s."Price") AS "sujuPrice",
@@ -453,12 +453,12 @@ public class DashBoardService {
 				LEFT JOIN sys_code sc_ship ON sc_ship."Code" = ss.shipment_state AND sc_ship."CodeType" = 'shipment_state'
 					where 1 = 1
 					and sh.spjangcd = :spjangcd
-					and sh."JumunDate" between :start and :end
+					and sh."DeliveryDate" between :start and :end
 					and c."Name" like :choComp
 					group by
 						 sh.id,
 						 sh."JumunNumber",
-						 sh."JumunDate",
+						 sh."DeliveryDate",
 						 sh."DeliveryDate",
 						 sh."Company_id",
 						 c."Name",
@@ -470,7 +470,7 @@ public class DashBoardService {
 						 sc_state."Value",
 						 sc_type."Value",
 						 sc_ship."Value"
-					order by sh."JumunDate" desc,  sh.id 
+					order by sh."DeliveryDate" desc,  sh.id 
 				""";
 
 		List<Map<String, Object>> itmes = this.sqlRunner.getRows(sql, dicParam);
