@@ -17,6 +17,7 @@ import mes.domain.services.SqlRunner;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.security.core.Authentication;
+import org.springframework.transaction.interceptor.TransactionAspectSupport;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.util.StringUtils;
@@ -251,7 +252,13 @@ public class SujuController {
 
 				// 출하 연동 + 핵심값 변경 + 단수정리 라인이 아니면 차단
 				if (hasShipment && coreChanged && !isAdjustmentLine) {
-					throw new RuntimeException("출하계획 또는 진행중인 수주입니다.");
+					//throw new RuntimeException("출하계획 또는 진행중인 수주입니다.");
+					result.success = false;
+					result.message = "출하계획 또는 진행중인 수주입니다.";
+
+					TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
+
+					return result;
 				}
 
 				// (필요하면) 변경 없음이면 스킵

@@ -167,6 +167,7 @@ public class IndicatorController {
 				JOIN shipment sp ON s.id = sp."SourceDataPk"
 				JOIN shipment_head sh ON sp."ShipmentHead_id" = sh.id
 				WHERE s."JumunDate" BETWEEN CAST(:date_form AS DATE) AND CAST(:date_to AS DATE)
+				  AND sh."State" = 'shipped'
 				  AND s."spjangcd" = :spjangcd
 			),
 			mat_data AS (
