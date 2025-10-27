@@ -77,6 +77,11 @@
         <div class="button-wrap">
           <ul>
             <li>
+              <a class="btn" title="견적서 출력" id="btnEstimatePrint">
+                견적서 출력
+              </a>
+            </li>
+            <li>
               <a class="btn btn-excell" title="페이지 이동" id="balju_optimal_stock_move">
                 적정재고
               </a>
@@ -587,6 +592,7 @@
   <th:block th:replace="/common/popup_company :: popup_company"></th:block>
   <th:block th:replace="/sales/popup_company_new_save :: popup_company_new_save"></th:block>
   <th:block th:replace="/sales/popup_material_save :: popup_material_new_save"></th:block>
+  <th:block th:replace="/sales/print_estimate :: print_estimate"></th:block>
   <script type="text/javascript">
 
     let isInternalFormatting = false;
@@ -632,6 +638,14 @@
             {binding: 'DueDate', header: '납기일', width: 120, align: 'center'},
             {binding: 'StateName', header: '작업상태', width: 100, align: 'center'},
             {binding: 'ShipmentStateName', header: '출하상태', width: 100, align: 'center'},
+            {binding: 'SujuTypeName', header: '수주구분', width: 100, align: 'center'},
+            {
+              binding: 'suju_action',
+              header: '견적확정',
+              width: 80,
+              align: 'center',
+              isReadOnly: true
+            },
             {binding: 'Description', header: '비고', width: 250}
           ],
           itemsSource: this.viewData, // 데이터를 설정할 배열
@@ -639,6 +653,41 @@
 
         new FlexGridContextMenu(this.grid);
         this.grid.downloadFileName = '수주 내역';
+
+        _this.grid.formatItem.addHandler(function (s, e) {
+          if (e.panel.cellType === wijmo.grid.CellType.Cell) {
+            let col = s.columns[e.col];
+
+            if (col.binding === 'suju_action' && userinfo.can_write()) {
+              const item = s.rows[e.row]?.dataItem;
+              e.cell.innerHTML = '';
+              if (String(item?.SujuTypeName ?? '').trim() === '견적') {
+                const btn = document.createElement('button');
+                btn.className = 'btn-default';
+                btn.style.width = '100%';
+                btn.style.height = '25px';
+                btn.innerText = '확정';
+                btn.onclick = function () {
+                  _this.selectedIndex = s.rows.findIndex(r => r.dataItem === item);
+                  handleOrderClick(_this.selectedIndex, item);
+                };
+                e.cell.appendChild(btn);
+              }
+            }
+
+          }
+        });
+
+        function handleOrderClick(rowIndex, selectedItem) {
+
+          let data = {
+            JumunNumber: selectedItem.JumunNumber,
+          };
+
+          Alert.confirm('', '견적을 확정하시겠습니까?', function () {
+            _this.makeOrder(data);
+          });
+        }
 
         this.grid.hostElement.addEventListener('dblclick', function (e) {
           let items = _this.grid.selectedItems;
@@ -718,12 +767,173 @@
           }
         });
 
+        // ====== 유틸 ======
+        function toNum(v, d = 0) {
+          const n = Number.parseFloat(String(v ?? '').replace(/,/g, ''));
+          return Number.isFinite(n) ? n : d;
+        }
+        function toStr(v, d = '') {
+          return (v == null ? d : String(v)).trim();
+        }
+
+// ====== 상세 호출 설정 ======
+        const DETAIL_URL = _this.url + '/print_list';
+        const buildDetailParams = (row) => ({ id: row.id, _ts: Date.now() }); // 캐시 버스터
+
+// AjaxUtil → Promise 래핑
+        function getDetailAsync(url, data) {
+          return new Promise((resolve, reject) => {
+            AjaxUtil.getAsyncData(url, data, (res) => resolve(res), (err) => reject(err));
+          });
+        }
+
+      // 응답 적응 + items 정규화(템플릿 키에 맞춤)
+      // - 품목명 꼬리표 " ... 외 N개" 방지(안전 차원 후처리)
+        function adaptDetailResponse(resp) {
+          const raw  = resp?.data ?? resp ?? {};
+          const head = raw.head ?? {};
+          const rows = raw.items ?? raw.lines ?? raw.Rows ?? raw.rows ?? [];
+
+          const items = Array.isArray(rows) ? rows.map(r => ({
+            product_name: toStr(r.product_name ?? r.Name ?? r.PNAME).replace(/\s*외\s*\d+\s*개$/u, ''),
+            Standard:     toNum(r.Standard ?? r.length ?? r.LEN),
+            Qty:          toNum(r.Qty ?? r.quantity ?? r.QTY),
+            UnitPrice:    toNum(r.UnitPrice ?? r.unit_price ?? r.PRICE),
+            SupplyAmount: toNum(r.SupplyAmount ?? r.supply_amount ?? r.AMT),
+            VatAmount:    toNum(r.VatAmount ?? r.vat_amount ?? r.VAT),
+            TotalAmount:  toNum(r.TotalAmount ?? r.total_amount ?? (toNum(r.SupplyAmount) + toNum(r.VatAmount))),
+            Description:  toStr(r.Description ?? r.head_description ?? ''),
+          })) : [];
+
+          return { head, items };
+        }
+
+        function buildPrintDataFromRow(row, detail) {
+          const head = detail?.head ?? {};
+          const date = toStr(head.JumunDate || row.JumunDate || row.ProductionDate, '');
+          const [y, m, d] = date.includes('-') ? date.split('-') : ['', '', ''];
+          const qty       = toNum(head.OrderQty ?? row.OrderQty ?? row.SujuQty);
+          const headTotal = toNum(head.TotalPrice ?? row.TotalPrice);
+          const note = toStr(head.Description || row.Description || '')
+            .replace(/\r\n?/g, '\n');
+          const itemsFromDetail = Array.isArray(detail?.items) ? detail.items : [];
+
+          // ✅ 유령행 정의: 품명 공란 + (수량,단가,공급,부가세 모두 0) + (합계 0 또는 헤더총액)
+          const isPhantom = (it) => {
+            const nameEmpty  = toStr(it.product_name) === '';
+            const zeros4     = [it.Qty, it.UnitPrice, it.SupplyAmount, it.VatAmount].every(v => toNum(v) === 0);
+            const totalZeroOrHead = (toNum(it.TotalAmount) === 0) ||
+              (headTotal && toNum(it.TotalAmount) === headTotal);
+            return nameEmpty && zeros4 && totalZeroOrHead;
+          };
+
+          const finalItems = itemsFromDetail.filter(it => !isPhantom(it));
+
+          return {
+            title: '견 적 서',
+            CompanyName: toStr(head.CompanyName || row.CompanyName),
+            SuJuOrderName:   toStr(head.SuJuOrderName || ''),
+            DeliveryName:    toStr(head.DeliveryName || ''),
+            ProductionDate: date,
+            WorkcenterName: toStr(head.WorkcenterName || row.WorkcenterName),
+            OrderQty: qty,
+            ShiftName: toStr(row.ShiftName),
+            month: m, day: d,
+            items: finalItems,
+            totalMeter: finalItems.reduce((s, v) => s + toNum(v.Standard, 0), 0),
+
+            // 합계는 푸터에서만 쓰도록 별도 키로 (본문에 못 끼어들게)
+            JumunNumber: toStr(head.JumunNumber || row.JumunNumber),
+            DueDate: toStr(head.DueDate || row.DueDate),
+            SujuTypeName: toStr(row.SujuTypeName),
+            HeadTotalPrice: headTotal,
+            note,
+          };
+        }
+
+// ====== 클릭 핸들러 ======
+        $('#btnEstimatePrint').off('click').on('click', async function () {
+          const grid = _this.grid;
+          const selected = grid?.selectedItems || [];
+          if (!selected.length) return Alert.alert('', '출력할 행을 먼저 선택하세요.');
+
+          // ‘견적’만 선택
+          const targets = selected.filter(it => toStr(it?.SujuTypeName) === '견적');
+          if (!targets.length) return Alert.alert('', '선택한 행 중 견적 건이 없습니다.');
+
+          if (typeof tmpl !== 'function') return Alert.alert('오류', '템플릿 엔진(tmpl)이 로드되지 않았습니다.');
+          const TEMPLATE_ID = 'print_estimate';
+          if (!document.getElementById(TEMPLATE_ID)) return Alert.alert('오류', `#${TEMPLATE_ID} 템플릿을 찾을 수 없습니다.`);
+
+          let allHtml = `
+<html><head><title>견적서 출력</title>
+<style>body{font-family:'Malgun Gothic';margin:20px}@media print{.print-page{page-break-after:always}}</style>
+</head><body>`;
+
+          // 상세 병렬 조회
+          const responses = await Promise.allSettled(
+            targets.map(row => getDetailAsync(DETAIL_URL, buildDetailParams(row)))
+          );
+
+          for (let i = 0; i < targets.length; i++) {
+            const row = targets[i];
+            let detail = { head: {}, items: [] };
+
+            if (responses[i].status === 'fulfilled' && responses[i].value) {
+              try { detail = adaptDetailResponse(responses[i].value); }
+              catch (e) { console.warn('상세 적응 실패 → 빈 아이템', e); }
+            } else {
+              console.warn('상세 조회 실패', responses[i].reason);
+            }
+
+            const data = buildPrintDataFromRow(row, detail);
+            // (선택) 품목 없으면 건너뛰기
+            if (!data.items || data.items.length === 0) {
+              Alert.alert('', '이 견적은 품목이 없습니다. (상세 등록 또는 서버 응답 확인)');
+              continue;
+            }
+
+            allHtml += `<div class="print-page">${tmpl(TEMPLATE_ID, data)}</div>`;
+          }
+
+          allHtml += `</body></html>`;
+
+          // 새 창 열어 출력
+          const w = window.open('', '_blank', 'width=850,height=1000');
+          if (!w) return Alert.alert('', '팝업이 차단되었습니다. 팝업 허용 후 다시 시도해 주세요.');
+          w.document.open(); w.document.write(allHtml); w.document.close();
+
+          const doPrint = () => { w.focus(); w.print(); };
+          if ('fonts' in w.document) {
+            w.document.fonts.ready
+              .then(() => { w.requestAnimationFrame(() => w.requestAnimationFrame(doPrint)); })
+              .catch(doPrint);
+          } else {
+            w.onload = () => w.requestAnimationFrame(doPrint);
+          }
+        });
+
+
         // 엔터키 검색
         $('#keyword').on('keypress', function (e) {
           if (e.keyCode === 13) {
             _this.searchMainData();
           }
         });
+      }
+
+      makeOrder(data) {
+        let _this = this;
+        let url = _this.url + '/estimate_confirm';
+
+        let fnsuccess = function (result) {
+          if (result.success) {
+            Alert.alert('', '견적이 확정 되었습니다.');
+            _this.searchMainData();
+          }
+        };
+
+        AjaxUtil.postAsyncData(url, data, fnsuccess);
       }
 
       showSujuForm(data) {
@@ -952,18 +1162,48 @@
           $root.find('input[name="unit"], input[name^="unit_"]').trigger('input');
         }, 100);
 
-        if (data.StateName && data.StateName !== '수주') {
-          $('#btnPopSujuSave').hide();
-          $('#notUpdate')
-            .css('margin-top', '10px') // 조건 만족 시 margin-top 적용
-            .show();
-          $('.popup-button').css('margin-top', '10px');
-        }
+        //버튼 조건
+        applyEditability(data);
+
+        // if (data.StateName && data.StateName !== '수주') {
+        //   $('#btnPopSujuSave').hide();
+        //   $('#notUpdate')
+        //     .css('margin-top', '10px') // 조건 만족 시 margin-top 적용
+        //     .show();
+        //   $('.popup-button').css('margin-top', '10px');
+        // }
 
         if (data.SujuQty > 0) {
           $SujuQty.val(data.SujuQty.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ","));
         }
 
+
+        function canEditSuju(data) {
+          const state = String(data?.StateName ?? '').trim();
+          const ship  = String(data?.ShipmentStateName ?? '').trim();
+
+          if (ship) return false;                                        // 출하 진행됨 → 수정 불가
+          if (!state) return true;                                       // 상태 미지정이면 일단 허용(원하면 false로)
+          return ['수주', '지시', '계획'].includes(state);               // 허용 상태만 통과
+        }
+
+        function applyEditability(data) {
+          const editable = canEditSuju(data);
+
+          if (editable) {
+            $('#btnPopSujuSave').show();
+            $('#notUpdate').hide();
+            $('.popup-button').css('margin-top', '');
+          } else {
+            $('#btnPopSujuSave').hide();
+            // 메시지: 출하상태가 있으면 해당 이유로, 아니면 기존 메시지
+            const ship = String(data?.ShipmentStateName ?? '').trim();
+            const reason = ship ? '* 출하가 진행된 건은 수정이 불가합니다.'
+              : '* 출하가 진행된 수주는 수정이 불가합니다.';
+            $('#notUpdate').text(reason).css('margin-top', '10px').show();
+            $('.popup-button').css('margin-top', '10px');
+          }
+        }
 
         // 수주등록 팝업 저장버튼 클릭
         $btnPopSujuSave.click(function (e) {

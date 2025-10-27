@@ -1,0 +1,145 @@
+<th:block th:fragment="print_estimate">
+  <script type="text/x-tmpl" id="print_estimate">
+    <div style="width:750px; margin:0 auto; font-family:'Malgun Gothic'; font-size:20px; padding:10px;">
+
+      {%
+        // 유틸 & 합계
+        const fmt = v => (v==null || isNaN(v)) ? '' : Number(v).toLocaleString();
+        const dateStr = o.ProductionDate || o.JumunDate || '';
+        const [yy, month, day] = (dateStr || '').split('-');
+        const items = Array.isArray(o.items) ? o.items : [];
+
+        let sumSupply = 0, sumVat = 0, sumTotal = 0;
+        for (const r of items) {
+          const s = Number(r?.SupplyAmount || 0);
+          const v = Number(r?.VatAmount    || 0);
+          const t = Number(r?.TotalAmount  || s + v);
+          sumSupply += s; sumVat += v; sumTotal += t;
+        }
+        // 라인이 없고 헤더값만 있을 때 보정
+        if (!items.length && (o.SupplyAmount || o.TotalPrice)) {
+          const s = Number(o.SupplyAmount || 0);
+          const v = Number(o.VatAmount    || 0);
+          const t = Number(o.TotalPrice   || s + v);
+          sumSupply = s; sumVat = v; sumTotal = t;
+        }
+      %}
+
+      <!-- 상단 -->
+      <table style="width:100%; border-collapse:collapse; border:3px solid #000; border-bottom:0;">
+        <tr>
+          <td style="width:200px; text-align:center; border:1px solid #000; height:28px;">견적일자</td>
+          <td rowspan="2" style="width:450px; text-align:center; font-size:20px; font-weight:bold; border:1px solid #000;">
+            {%= o.title || '견 적 서' %}
+          </td>
+          <td rowspan="2" style="border:1px solid #000; height:28px;"></td>
+        </tr>
+        <tr>
+          <td style="text-align:center; border:1px solid #000; height:28px;">{%= dateStr %}</td>
+        </tr>
+      </table>
+
+      <!-- 상단 정보 -->
+      <table style="width:100%; border-collapse:collapse; border:3px solid #000; border-bottom:0;">
+        <tr>
+          <td style="width:200px; text-align:center; border:1px solid #000; height:28px;">수주처</td>
+          <td style="width:450px; text-align:center; border:1px solid #000; height:28px;">{%= o.SuJuOrderName || '' %}</td>
+          <td style="border:1px solid #000; height:28px;"></td>
+        </tr>
+        <tr>
+          <td style="width:200px; text-align:center; border:1px solid #000; height:28px;">판매처</td>
+          <td style="width:450px; text-align:center; border:1px solid #000; height:28px;">{%= o.CompanyName || '' %}</td>
+          <td style="border:1px solid #000; height:28px;"></td>
+        </tr>
+        <tr>
+          <td style="width:200px; text-align:center; border:1px solid #000; height:28px;">납품처</td>
+          <td style="width:450px; text-align:center; border:1px solid #000; height:28px;">{%= o.DeliveryName || '' %}</td>
+          <td style="border:1px solid #000; height:28px;"></td>
+        </tr>
+        <tr>
+          <td style="width:200px; text-align:center; border:1px solid #000; height:28px;">납기일</td>
+          <td style="width:450px; text-align:center; border:1px solid #000; height:28px;">{%= o.DueDate || '' %}</td>
+          <td style="border:1px solid #000; height:28px;"></td>
+        </tr>
+        <tr>
+          <td style="width:200px; text-align:center; border:1px solid #000; height:28px;">비고</td>
+          <td style="width:450px; border:1px solid #000; height:28px; white-space: pre-line; text-align:left; padding:0 8px;">
+            {%= o.note || '' %}
+          </td>
+          <td style="border:1px solid #000; height:28px;"></td>
+        </tr>
+      </table>
+
+      <!-- 품목 리스트 -->
+      <table style="width:100%; border-collapse:collapse; border:3px solid #000; border-bottom:0;">
+        <thead>
+          <tr style="background:#f4f4f4;">
+            <th style="width: 50px; border:1px solid #000; height:28px;">월</th>
+            <th style="width: 50px; border:1px solid #000; height:28px;">일</th>
+            <th style="width:250px; border:1px solid #000; height:28px;">품명</th>
+            <th style="width:100px; border:1px solid #000; height:28px;">길이</th>
+            <th style="width:100px; border:1px solid #000; height:28px;">수량</th>
+            <th style="width:100px; border:1px solid #000; height:28px;">단가</th>
+            <th style="width:120px; border:1px solid #000; height:28px;">공급가액</th>
+            <th style="width:100px; border:1px solid #000; height:28px;">부가세</th>
+            <th style="width:120px; border:1px solid #000; height:28px;">합계</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tbody>
+  {%
+    const rows = 10;
+    for (var i = 0; i < Math.max(items.length, rows); i++) {
+      const r = items[i];
+  %}
+    <tr>
+      <!-- 첫 줄만 월/일 출력 -->
+      <td style="border:1px solid #000; text-align:center; height:28px;">
+        {%= i === 0 ? (month || '') : '' %}
+      </td>
+      <td style="border:1px solid #000; text-align:center; height:28px;">
+        {%= i === 0 ? (day   || '') : '' %}
+      </td>
+
+      <td style="border:1px solid #000; text-align:center; height:28px;">
+        {%= r ? (r.product_name || '') : '' %}
+      </td>
+      <td style="border:1px solid #000; text-align:center; height:28px;">
+        {%= r ? (r.Standard || '') : '' %}
+      </td>
+      <td style="border:1px solid #000; text-align:center; height:28px;">
+        {%= r ? (r.Qty || '') : '' %}
+      </td>
+      <td style="border:1px solid #000; text-align:right; height:28px;">
+        {%= r ? fmt(r.UnitPrice) : '' %}
+      </td>
+      <td style="border:1px solid #000; text-align:right; height:28px;">
+        {%= r ? fmt(r.SupplyAmount) : '' %}
+      </td>
+      <td style="border:1px solid #000; text-align:right; height:28px;">
+        {%= r ? fmt(r.VatAmount) : '' %}
+      </td>
+      <td style="border:1px solid #000; text-align:right; height:28px;">
+        {%= r ? fmt(r.TotalAmount) : '' %}
+      </td>
+    </tr>
+  {% } %}
+</tbody>
+
+      </table>
+
+      <!-- 하단(합계) -->
+      <table style="width:100%; border-collapse:collapse; border:3px solid #000;">
+        <tr>
+          <td style="width:120px; text-align:center; border:1px solid #000; height:50px;">공급가액 합계</td>
+          <td style="width:200px; text-align:right;  border:1px solid #000; height:50px;">{%= fmt(sumSupply) %}</td>
+          <td style="width:120px; text-align:center; border:1px solid #000; height:50px;">부가세</td>
+          <td style="width:200px; text-align:right;  border:1px solid #000; height:50px;">{%= fmt(sumVat) %}</td>
+          <td style="width:120px; text-align:center; border:1px solid #000; height:50px;">합계</td>
+          <td style="text-align:right; border:1px solid #000; height:50px;">{%= fmt(sumTotal) %}</td>
+        </tr>
+      </table>
+
+    </div>
+  </script>
+</th:block>

@@ -1,11 +1,13 @@
 package mes.app.sales.service;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.sql.Date;
 import java.sql.Timestamp;
 import java.text.SimpleDateFormat;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.stereotype.Service;
@@ -16,6 +18,7 @@ import mes.domain.repository.SujuRepository;
 import mes.domain.services.CommonUtil;
 import mes.domain.services.SqlRunner;
 
+@Slf4j
 @Service
 public class SujuService {
 
@@ -418,5 +421,142 @@ public class SujuService {
 		return sqlRunner.getRows(sql, params);
 	}
 
+	public Map<String, Object> getPrintList(int id) {
+		MapSqlParameterSource params = new MapSqlParameterSource().addValue("id", id);
+
+		// 2-1) 헤더(옵션: 프런트가 쓰지 않아도 넣어두면 확장성 좋음)
+		String headSql = """
+        SELECT
+          sh.id,
+          sh."JumunNumber",
+          to_char(sh."JumunDate",   'yyyy-mm-dd') AS "JumunDate",
+          to_char(sh."DeliveryDate",'yyyy-mm-dd') AS "DueDate",
+          sh."Company_id",
+          c."Name" AS "CompanyName",
+          sh."TotalPrice",
+          sh."Description",
+          sh."SujuType",
+          sh."SuJuOrderId",
+          sh."SuJuOrderName",
+          sh."DeliveryName",
+          fn_code_name('suju_type', sh."SujuType") AS "SujuTypeName"
+        FROM suju_head sh
+        LEFT JOIN company c ON c.id = sh."Company_id"
+        WHERE sh.id = :id
+    """;
+
+		Map<String, Object> head = sqlRunner.getRow(headSql, params); // 단일 행
+
+		// 2-2) 아이템(여러 행) — 반드시 getRows 사용
+		String itemsSql = """
+        WITH head_suju AS (
+          SELECT
+            s.id              AS suju_id,
+            s."SujuHead_id"   AS head_id,
+            s."Material_id",
+            COALESCE(m."Name", s."Material_Name") AS product_name,
+            s."UnitPrice",
+            s."Price"         AS suju_price,
+            s."Vat"           AS suju_vat,
+            s."TotalAmount"   AS suju_total,
+            s."SujuQty",
+            s."Standard"      AS suju_standard,
+            s."Description"
+          FROM suju s
+          LEFT JOIN material m ON m.id = s."Material_id"
+          WHERE s."SujuHead_id" = :id
+        ),
+        detail_raw AS (
+          SELECT
+            d.id,
+            d.suju_id,
+            CASE
+              WHEN d."Standard" ~ '^[0-9]+(\\.[0-9]+)?$' THEN d."Standard"::numeric
+              ELSE NULL
+            END AS standard_num,
+            d."Qty"::numeric AS qty,
+            CASE
+              WHEN d."Standard" ~ '^[0-9]+(\\.[0-9]+)?$'
+                THEN (d."Qty"::numeric * d."Standard"::numeric)
+              ELSE d."Qty"::numeric
+            END AS effective_qty
+          FROM suju_detail d
+        ),
+        detail_sum AS (
+          SELECT suju_id, SUM(effective_qty) AS sum_eff_qty
+          FROM detail_raw
+          GROUP BY suju_id
+        ),
+        detail_alloc AS (
+          SELECT
+            r.suju_id,
+            hs.head_id,
+            hs.product_name,
+            r.standard_num      AS "Standard",
+            r.qty               AS "Qty",
+            hs."UnitPrice"      AS "UnitPrice",
+            CASE WHEN ds.sum_eff_qty > 0
+                 THEN (r.effective_qty / ds.sum_eff_qty)
+                 ELSE NULL
+            END AS share,
+            ROUND( (hs.suju_price::numeric) * (r.effective_qty / NULLIF(ds.sum_eff_qty, 0)), 0) AS "SupplyAmount",
+            ROUND( (hs.suju_vat  ::numeric) * (r.effective_qty / NULLIF(ds.sum_eff_qty, 0)), 0) AS "VatAmount",
+            ROUND( (hs.suju_total::numeric) * (r.effective_qty / NULLIF(ds.sum_eff_qty, 0)), 0) AS "TotalAmount",
+            hs."Description"    AS "Description"
+          FROM detail_raw r
+          JOIN detail_sum ds ON ds.suju_id = r.suju_id
+          JOIN head_suju hs  ON hs.suju_id = r.suju_id
+        ),
+        fallback_rows AS (
+          SELECT
+            hs.suju_id,
+            hs.head_id,
+            hs.product_name,
+            CASE
+              WHEN hs.suju_standard ~ '^[0-9]+(\\.[0-9]+)?$' THEN hs.suju_standard::numeric
+              ELSE NULL
+            END                    AS "Standard",
+            hs."SujuQty"::numeric  AS "Qty",
+            hs."UnitPrice"         AS "UnitPrice",
+            NULL::numeric          AS share,
+            COALESCE(hs.suju_price, 0)::numeric      AS "SupplyAmount",
+            COALESCE(hs.suju_vat,   0)::numeric      AS "VatAmount",
+            COALESCE(hs.suju_total, 0)::numeric      AS "TotalAmount",
+            hs."Description"       AS "Description"
+          FROM head_suju hs
+          WHERE NOT EXISTS (SELECT 1 FROM suju_detail d WHERE d.suju_id = hs.suju_id)
+        )
+        SELECT
+          x.product_name,
+          x."Standard",
+          x."Qty",
+          x."UnitPrice",
+          x."SupplyAmount",
+          x."VatAmount",
+          x."TotalAmount",
+          x."Description",
+          sh."Description"      AS head_description
+        FROM (
+          SELECT suju_id, head_id, product_name, "Standard", "Qty", "UnitPrice", share,
+                 "SupplyAmount", "VatAmount", "TotalAmount", "Description"
+          FROM detail_alloc
+          UNION ALL
+          SELECT suju_id, head_id, product_name, "Standard", "Qty", "UnitPrice", share,
+                 "SupplyAmount", "VatAmount", "TotalAmount", "Description"
+          FROM fallback_rows
+        ) x
+        JOIN suju s    ON s.id = x.suju_id
+				JOIN suju_head sh ON sh.id = s."SujuHead_id"
+        ORDER BY x.head_id, x.suju_id
+    """;
+
+		List<Map<String, Object>> items = sqlRunner.getRows(itemsSql, params); // ★ 여러 행
+
+		// 2-3) 프런트가 기대하는 형태로 패키징
+		Map<String, Object> out = new HashMap<>();
+		out.put("head", head);     // 사용 안 하더라도 넣어두면 확장 편함
+		out.put("items", items);   // adaptDetailResponse가 읽는 배열
+		return out;
+	}
 
 }
