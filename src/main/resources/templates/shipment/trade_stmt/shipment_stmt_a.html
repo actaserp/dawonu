@@ -379,6 +379,8 @@
                     this.grid1.itemsSource = result.data;
                 }
 
+                if(!result.success) Alert.alert('', result.message);
+
                 setTimeout(() => {
                     this.loading = false;
 

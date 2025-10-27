@@ -17,6 +17,7 @@ import mes.app.util.UtilClass;
 import mes.domain.entity.MatCompUprice;
 import mes.domain.repository.MatCompUpriceRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -66,18 +67,31 @@ public class ShipmentStmtController {
 	// 출하지시 목록 조회
 	@GetMapping("/order_list")
 	public AjaxResult getOrderList(
-			@RequestParam(value="srchStartDt", required=false) String date_from,
-			@RequestParam(value="srchEndDt", required=false) String date_to,
+			@RequestParam(value="srchStartDt") String date_from,
+			@RequestParam(value="srchEndDt") String date_to,
 			@RequestParam(value="cboCompany", required=false) String comp_pk,
 			@RequestParam(value="cboMatGroup", required=false) String mat_grp_pk,
 			@RequestParam(value="cboMaterial", required=false) String mat_pk) {
-		
-		List<Map<String, Object>> items = this.shipmentListService.getShipmentHeadList(date_from, date_to, comp_pk, mat_grp_pk, mat_pk, null, "");
-		
+
 		AjaxResult result = new AjaxResult();
-		result.data = items;
-		
-		return result;
+
+		if(date_from.isEmpty() || date_to.isEmpty()){
+			result.success = false;
+			result.message = "날짜를 확인해주세요";
+			return  result;
+		}
+
+		try{
+			List<Map<String, Object>> items = this.shipmentListService.getShipmentHeadList(date_from, date_to, comp_pk, mat_grp_pk, mat_pk, null, "");
+
+			result.data = items;
+			return result;
+
+		}catch(Exception e){
+			result.success = false;
+			result.message = "에러가 발생하였습니다. (날짜확인)";
+			return result;
+		}
 	}
 	
 	// 출하 품목
