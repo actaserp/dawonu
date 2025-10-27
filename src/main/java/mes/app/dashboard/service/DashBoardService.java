@@ -10,6 +10,9 @@ import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 
 import java.sql.Timestamp;
+import java.time.LocalDate;
+import java.time.YearMonth;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 @Slf4j
@@ -1168,62 +1171,516 @@ public class DashBoardService {
 	}
 	
 	//입금
-	public List<Map<String, Object>> getReceiveDetail(int id) {
+//	public List<Map<String, Object>> getReceiveDetail(int id) {
+//		MapSqlParameterSource paramMap = new MapSqlParameterSource();
+//		paramMap.addValue("ioid", id);
+//		String sql= """
+//				SELECT
+//				    b.ioid AS id,
+//				    -- 구분(고정)
+//				    '입금' AS division,
+//				    TO_CHAR(TO_DATE(b.trdate, 'YYYYMMDD'), 'YYYY-MM-DD') AS "JumunDate",
+//				    COALESCE(s."Value", t.tradenm) AS state_name,
+//				    COALESCE(b.accin, 0) AS supply_amount,
+//				    COALESCE(b.feeamt, 0) AS vat_amount,
+//				    COALESCE(b.accin, 0) + COALESCE(b.feeamt, 0) AS total_amount,
+//				    b.remark1 AS "description"
+//				FROM tb_banktransit b
+//				LEFT JOIN tb_trade t
+//				       ON t.trid = b.trid
+//				LEFT JOIN sys_code s
+//				       ON s."Code" = b.iotype
+//				      AND s."CodeType" = 'deposit_type'
+//				WHERE b.ioflag = '0'  -- 입금만
+//				  AND b.ioid  = :ioid
+//				ORDER BY b.trdate DESC, b.ioid DESC;
+//				""";
+//		log.info("입금 상세 read SQL: {}", sql);
+//    log.info("SQL Parameters: {}", paramMap.getValues());
+//		return sqlRunner.getRows(sql, paramMap);
+//	}
+	public List<Map<String, Object>> getDepositTotalList(String start_date, String end_date, Integer company, String spjangcd) {
 		MapSqlParameterSource paramMap = new MapSqlParameterSource();
-		paramMap.addValue("ioid", id);
-		String sql= """
-				SELECT
-				    b.ioid AS id,
-				    -- 구분(고정)
-				    '입금' AS division,
-				    TO_CHAR(TO_DATE(b.trdate, 'YYYYMMDD'), 'YYYY-MM-DD') AS "JumunDate",
-				    COALESCE(s."Value", t.tradenm) AS state_name,
-				    COALESCE(b.accin, 0) AS supply_amount,
-				    COALESCE(b.feeamt, 0) AS vat_amount,
-				    COALESCE(b.accin, 0) + COALESCE(b.feeamt, 0) AS total_amount,
-				    b.remark1 AS "description"
-				FROM tb_banktransit b
-				LEFT JOIN tb_trade t
-				       ON t.trid = b.trid
-				LEFT JOIN sys_code s
-				       ON s."Code" = b.iotype
-				      AND s."CodeType" = 'deposit_type'
-				WHERE b.ioflag = '0'  -- 입금만
-				  AND b.ioid  = :ioid
-				ORDER BY b.trdate DESC, b.ioid DESC;
-				""";
-		log.info("입금 상세 read SQL: {}", sql);
-    log.info("SQL Parameters: {}", paramMap.getValues());
-		return sqlRunner.getRows(sql, paramMap);
+
+		DateTimeFormatter inputFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+		DateTimeFormatter dbFormatter = DateTimeFormatter.ofPattern("yyyyMMdd");
+
+		LocalDate startDate = LocalDate.parse(start_date, inputFormatter);
+		LocalDate endDate = LocalDate.parse(end_date, inputFormatter);
+
+		String formattedStart = startDate.format(dbFormatter);
+		String formattedEnd = endDate.format(dbFormatter);
+
+		paramMap.addValue("start", formattedStart);
+		paramMap.addValue("end", formattedEnd);
+		paramMap.addValue("spjangcd", spjangcd);
+
+		if (company != null) {
+			paramMap.addValue("company", company);
+		}
+
+		StringBuilder sql = new StringBuilder();
+
+		sql.append("""
+        WITH sales_data AS (
+            SELECT 
+                TO_CHAR(TO_DATE(s.misdate, 'YYYYMMDD'), 'YYYY-MM-DD') AS date,
+                COUNT(*) AS sales_count,
+                SUM(s.totalamt) AS sales
+            FROM tb_salesment s
+            WHERE s.misdate BETWEEN :start AND :end
+              AND s.spjangcd = :spjangcd
+        """);
+
+		if (company != null) {
+			sql.append(" AND s.cltcd = :company ");
+		}
+
+		sql.append("""
+            GROUP BY TO_CHAR(TO_DATE(s.misdate, 'YYYYMMDD'), 'YYYY-MM-DD')
+        ),
+        accin_data AS (
+            SELECT 
+                TO_CHAR(TO_DATE(b.trdate, 'YYYYMMDD'), 'YYYY-MM-DD') AS date,
+                COUNT(*) AS accin_count,
+                SUM(b.accin) AS accin
+            FROM tb_banktransit b
+            WHERE b.trdate BETWEEN :start AND :end
+              AND b.ioflag = '0'
+              AND b.spjangcd = :spjangcd
+        """);
+
+		if (company != null) {
+			sql.append(" AND b.cltcd = :company ");
+		}
+
+		sql.append("""
+            GROUP BY TO_CHAR(TO_DATE(b.trdate, 'YYYYMMDD'), 'YYYY-MM-DD')
+        )
+        SELECT
+            COALESCE(s.date, a.date) AS date,
+            COALESCE(s.sales_count, 0) AS sales_count,
+            COALESCE(s.sales, 0) AS sales,
+            COALESCE(a.accin_count, 0) AS accin_count,
+            COALESCE(a.accin, 0) AS accin
+        FROM sales_data s
+        FULL OUTER JOIN accin_data a
+        ON s.date = a.date
+        ORDER BY date
+    """);
+
+		return this.sqlRunner.getRows(sql.toString(), paramMap);
 	}
 
-	//출금
-	public List<Map<String, Object>> getPaymentDetail(int id) {
+
+	// 미수금현황 (마감일 이후부터 jumunDate까지)
+	public List<Map<String, Object>> getDetailDeposit(Integer company, String spjangcd, String jumunDate) {
 		MapSqlParameterSource paramMap = new MapSqlParameterSource();
-		paramMap.addValue("ioid", id);
-		String sql= """
-				SELECT
-				    b.ioid AS id,
-				    -- 구분(고정)
-				    '출금' AS division,
-				    TO_CHAR(TO_DATE(b.trdate, 'YYYYMMDD'), 'YYYY-MM-DD') AS "JumunDate",
-				    COALESCE(s."Value", t.tradenm) AS state_name,
-				    COALESCE(b.accout, 0) AS supply_amount,                 -- 출금 금액
-				    COALESCE(b.feeamt, 0) AS vat_amount,                    -- 수수료(필요 시 0으로)
-				    COALESCE(b.accout, 0) + COALESCE(b.feeamt, 0) AS total_amount,
-				    b.remark1 AS "description"
-				FROM tb_banktransit b
-				LEFT JOIN tb_trade t
-				       ON t.trid = b.trid
-				LEFT JOIN sys_code s
-				       ON s."Code" = b.iotype
-				      AND s."CodeType" = 'deposit_type'   -- 출금 유형 코드타입이 따로 있으면 여기 변경
-				WHERE b.ioflag = '1'  -- 출금만				 
-				  AND b.ioid  = :ioid
-				ORDER BY b.trdate DESC, b.ioid DESC;
-				""";
-		return sqlRunner.getRows(sql, paramMap);
+
+		DateTimeFormatter inputFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+		DateTimeFormatter dbFormatter = DateTimeFormatter.ofPattern("yyyyMMdd");
+
+		LocalDate jumun_date = LocalDate.parse(jumunDate, inputFormatter);
+		String formattedEnd = jumun_date.format(dbFormatter);
+
+		YearMonth baseYm = YearMonth.from(jumun_date);
+		String baseYmStr = baseYm.format(DateTimeFormatter.ofPattern("yyyyMM"));
+
+		paramMap.addValue("end", formattedEnd);
+		paramMap.addValue("baseYm", baseYmStr);
+		paramMap.addValue("spjangcd", spjangcd);
+
+		if (company != null) {
+			paramMap.addValue("company", company);
+		}
+
+		StringBuilder sql = new StringBuilder();
+
+		sql.append("""
+        WITH lastym AS (
+            SELECT cltcd, MAX(yyyymm) AS yyyymm
+            FROM tb_yearamt
+            WHERE yyyymm < :baseYm
+              AND ioflag = '0'
+              AND spjangcd = :spjangcd
+            GROUP BY cltcd
+        ),
+        last_amt AS (
+            SELECT y.cltcd, y.yearamt, y.yyyymm
+            FROM tb_yearamt y
+            JOIN lastym m ON y.cltcd = m.cltcd AND y.yyyymm = m.yyyymm
+            WHERE y.ioflag = '0'
+              AND y.spjangcd = :spjangcd
+        ),
+        final_prev_amt AS (
+            SELECT
+                y.cltcd,
+                y.yearamt AS prev_amt,
+                (SELECT TO_CHAR(TO_DATE(MAX(yyyymm), 'YYYYMM') + interval '1 month', 'YYYYMMDD') FROM lastym) AS next_start
+            FROM last_amt y
+        ),
+        sales_amt AS (
+            SELECT s.cltcd, SUM(s.totalamt) AS sales
+            FROM tb_salesment s
+            WHERE s.misdate BETWEEN 
+                (SELECT TO_CHAR(TO_DATE(MAX(yyyymm), 'YYYYMM') + interval '1 month', 'YYYYMMDD') FROM lastym)
+                AND :end
+              AND s.spjangcd = :spjangcd
+        """);
+
+		if (company != null) {
+			sql.append(" AND s.cltcd = :company ");
+		}
+
+		sql.append("""
+            GROUP BY s.cltcd
+        ),
+        accin_amt AS (
+            SELECT b.cltcd, SUM(b.accin) AS accin
+            FROM tb_banktransit b
+            WHERE b.trdate BETWEEN 
+                (SELECT TO_CHAR(TO_DATE(MAX(yyyymm), 'YYYYMM') + interval '1 month', 'YYYYMMDD') FROM lastym)
+                AND :end
+              AND b.ioflag = '0'
+              AND b.spjangcd = :spjangcd
+        """);
+
+		if (company != null) {
+			sql.append(" AND b.cltcd = :company ");
+		}
+
+		sql.append("""
+            GROUP BY b.cltcd
+        )
+        SELECT
+            m.id AS cltcd,
+            m."Name" AS clt_name,
+            COALESCE(f.prev_amt, 0) AS receivables,
+            COALESCE(s.sales, 0) AS sales,
+            COALESCE(a.accin, 0) AS "AmountDeposited",
+            COALESCE(f.prev_amt, 0) + COALESCE(s.sales, 0) - COALESCE(a.accin, 0) AS balance
+        FROM company m
+        LEFT JOIN final_prev_amt f ON m.id = f.cltcd
+        LEFT JOIN sales_amt s ON m.id = s.cltcd
+        LEFT JOIN accin_amt a ON m.id = a.cltcd
+        WHERE COALESCE(f.prev_amt, 0) + COALESCE(s.sales, 0) - COALESCE(a.accin, 0) <> 0
+    """);
+
+		if (company != null) {
+			sql.append(" AND m.id = :company");
+		}
+
+		sql.append(" ORDER BY m.\"Name\"");
+
+		return this.sqlRunner.getRows(sql.toString(), paramMap);
 	}
+
+
+	//출금
+//	public List<Map<String, Object>> getPaymentDetail(int id) {
+//		MapSqlParameterSource paramMap = new MapSqlParameterSource();
+//		paramMap.addValue("ioid", id);
+//		String sql= """
+//				SELECT
+//				    b.ioid AS id,
+//				    -- 구분(고정)
+//				    '출금' AS division,
+//				    TO_CHAR(TO_DATE(b.trdate, 'YYYYMMDD'), 'YYYY-MM-DD') AS "JumunDate",
+//				    COALESCE(s."Value", t.tradenm) AS state_name,
+//				    COALESCE(b.accout, 0) AS supply_amount,                 -- 출금 금액
+//				    COALESCE(b.feeamt, 0) AS vat_amount,                    -- 수수료(필요 시 0으로)
+//				    COALESCE(b.accout, 0) + COALESCE(b.feeamt, 0) AS total_amount,
+//				    b.remark1 AS "description"
+//				FROM tb_banktransit b
+//				LEFT JOIN tb_trade t
+//				       ON t.trid = b.trid
+//				LEFT JOIN sys_code s
+//				       ON s."Code" = b.iotype
+//				      AND s."CodeType" = 'deposit_type'   -- 출금 유형 코드타입이 따로 있으면 여기 변경
+//				WHERE b.ioflag = '1'  -- 출금만
+//				  AND b.ioid  = :ioid
+//				ORDER BY b.trdate DESC, b.ioid DESC;
+//				""";
+//		return sqlRunner.getRows(sql, paramMap);
+//	}
+	public List<Map<String, Object>> getPayableList(String start_date, String end_date, Integer company, String spjangcd) {
+		MapSqlParameterSource paramMap = new MapSqlParameterSource();
+
+		DateTimeFormatter inputFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+		DateTimeFormatter dbFormatter = DateTimeFormatter.ofPattern("yyyyMMdd");
+
+		LocalDate startDate = LocalDate.parse(start_date, inputFormatter);
+		LocalDate endDate = LocalDate.parse(end_date, inputFormatter);
+
+		String formattedStart = startDate.format(dbFormatter);
+		String formattedEnd = endDate.format(dbFormatter);
+
+		YearMonth baseYm = YearMonth.from(startDate);
+		String baseYmStr = baseYm.format(DateTimeFormatter.ofPattern("yyyyMM"));
+
+		paramMap.addValue("start", formattedStart);
+		paramMap.addValue("end", formattedEnd);
+		paramMap.addValue("baseYm", baseYmStr);
+		paramMap.addValue("spjangcd", spjangcd);
+
+		if (company != null) {
+			paramMap.addValue("company", company);
+		}
+
+		String sql = """
+    WITH client AS (
+        SELECT id, '0' AS cltflag, "Name" AS cltname FROM company WHERE spjangcd = :spjangcd
+        UNION ALL
+        SELECT id, '1' AS cltflag, "Name" AS cltname FROM person WHERE spjangcd = :spjangcd
+        UNION ALL
+        SELECT bankid AS id, '2' AS cltflag, banknm AS cltname FROM tb_xbank WHERE spjangcd = :spjangcd
+        UNION ALL
+        SELECT id, '3' AS cltflag, cardnm AS cltname FROM tb_iz010 WHERE spjangcd = :spjangcd
+    ),
+    lastym AS (
+        SELECT cltcd, MAX(yyyymm) AS yyyymm
+        FROM tb_yearamt
+        WHERE yyyymm < :baseYm
+          AND ioflag = '1'
+          AND spjangcd = :spjangcd
+        GROUP BY cltcd
+    ),
+    last_amt AS (
+        SELECT y.cltcd, y.yearamt, y.yyyymm
+        FROM tb_yearamt y
+        JOIN lastym m ON y.cltcd = m.cltcd AND y.yyyymm = m.yyyymm
+        WHERE y.ioflag = '1'
+          AND y.spjangcd = :spjangcd
+    ),
+    post_close_txns AS (
+        SELECT
+            c.id AS cltcd,
+            SUM(COALESCE(i.totalamt, 0)) AS extra_purchase,
+            SUM(COALESCE(b.accout, 0)) AS extra_payment
+        FROM client c
+        LEFT JOIN tb_invoicement i ON c.id = i.cltcd
+            AND i.misdate BETWEEN 
+                TO_CHAR((SELECT TO_DATE(MAX(yyyymm), 'YYYYMM') + interval '1 month' FROM last_amt), 'YYYYMMDD')
+                AND TO_CHAR(TO_DATE(:start, 'YYYYMMDD') - interval '1 day', 'YYYYMMDD')
+            AND i.spjangcd = :spjangcd
+        LEFT JOIN tb_banktransit b ON c.id = b.cltcd
+            AND b.trdate BETWEEN 
+                TO_CHAR((SELECT TO_DATE(MAX(yyyymm), 'YYYYMM') + interval '1 month' FROM last_amt), 'YYYYMMDD')
+                AND TO_CHAR(TO_DATE(:start, 'YYYYMMDD') - interval '1 day', 'YYYYMMDD')
+            AND b.ioflag = '1'
+            AND b.spjangcd = :spjangcd
+        GROUP BY c.id
+    ),
+    uncalculated_txns AS (
+        SELECT
+            c.id AS cltcd,
+            SUM(COALESCE(i.totalamt, 0)) AS total_purchase,
+            SUM(COALESCE(b.accout, 0)) AS total_payment
+        FROM client c
+        LEFT JOIN tb_invoicement i ON c.id = i.cltcd
+            AND i.misdate < :start
+            AND i.spjangcd = :spjangcd
+        LEFT JOIN tb_banktransit b ON c.id = b.cltcd
+            AND b.trdate < :start
+            AND b.ioflag = '1'
+            AND b.spjangcd = :spjangcd
+        WHERE NOT EXISTS (
+            SELECT 1 FROM last_amt y WHERE y.cltcd = c.id
+        )
+        GROUP BY c.id
+    ),
+    final_prev_amt AS (
+        SELECT
+            y.cltcd,
+            y.yearamt + COALESCE(p.extra_purchase, 0) - COALESCE(p.extra_payment, 0) AS prev_amt
+        FROM last_amt y
+        LEFT JOIN post_close_txns p ON y.cltcd = p.cltcd
+        UNION
+        SELECT
+            u.cltcd,
+            COALESCE(u.total_purchase, 0) - COALESCE(u.total_payment, 0)
+        FROM uncalculated_txns u
+    ),
+    purchase_amt AS (
+        SELECT cltcd, SUM(totalamt) AS purchase
+        FROM tb_invoicement
+        WHERE misdate = :start
+          AND spjangcd = :spjangcd
+        GROUP BY cltcd
+    ),
+    payment_amt AS (
+        SELECT cltcd, SUM(accout) AS payment
+        FROM tb_banktransit
+        WHERE trdate = :start
+          AND ioflag = '1'
+          AND spjangcd = :spjangcd
+        GROUP BY cltcd
+    )
+    SELECT
+        c.id AS cltcd,
+        c.cltflag,
+        CASE c.cltflag
+            WHEN '0' THEN '업체'
+            WHEN '1' THEN '직원정보'
+            WHEN '2' THEN '은행계좌'
+            WHEN '3' THEN '카드사'
+        END AS cltflagnm,
+        c.cltname,
+        COALESCE(f.prev_amt, 0) AS prev_balance,
+        COALESCE(p.purchase, 0) AS purchase,
+        COALESCE(b.payment, 0) AS payment,
+        COALESCE(f.prev_amt, 0) + COALESCE(p.purchase, 0) - COALESCE(b.payment, 0) AS balance
+    FROM client c
+    LEFT JOIN final_prev_amt f ON c.id = f.cltcd
+    LEFT JOIN purchase_amt p ON c.id = p.cltcd
+    LEFT JOIN payment_amt b ON c.id = b.cltcd
+    WHERE COALESCE(f.prev_amt, 0) + COALESCE(p.purchase, 0) - COALESCE(b.payment, 0) <> 0
+    """;
+
+		if (company != null) {
+			sql += " AND c.id = :company ";
+		}
+
+		sql += " ORDER BY c.cltflag, c.cltname ";
+
+		List<Map<String, Object>> items = this.sqlRunner.getRows(sql, paramMap);
+		return items;
+	}
+
+
+
+	// 미지급 현황
+	public List<Map<String, Object>> getDetailWdrw(Integer company, String spjangcd, String jumunDate) {
+		MapSqlParameterSource paramMap = new MapSqlParameterSource();
+
+		DateTimeFormatter inputFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+		DateTimeFormatter dbFormatter = DateTimeFormatter.ofPattern("yyyyMMdd");
+
+		LocalDate jumun_date = LocalDate.parse(jumunDate, inputFormatter);
+		String formattedStart = jumun_date.format(dbFormatter);
+
+		YearMonth baseYm = YearMonth.from(jumun_date);
+		String baseYmStr = baseYm.format(DateTimeFormatter.ofPattern("yyyyMM"));
+
+		paramMap.addValue("start", formattedStart);
+		paramMap.addValue("baseYm", baseYmStr);
+		paramMap.addValue("spjangcd", spjangcd);
+
+		if (company != null) {
+			paramMap.addValue("company", company);
+		}
+
+		String sql = """
+    WITH client AS (
+        SELECT id, '0' AS cltflag, "Name" AS cltname FROM company WHERE spjangcd = :spjangcd
+        UNION ALL
+        SELECT id, '1' AS cltflag, "Name" AS cltname FROM person WHERE spjangcd = :spjangcd
+        UNION ALL
+        SELECT bankid AS id, '2' AS cltflag, banknm AS cltname FROM tb_xbank WHERE spjangcd = :spjangcd
+        UNION ALL
+        SELECT id, '3' AS cltflag, cardnm AS cltname FROM tb_iz010 WHERE spjangcd = :spjangcd
+    ),
+    lastym AS (
+        SELECT cltcd, MAX(yyyymm) AS yyyymm
+        FROM tb_yearamt
+        WHERE yyyymm < :baseYm
+          AND ioflag = '1'
+          AND spjangcd = :spjangcd
+        GROUP BY cltcd
+    ),
+    last_amt AS (
+        SELECT y.cltcd, y.yearamt, y.yyyymm
+        FROM tb_yearamt y
+        JOIN lastym m ON y.cltcd = m.cltcd AND y.yyyymm = m.yyyymm
+        WHERE y.ioflag = '1'
+          AND y.spjangcd = :spjangcd
+    ),
+    post_close_txns AS (
+        SELECT
+            c.id AS cltcd,
+            SUM(COALESCE(i.totalamt, 0)) AS extra_purchase,
+            SUM(COALESCE(b.accout, 0)) AS extra_payment
+        FROM client c
+        LEFT JOIN tb_invoicement i ON c.id = i.cltcd
+            AND i.misdate BETWEEN 
+                TO_CHAR((SELECT TO_DATE(MAX(yyyymm), 'YYYYMM') + interval '1 month' FROM last_amt), 'YYYYMMDD')
+                AND TO_CHAR(TO_DATE(:start, 'YYYYMMDD') - interval '1 day', 'YYYYMMDD')
+            AND i.spjangcd = :spjangcd
+        LEFT JOIN tb_banktransit b ON c.id = b.cltcd
+            AND b.trdate BETWEEN 
+                TO_CHAR((SELECT TO_DATE(MAX(yyyymm), 'YYYYMM') + interval '1 month' FROM last_amt), 'YYYYMMDD')
+                AND TO_CHAR(TO_DATE(:start, 'YYYYMMDD') - interval '1 day', 'YYYYMMDD')
+            AND b.ioflag = '1'
+            AND b.spjangcd = :spjangcd
+        GROUP BY c.id
+    ),
+    uncalculated_txns AS (
+        SELECT
+            c.id AS cltcd,
+            SUM(COALESCE(i.totalamt, 0)) AS total_purchase,
+            SUM(COALESCE(b.accout, 0)) AS total_payment
+        FROM client c
+        LEFT JOIN tb_invoicement i ON c.id = i.cltcd
+            AND i.misdate < :start
+            AND i.spjangcd = :spjangcd
+        LEFT JOIN tb_banktransit b ON c.id = b.cltcd
+            AND b.trdate < :start
+            AND b.ioflag = '1'
+            AND b.spjangcd = :spjangcd
+        WHERE NOT EXISTS (
+            SELECT 1 FROM last_amt y WHERE y.cltcd = c.id
+        )
+        GROUP BY c.id
+    ),
+    final_prev_amt AS (
+        SELECT
+            y.cltcd,
+            y.yearamt + COALESCE(p.extra_purchase, 0) - COALESCE(p.extra_payment, 0) AS prev_amt
+        FROM last_amt y
+        LEFT JOIN post_close_txns p ON y.cltcd = p.cltcd
+        UNION
+        SELECT
+            u.cltcd,
+            COALESCE(u.total_purchase, 0) - COALESCE(u.total_payment, 0)
+        FROM uncalculated_txns u
+    ),
+    payment_amt AS (
+        SELECT cltcd, SUM(accout) AS payment
+        FROM tb_banktransit
+        WHERE trdate = :start
+          AND ioflag = '1'
+          AND spjangcd = :spjangcd
+        GROUP BY cltcd
+    )
+    SELECT
+        c.id AS cltcd,
+        c.cltflag,
+        CASE c.cltflag
+            WHEN '0' THEN '업체'
+            WHEN '1' THEN '직원정보'
+            WHEN '2' THEN '은행계좌'
+            WHEN '3' THEN '카드사'
+        END AS cltflagnm,
+        c.cltname,
+        COALESCE(f.prev_amt, 0) AS prev_balance,
+        COALESCE(b.payment, 0) AS amount_paid,
+        COALESCE(f.prev_amt, 0) - COALESCE(b.payment, 0) AS balance
+    FROM client c
+    LEFT JOIN final_prev_amt f ON c.id = f.cltcd
+    LEFT JOIN payment_amt b ON c.id = b.cltcd
+    WHERE COALESCE(f.prev_amt, 0) - COALESCE(b.payment, 0) <> 0
+    """;
+
+		if (company != null) {
+			sql += " AND c.id = :company ";
+		}
+
+		sql += " ORDER BY c.cltflag, c.cltname ";
+
+		List<Map<String, Object>> items = this.sqlRunner.getRows(sql, paramMap);
+		return items;
+	}
+
 
 	// 수주 이력
 	public List<Map<String, Object>> getSujuHistory(int id) {

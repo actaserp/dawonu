@@ -1,9 +1,7 @@
 package mes.app.dashboard;
 
 import java.sql.Timestamp;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.transaction.Transactional;
@@ -76,10 +74,17 @@ public class DashBoardController {
 	public AjaxResult getDetail(
 			@RequestParam("id") int id,
 			@RequestParam("division") String division,
+			@RequestParam(value = "company_id", required = false) Integer company_id,
+			@RequestParam(value = "JumunDate", required = false) String JumunDate,
+			@RequestParam(value = "startDate", required = false) String startDate,
+			@RequestParam(value = "endDate", required = false) String endDate,
+			Authentication auth,
 			HttpServletRequest request) {
 		String key = (division == null) ? "" : division.trim();
 //		log.info("상세 - division:{}, id:{}", division, id);
-		List<Map<String, Object>> item;
+		User user = (User) auth.getPrincipal();
+		String spjangcd = user.getSpjangcd();
+		List<Map<String, Object>> item = new ArrayList<>();
 		switch (key) {
 			case "발주":
 				item = dashBoardService.getBaljuDetail(id);
@@ -94,10 +99,20 @@ public class DashBoardController {
 				item = dashBoardService.getSalesDetail(id);
 				break;
 			case "입금":
-				item = dashBoardService.getReceiveDetail(id);
+				Map<String, Object> depDetail = new HashMap<>();
+				// 입금 매출 그리드 조회
+				depDetail.put("TotalList", dashBoardService.getDepositTotalList(startDate, endDate, company_id, spjangcd));
+				// 입금 매출 미수총액 등 조회
+				depDetail.put("getDetail", dashBoardService.getDetailDeposit(company_id, spjangcd, JumunDate));
+				item.add(depDetail);
 				break;
 			case "출금":
-				item = dashBoardService.getPaymentDetail(id);
+				Map<String, Object> wdrawDetail = new HashMap<>();
+				// 출금 매입 그리드 조회
+				wdrawDetail.put("TotalList", dashBoardService.getPayableList(startDate, endDate, company_id, spjangcd));
+				// 출금 매입 미수총액 등 조회
+				wdrawDetail.put("getDetail", dashBoardService.getDetailWdrw(company_id, spjangcd, JumunDate));
+				item.add(wdrawDetail);
 				break;
 
 			default:

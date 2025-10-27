@@ -482,12 +482,12 @@
                     },
                     columns: [
                         {binding: 'id', visible:false},
-                        {binding: 'JumunDate', header: 'No', width: '*', align: 'center', isReadOnly: true},
-                        {binding: 'state_name', header: '일자', width: '*', align: 'center', isReadOnly: true},
-                        {binding: 'product_name', header: '매출건수', width: '*', align: 'left', isReadOnly: true},
-                        {binding: 'standard', header: '매출', width: '*', align: 'center', isReadOnly: true},
-                        {binding: 'quantity', header: '수급건수', width: '*', align: 'right', isReadOnly: true},
-                        {binding: 'unit_price', header: '수금', width: '*', align: 'right', isReadOnly: true},
+                        // {binding: 'JumunDate', header: 'No', width: '*', align: 'center', isReadOnly: true},
+                        {binding: 'date', header: '일자', width: '*', align: 'center', isReadOnly: true},
+                        {binding: 'sales_count', header: '매출건수', width: '*', align: 'left', isReadOnly: true},
+                        {binding: 'sales', header: '매출', width: '*', align: 'center', isReadOnly: true},
+                        {binding: 'accin_count', header: '수급건수', width: '*', align: 'right', isReadOnly: true},
+                        {binding: 'accin', header: '수금', width: '*', align: 'right', isReadOnly: true},
                     ],
                     itemsSource: new wijmo.collections.CollectionView([]),
                 });
@@ -501,7 +501,7 @@
                 const it = this.grid.selectedItems && this.grid.selectedItems[0];
                 if (!it) return;
 
-                const data   = { id: it.head_id, division: it.division };
+                const data   = { id: it.head_id, division: it.division, company_id: it.company_id, JumunDate: it.JumunDate, startDate: document.getElementById('date_from').value, endDate: document.getElementById('date_to').value};
                 const result = AjaxUtil.getSyncData(this.baseUrl + '/detail', data);
                 if (!result || !result.data) return;
 
@@ -526,8 +526,9 @@
                 }
                 else if (isDeposit) {
                     // 입금/출금일 때: 미수내역 표시 + resultGrid 숨김
-                    this.depositGrid.itemsSource = new wijmo.collections.CollectionView(result.data);
 
+                    this.depositGrid.itemsSource = new wijmo.collections.CollectionView(result.data[0].TotalList);
+                    console.log('result.data.TotalList', result.data[0].TotalList)
                     resultGridContainer.style.display = 'none';
                     depositContainer.style.display = 'flex';
                 }
