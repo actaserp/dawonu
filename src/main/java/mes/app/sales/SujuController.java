@@ -248,6 +248,7 @@ public class SujuController {
             !java.util.Objects.equals(suju.getMaterialId(), mid) ||
                 !java.util.Objects.equals(suju.getSujuQty(), qty) ||
                 !java.util.Objects.equals(suju.getUnitPrice(), unitPrice) ||
+                !java.util.Objects.equals(suju.getCompanyId(), companyId) ||
                 !java.util.Objects.equals(suju.getDueDate(), newDueDate);
 
         // 정확한 출하 연동 여부 확인 (SourceTableName/SourceDataPk 기준)

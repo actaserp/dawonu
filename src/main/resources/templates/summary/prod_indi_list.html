@@ -174,62 +174,91 @@
                 columns: [
                     { binding: 'mat_grp_name', header: '제품그룹', width: 120, allowMerging: true },
                     { binding: 'mat_code', header: '제품코드', width: 140, align: 'center', allowMerging: true },
-                    { binding: 'mat_name', header: '제품명', width: 240, align: 'center',  allowMerging: true },
+                    { binding: 'mat_name', header: '제품명', width: 240, align: 'center', allowMerging: true },
                     { binding: 'unit_name', header: '단위', width: 80, align: 'center', allowMerging: true },
-                    // 월별 (매출액 / 평균재고금액 / 재고회전율)
-                    ...Array.from({ length: 12 }, (_, i) => ([
+                    ...Array.from({ length: 12 }, (_, i) => ([ // 월별 1~12월
                         { binding: `mon_${i + 1}_money`, header: '매출액', width: 120, align: 'center', format: 'n0' },
                         { binding: `mon_${i + 1}_avginv`, header: '평균재고금액', width: 100, align: 'center', format: 'n0' },
                         { binding: `mon_${i + 1}_turnover`, header: '재고회전율', width: 120, align: 'center', format: 'n2' }
-                    ])).flat()
+                    ])).flat(),
+                    { binding: 'year_turnover', header: '연간 재고회전율', width: 140, align: 'center', format: 'n2' } // ✅ 맨 마지막
                 ],
                 itemsSource: _this.viewData
             });
 
-            // ✅ 헤더 2단 구조 생성
-            const topRow = new wijmo.grid.Row(); // 상단 (1월~12월)
+            // ✅ 2단 헤더 생성
+            const topRow = new wijmo.grid.Row();
             this.grid.columnHeaders.rows.insert(0, topRow);
+            let colIndex = 4;
 
-            // 병합용 헤더 채우기
-            let colIndex = 4; // 제품컬럼 4개 이후부터
             for (let month = 1; month <= 12; month++) {
                 const col1 = this.grid.columns[colIndex];
                 const col2 = this.grid.columns[colIndex + 1];
                 const col3 = this.grid.columns[colIndex + 2];
-
-                // 상단행(큰제목)
                 this.grid.columnHeaders.setCellData(0, colIndex, `${month}월`);
                 this.grid.columnHeaders.setCellData(0, colIndex + 1, `${month}월`);
                 this.grid.columnHeaders.setCellData(0, colIndex + 2, `${month}월`);
-
-                // 하단행(세부 제목)
                 col1.header = '매출액';
                 col2.header = '평균재고금액';
                 col3.header = '재고회전율(횟수)';
-
                 colIndex += 3;
             }
 
-            // ✅ 병합 활성화
             this.grid.allowMerging = wijmo.grid.AllowMerging.All;
-            this.grid.columnHeaders.rows[0].allowMerging = true; // 상단 병합
+            this.grid.columnHeaders.rows[0].allowMerging = true;
             this.grid.columnHeaders.rows[1].allowMerging = false;
 
-            // ✅ 셀 스타일 정리
+            // ✅ 푸터 행 추가
+            this.grid.columnFooters.rows.push(new wijmo.grid.GroupRow());
+            this.grid.bottomLeftCells.setCellData(0, 0, '합계');
+
+            // ✅ 푸터 계산 함수
+            const updateFooter = () => {
+                const cv = this.grid.collectionView;
+                const footer = this.grid.columnFooters;
+                if (!cv || !footer) return;
+
+                for (let month = 1; month <= 12; month++) {
+                    const moneyKey = `mon_${month}_money`;
+                    const invKey = `mon_${month}_avginv`;
+                    const turnKey = `mon_${month}_turnover`;
+
+                    const totalMoney = cv.items.reduce((sum, item) => sum + (parseFloat(item[moneyKey]) || 0), 0);
+                    const totalInv = cv.items.reduce((sum, item) => sum + (parseFloat(item[invKey]) || 0), 0);
+                    const turnover = totalInv ? (totalMoney / totalInv) : 0;
+
+                    footer.setCellData(0, moneyKey, totalMoney);
+                    footer.setCellData(0, invKey, totalInv);
+                    footer.setCellData(0, turnKey, turnover.toFixed(2));
+                }
+            };
+
+            // ✅ 데이터 로드 / 갱신 후 푸터 갱신
+            this.grid.collectionView.collectionChanged.addHandler(updateFooter);
+            this.grid.updatedView.addHandler(updateFooter);
+
+            // ✅ 셀 스타일
             this.grid.itemFormatter = function (panel, row, col, cell) {
-                if (panel.cellType !== wijmo.grid.CellType.Cell) return;
-                cell.style.textAlign = 'center';
-                cell.style.verticalAlign = 'middle';
+                if (panel.cellType === wijmo.grid.CellType.Cell) {
+                    cell.style.textAlign = 'center';
+                    cell.style.verticalAlign = 'middle';
+                    const val = cell.textContent?.trim();
+                    if (!val || val === 'null' || val === 'undefined') cell.textContent = '';
+                }
 
-                const val = cell.textContent?.trim();
-                if (!val || val === 'null' || val === 'undefined') cell.textContent = '';
-
-
+                // 푸터 색상/강조
+                if (panel.cellType === wijmo.grid.CellType.ColumnFooter) {
+                    cell.style.backgroundColor = '#f0f0f0';
+                    cell.style.fontWeight = 'bold';
+                    cell.style.textAlign = 'center';
+                }
             };
 
             new FlexGridContextMenu(this.grid);
             this.grid.downloadFileName = '월별_재고회전율';
         }
+
+
 
 
 

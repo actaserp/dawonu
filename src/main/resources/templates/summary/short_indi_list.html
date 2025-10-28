@@ -20,7 +20,7 @@
     <section class="section">
         <div class="section-top">
             <div class="search-wrap">
-                <dl>
+                <!--<dl>
                     <dt>
                         <label for="cboYear">
                             기준년도
@@ -30,6 +30,20 @@
                         <div class="srch-box">
                             <select id="cboYear">
                             </select>
+                        </div>
+                    </dd>
+                </dl>-->
+                <dl>
+                    <dt>
+                        <label>
+                            수주일<span class="eq"></span>
+                        </label>
+                    </dt>
+                    <dd>
+                        <div class="srch-box">
+                            <input type="date" id="srchStartDt" name="srchStartDt"/>
+                            <span class="slow_sign">~</span>
+                            <input type="date" id="srchEndDt" name="srchEndDt"/>
                         </div>
                     </dd>
                 </dl>
@@ -79,139 +93,68 @@
                 selectionMode: wijmo.grid.SelectionMode.Row,
                 headersVisibility: wijmo.grid.HeadersVisibility.Column,
                 allowSorting: wijmo.grid.AllowSorting.MultiColumn,
-                allowMerging: wijmo.grid.AllowMerging.Cells,  //셀 병합
+                allowMerging: wijmo.grid.AllowMerging.Cells,
                 autoGenerateColumns: false,
                 showMarquee: true,
                 isReadOnly: true,
                 frozenColumns: 4,
-                formatItem: (sender, e) => {
+
+                formatItem: (s, e) => {
                     if (e.panel.cellType === wijmo.grid.CellType.ColumnHeader) {
                         e.cell.style.textAlign = 'center';
+                        return;
+                    }
+
+                    if (e.panel.cellType === wijmo.grid.CellType.Cell) {
+                        const item = s.rows[e.row]?.dataItem;
+                        if (!item) return;
+
+                        // ✅ 먼저 기본값 초기화 (재활용 방지)
+                        e.cell.style.fontWeight = '';
+                        e.cell.style.backgroundColor = '';
+                        e.cell.style.borderTop = '';
+                        e.cell.style.color = '';
+
+                        // ✅ null 수주일자 깔끔히 처리
+                        if (!item.jumundate && !item.is_footer && s.columns[e.col].binding === 'jumundate') {
+                            e.cell.textContent = '';
+                        }
+
+                        // ✅ 푸터 스타일 (월 합계 행)
+                        if (item.is_footer) {
+                            e.cell.style.fontWeight = 'bold';
+                            e.cell.style.backgroundColor = '#e5e5e5';
+                            e.cell.style.borderTop = '2px solid #999';
+                            e.cell.style.color = '#004080';
+                        }
                     }
                 },
 
                 columns: [
-                    { binding: 'company_name', header: '품목그룹', width: 150, allowMerging: true },
-                    { binding: 'mat_name',     header: '품목명',   width: '*',  allowMerging: true },
-                    { binding: 'standard1',    header: '규격',     width: 150 },
-                    { binding: 'unit_name',    header: '단위',     width: 100 },
-
-                    // 1~12월
-                    ...Array.from({ length: 12 }, (_, i) => ({
-                        binding: `mon_${i + 1}`,
-                        header: `${i + 1}월`,
-                        width: 80,
-                        format: 'n1',
-                        align: 'right',
-                        allowSorting: false
-                    })),
-
-                    // 연평균 (단일 컬럼은 그냥 객체 하나로!)
-                    { binding: 'average_year', header: '연평균', format: 'n1', width: 80, align: 'center' },
+                    { binding: 'jumundate', header: '수주일자', width: 120, align: 'center' },
+                    { binding: 'jumun_number', header: '수주번호', width: 150, align: 'center'},
+                    { binding: 'company_name', header: '거래처명', width: '*', align: 'left' },
+                    { binding: 'material_summary', header: '제품명', width: '*', align: 'left' },
+                    { binding: 'total_suju_qty', header: '수주수량', width: 100, align: 'right', format: 'n0' },
+                    { binding: 'total_shipped_qty', header: '출하수량', width: 100, align: 'right', format: 'n0' },
+                    { binding: 'shipdate', header: '출하일자', width: 130, align: 'center' },
+                    { binding: 'avg_wday', header: '평균납기일수', width: 100, align: 'center', format: 'n1' },
                 ],
-                itemsSource: this.viewData, // 데이터를 설정할 배열
             });
 
-            // ✅ 푸터행 추가
-            // ✅ 푸터 행 추가
-            const footerRow = new wijmo.grid.GroupRow();
-            this.grid.columnFooters.rows.push(footerRow);
-
-// ✅ 안전한 푸터 업데이트 함수
-            const updateFooter = () => {
-                const view = this.grid.collectionView;
-                if (!view || view.items.length === 0) return;
-
-                const panel = this.grid.columnFooters;
-                const row = panel.rows[0];
-                if (!row) return;
-
-                // 각 컬럼별 평균 계산
-                this.grid.columns.forEach((col, colIndex) => {
-                    if (col.binding?.startsWith('mon_')) {
-                        // ✅ 월평균 계산 (품목 기준)
-                        const values = view.items
-                            .map(item => parseFloat(item[col.binding]))
-                            .filter(v => !isNaN(v));
-
-                        const avg = values.length > 0
-                            ? (values.reduce((sum, v) => sum + v, 0) / values.length)
-                            : null;
-
-                        panel.setCellData(0, colIndex, avg ? avg.toFixed(1) : '');
-                    }
-                    else if (col.binding === 'company_name') {
-                        // ✅ 푸터 첫 컬럼 표시
-                        panel.setCellData(0, colIndex, '월평균');
-                    }
-                    else {
-                        // 기본은 비우기
-                        panel.setCellData(0, colIndex, null);
-                    }
-                });
-
-                // ✅ 전체 품목 평균 납기일 (연평균 컬럼의 평균 역할)
-                // 마지막 컬럼에 표시하고 싶다면 이렇게:
-                const lastColIndex = this.grid.columns.length - 1;
-                const yearAverages = view.items
-                    .map(item => {
-                        // 각 품목의 월평균(연평균)을 다시 계산
-                        const monVals = this.grid.columns
-                            .filter(c => c.binding?.startsWith('mon_'))
-                            .map(c => parseFloat(item[c.binding]))
-                            .filter(v => !isNaN(v));
-                        if (monVals.length === 0) return NaN;
-                        return monVals.reduce((a, b) => a + b, 0) / monVals.length;
-                    })
-                    .filter(v => !isNaN(v));
-
-                const overallAvg = yearAverages.length > 0
-                    ? (yearAverages.reduce((a, b) => a + b, 0) / yearAverages.length)
-                    : null;
-
-                // ✅ 맨 오른쪽 하단 셀에 “전체평균” 표시
-                if (overallAvg !== null) {
-                    panel.setCellData(0, lastColIndex, overallAvg.toFixed(1));
-                }
-            };
-
-
-// ✅ 초기 렌더 후 실행 (렌더 타이밍 확보)
-            setTimeout(() => updateFooter(), 50);
-
-// ✅ 데이터 변경 시 자동 갱신
-            this.grid.collectionView.collectionChanged.addHandler(() => updateFooter());
-
-            this.grid.itemFormatter = function (panel, row, col, cell) {
-                if (panel.cellType === wijmo.grid.CellType.Cell) {
-                    let colName = panel.columns[col].binding;
-
-                    if (['mat_type_name', 'mat_grp_name', 'mat_code', 'unit_name', 'standard1'].includes(colName)) {
-                        cell.style.textAlign = 'center';          // 수평 가운데
-                        cell.style.verticalAlign = 'middle';      // 수직 가운데
-                        cell.style.display = 'flex';              // flex로 정렬
-                        cell.style.alignItems = 'center';         // 수직 정렬
-                        cell.style.justifyContent = 'center';     // 수평 정렬
-                    } else if (['mat_name']){
-                        cell.style.textAlign = 'left';
-                        cell.style.verticalAlign = 'middle';      // 수직 가운데
-                        cell.style.display = 'flex';              // flex로 정렬
-                        cell.style.alignItems = 'center';         // 수직 정렬
-                        cell.style.justifyContent = 'left';     // 수평 정렬
-                    }
-                }
-            };
             new FlexGridContextMenu(this.grid);
             this.grid.downloadFileName = '납기 단축 지표';
-            this.grid.mergeManager = new CustomMergeManager(this.grid);
         }
+
 
 
 
         searchMainData() {
             let url = '/api/summary/indicator/short_read'
             let data = {
-				'cboYear' : $("#cboYear").val(),
+				//'cboYear' : $("#cboYear").val(),
+                'date_from' : $('#srchStartDt').val(),
+                'date_to' : $('#srchEndDt').val(),
                 'spjangcd' : sessionStorage.getItem('spjangcd')
 			}
             const result = AjaxUtil.getSyncData(url, data);
@@ -226,6 +169,11 @@
     let page = null;
 
     $(document.body).ready(function (e) {
+
+        $('#srchStartDt').val(CommonUtil.getYYYYMMDD(-7));
+        $('#srchEndDt').val(CommonUtil.getYYYYMMDD());
+
+
         page = new ProductionMonthPage();
 
         AjaxUtil.fillSelectOptions($('#cboYear'), 'data_year', '', false);
@@ -236,44 +184,46 @@
         $('#btnSearch').click(function (e) {
             page.searchMainData();
         });
+
+
     });
 
-    class CustomMergeManager extends wijmo.grid.MergeManager {
-        getMergedRange(panel, row, col, clip = true) {
-            if (panel.cellType !== wijmo.grid.CellType.Cell) {
-                return super.getMergedRange(panel, row, col, clip);
-            }
-
-            const colName = panel.columns[col].binding;
-            if (colName === 'standard1' || colName === 'unit_name') {
-                const matNameCol = panel.columns.getColumn('mat_name').index;
-                const val = panel.getCellData(row, col, false);
-                const matName = panel.getCellData(row, matNameCol, false);
-
-                let rng = new wijmo.grid.CellRange(row, col);
-
-                // 위로 병합
-                while (rng.row > 0) {
-                    let prevVal = panel.getCellData(rng.row - 1, col, false);
-                    let prevMatName = panel.getCellData(rng.row - 1, matNameCol, false);
-                    if (prevVal !== val || prevMatName !== matName) break;
-                    rng.row--;
-                }
-
-                // 아래로 병합
-                while (rng.row2 < panel.rows.length - 1) {
-                    let nextVal = panel.getCellData(rng.row2 + 1, col, false);
-                    let nextMatName = panel.getCellData(rng.row2 + 1, matNameCol, false);
-                    if (nextVal !== val || nextMatName !== matName) break;
-                    rng.row2++;
-                }
-
-                return rng.isSingleCell ? null : rng;
-            }
-
-            return super.getMergedRange(panel, row, col, clip);
-        }
-    }
+    // class CustomMergeManager extends wijmo.grid.MergeManager {
+    //     getMergedRange(panel, row, col, clip = true) {
+    //         if (panel.cellType !== wijmo.grid.CellType.Cell) {
+    //             return super.getMergedRange(panel, row, col, clip);
+    //         }
+    //
+    //         const colName = panel.columns[col].binding;
+    //         if (colName === 'standard1' || colName === 'unit_name') {
+    //             const matNameCol = panel.columns.getColumn('mat_name').index;
+    //             const val = panel.getCellData(row, col, false);
+    //             const matName = panel.getCellData(row, matNameCol, false);
+    //
+    //             let rng = new wijmo.grid.CellRange(row, col);
+    //
+    //             // 위로 병합
+    //             while (rng.row > 0) {
+    //                 let prevVal = panel.getCellData(rng.row - 1, col, false);
+    //                 let prevMatName = panel.getCellData(rng.row - 1, matNameCol, false);
+    //                 if (prevVal !== val || prevMatName !== matName) break;
+    //                 rng.row--;
+    //             }
+    //
+    //             // 아래로 병합
+    //             while (rng.row2 < panel.rows.length - 1) {
+    //                 let nextVal = panel.getCellData(rng.row2 + 1, col, false);
+    //                 let nextMatName = panel.getCellData(rng.row2 + 1, matNameCol, false);
+    //                 if (nextVal !== val || nextMatName !== matName) break;
+    //                 rng.row2++;
+    //             }
+    //
+    //             return rng.isSingleCell ? null : rng;
+    //         }
+    //
+    //         return super.getMergedRange(panel, row, col, clip);
+    //     }
+    // }
 
 
 
