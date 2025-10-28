@@ -558,6 +558,28 @@
                     ],
                     itemsSource: new wijmo.collections.CollectionView([]),
                 });
+                // ✅ Footer 패널 사용 설정
+                this.wdrawGrid.columnFooters.rows.push(new wijmo.grid.Row());
+                this.wdrawGrid.bottomLeftCells.setCellData(0, 0, '총합');
+
+                // ✅ Footer 합계 값 설정 (수동)
+                this.wdrawGrid.updatedView.addHandler(() => {
+                    const rows = this.wdrawGrid.rows;
+                    const footer = this.wdrawGrid.columnFooters.rows[0];
+                    if (!rows.length) return; // 데이터 없을 때 skip
+
+                    const getSum = (field) =>
+                        rows.map(r => parseFloat((r.dataItem[field] + '').replace(/,/g, '')) || 0)
+                            .reduce((a, b) => a + b, 0);
+
+                    footer.dataItem = {
+                        date: '합계',
+                        purchase_count: getSum('purchase_count'),
+                        purchase: getSum('purchase'),
+                        payment_count: getSum('payment_count'),
+                        payment: getSum('payment'),
+                    };
+                });
 
                 new FlexGridContextMenu(this.wdrawGrid);
                 this.wdrawGrid.downloadFileName = '출금내역';
@@ -597,8 +619,8 @@
                 else if (isDeposit) {
                     // 입금 때: 미수내역 표시 + resultGrid 숨김
                     this.depositGrid.itemsSource = new wijmo.collections.CollectionView(result.data[0].TotalList);
-                    document.getElementById('totalDeposit').value = result.data[0].getDetail[0].sales;
-                    document.getElementById('totalUnDeposit').value = result.data[0].getDetail[0].AmountDeposited;
+                    document.getElementById('totalDeposit').value = result.data[0].getDetail[0].misu_total;
+                    document.getElementById('totalUnDeposit').value = result.data[0].getDetail[0].miji_total;
                     document.getElementById('totalRowDeposit').value = result.data[0].getDetail[0].balance;
                     resultGridContainer.style.display = 'none';
                     depositContainer.style.display = 'flex';
@@ -607,8 +629,8 @@
                 else if(isWdraw){
                     //출금일 때: 미수내역 표시 + resultGrid 숨김
                     this.wdrawGrid.itemsSource = new wijmo.collections.CollectionView(result.data[0].TotalList);
-                    document.getElementById('totalDeposit2').value = result.data[0].getDetail[0].sales;
-                    document.getElementById('totalUnDeposit2').value = result.data[0].getDetail[0].AmountDeposited;
+                    document.getElementById('totalDeposit2').value = result.data[0].getDetail[0].misu_total;
+                    document.getElementById('totalUnDeposit2').value = result.data[0].getDetail[0].miji_total;
                     document.getElementById('totalRowDeposit2').value = result.data[0].getDetail[0].balance;
                     resultGridContainer.style.display = 'none';
                     depositContainer.style.display = 'none';

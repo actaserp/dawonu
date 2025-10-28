@@ -1273,23 +1273,20 @@ public class DashBoardService {
 	}
 
 
-	// 미수금현황 (마감일 이후부터 jumunDate까지)
-	public List<Map<String, Object>> getDetailDeposit(Integer company, String spjangcd, String jumunDate) {
+	// 업체별 종합 미수/미지급 현황 (마감 이후 ~ 조회일)
+	public List<Map<String, Object>> getDetailFinanceTotal(Integer company, String spjangcd, String endDate) {
 		MapSqlParameterSource paramMap = new MapSqlParameterSource();
 
 		DateTimeFormatter inputFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 		DateTimeFormatter dbFormatter = DateTimeFormatter.ofPattern("yyyyMMdd");
 
-		LocalDate jumun_date = LocalDate.parse(jumunDate, inputFormatter);
-		String formattedEnd = jumun_date.format(dbFormatter);
-
-		YearMonth baseYm = YearMonth.from(jumun_date);
-		String baseYmStr = baseYm.format(DateTimeFormatter.ofPattern("yyyyMM"));
+		LocalDate end_date = LocalDate.parse(endDate, inputFormatter);
+		String formattedEnd = end_date.format(dbFormatter);
+		String baseYmStr = YearMonth.from(end_date).format(DateTimeFormatter.ofPattern("yyyyMM"));
 
 		paramMap.addValue("end", formattedEnd);
 		paramMap.addValue("baseYm", baseYmStr);
 		paramMap.addValue("spjangcd", spjangcd);
-
 		if (company != null) {
 			paramMap.addValue("company", company);
 		}
@@ -1297,87 +1294,126 @@ public class DashBoardService {
 		StringBuilder sql = new StringBuilder();
 
 		sql.append("""
-        WITH lastym AS (
-            SELECT cltcd, MAX(yyyymm) AS yyyymm
-            FROM tb_yearamt
-            WHERE yyyymm < :baseYm
-              AND ioflag = '0'
-              AND spjangcd = :spjangcd
-            GROUP BY cltcd
-        ),
-        last_amt AS (
-            SELECT y.cltcd, y.yearamt, y.yyyymm
-            FROM tb_yearamt y
-            JOIN lastym m ON y.cltcd = m.cltcd AND y.yyyymm = m.yyyymm
-            WHERE y.ioflag = '0'
-              AND y.spjangcd = :spjangcd
-        ),
-        final_prev_amt AS (
-            SELECT
-                y.cltcd,
-                y.yearamt AS prev_amt,
-                (SELECT TO_CHAR(TO_DATE(MAX(yyyymm), 'YYYYMM') + interval '1 month', 'YYYYMMDD') FROM lastym) AS next_start
-            FROM last_amt y
-        ),
-        sales_amt AS (
-            SELECT s.cltcd, SUM(s.totalamt) AS sales
-            FROM tb_salesment s
-            WHERE s.misdate BETWEEN 
-                (SELECT TO_CHAR(TO_DATE(MAX(yyyymm), 'YYYYMM') + interval '1 month', 'YYYYMMDD') FROM lastym)
-                AND :end
-              AND s.spjangcd = :spjangcd
+    WITH lastym AS (
+        SELECT cltcd, MAX(yyyymm) AS yyyymm
+        FROM tb_yearamt
+        WHERE yyyymm < :baseYm
+          AND spjangcd = :spjangcd
+        GROUP BY cltcd
+    ),
+    base_dates AS (
+        SELECT 
+            COALESCE(
+                (SELECT TO_CHAR(TO_DATE(MAX(yyyymm), 'YYYYMM') + interval '1 month', 'YYYYMMDD')
+                 FROM lastym),
+                TO_CHAR(TO_DATE(:baseYm || '01', 'YYYYMMDD') - interval '1 month', 'YYYYMMDD')
+            ) AS next_start
+    ),
+    last_amt AS (
+        SELECT y.cltcd, SUM(y.yearamt) AS yearamt
+        FROM tb_yearamt y
+        JOIN lastym m ON y.cltcd = m.cltcd AND y.yyyymm = m.yyyymm
+        WHERE y.spjangcd = :spjangcd
+        GROUP BY y.cltcd
+    ),
+    final_prev_amt AS (
+        SELECT y.cltcd, y.yearamt AS prev_amt, (SELECT next_start FROM base_dates) AS next_start
+        FROM last_amt y
+    ),
+    sales_amt AS (
+        SELECT c.id AS cltcd, SUM(COALESCE(s.totalamt, 0)) AS sales
+        FROM company c
+        LEFT JOIN tb_salesment s
+            ON c.id = s.cltcd
+            AND s.misdate BETWEEN (SELECT next_start FROM base_dates) AND :end
+            AND s.spjangcd = :spjangcd
+        GROUP BY c.id
+    ),
+    purchase_amt AS (
+        SELECT c.id AS cltcd, SUM(COALESCE(p.totalamt, 0)) AS purchase
+        FROM company c
+        LEFT JOIN tb_invoicement p
+            ON c.id = p.cltcd
+            AND p.misdate BETWEEN (SELECT next_start FROM base_dates) AND :end
+            AND p.spjangcd = :spjangcd
+        GROUP BY c.id
+    ),
+    accin_amt AS (
+        SELECT c.id AS cltcd, SUM(COALESCE(b.accin, 0)) AS accin
+        FROM company c
+        LEFT JOIN tb_banktransit b
+            ON c.id = b.cltcd
+            AND b.trdate BETWEEN (SELECT next_start FROM base_dates) AND :end
+            AND b.ioflag = '0'
+            AND b.spjangcd = :spjangcd
+        GROUP BY c.id
+    ),
+    accout_amt AS (
+        SELECT c.id AS cltcd, SUM(COALESCE(b.accout, 0)) AS accout
+        FROM company c
+        LEFT JOIN tb_banktransit b
+            ON c.id = b.cltcd
+            AND b.trdate BETWEEN (SELECT next_start FROM base_dates) AND :end
+            AND b.ioflag = '1'
+            AND b.spjangcd = :spjangcd
+        GROUP BY c.id
+    )
+    SELECT
+        m.id AS cltcd,                                  -- 거래처코드
+        m."Name" AS clt_name,                           -- 거래처명
+
+        -- 📌 ① 전월이월금액 (마감 기준)
+        TO_CHAR(COALESCE(f.prev_amt, 0), 'FM999,999,999,999') AS prev_amt,
+
+        -- 📌 ② 매출금액 (tb_salesment)
+        TO_CHAR(COALESCE(s.sales, 0), 'FM999,999,999,999') AS sales,
+
+        -- 📌 ③ 매입금액 (tb_invoicement)
+        TO_CHAR(COALESCE(p.purchase, 0), 'FM999,999,999,999') AS purchase,
+
+        -- 📌 ④ 입금금액 (tb_banktransit, ioflag='0')
+        TO_CHAR(COALESCE(ai.accin, 0), 'FM999,999,999,999') AS accin,
+
+        -- 📌 ⑤ 지급금액 (tb_banktransit, ioflag='1')
+        TO_CHAR(COALESCE(ao.accout, 0), 'FM999,999,999,999') AS accout,
+
+        -- 📘 ⑥ 미수총액 = 매출 - 입금 (아직 받지 못한 금액)
+        TO_CHAR(
+            COALESCE(s.sales, 0) - COALESCE(ai.accin, 0),
+            'FM999,999,999,999'
+        ) AS misu_total,
+
+        -- 📙 ⑦ 미지총액 = 매입 - 지급 (아직 지급하지 않은 금액)
+        TO_CHAR(
+            COALESCE(p.purchase, 0) - COALESCE(ao.accout, 0),
+            'FM999,999,999,999'
+        ) AS miji_total,
+
+        -- 📗 ⑧ 상계잔액 = 전월 + (매출 - 입금) + (매입 - 지급)
+        --     → 미수 + 미지급 모두 반영된 최종 잔액
+        TO_CHAR(
+            (COALESCE(f.prev_amt, 0)
+             + (COALESCE(s.sales, 0) - COALESCE(ai.accin, 0))
+             + (COALESCE(p.purchase, 0) - COALESCE(ao.accout, 0))),
+            'FM999,999,999,999'
+        ) AS balance
+
+    FROM company m
+    LEFT JOIN final_prev_amt f ON m.id = f.cltcd
+    LEFT JOIN sales_amt s ON m.id = s.cltcd
+    LEFT JOIN purchase_amt p ON m.id = p.cltcd
+    LEFT JOIN accin_amt ai ON m.id = ai.cltcd
+    LEFT JOIN accout_amt ao ON m.id = ao.cltcd
+    WHERE m.id = :company
+    ORDER BY m."Name"
     """);
 
-		if (company != null) {
-			sql.append(" AND s.cltcd = :company ");
-		}
-
-		sql.append("""
-            GROUP BY s.cltcd
-        ),
-        accin_amt AS (
-            SELECT b.cltcd, SUM(b.accin) AS accin
-            FROM tb_banktransit b
-            WHERE b.trdate BETWEEN 
-                (SELECT TO_CHAR(TO_DATE(MAX(yyyymm), 'YYYYMM') + interval '1 month', 'YYYYMMDD') FROM lastym)
-                AND :end
-              AND b.ioflag = '0'
-              AND b.spjangcd = :spjangcd
-    """);
-
-		if (company != null) {
-			sql.append(" AND b.cltcd = :company ");
-		}
-
-		sql.append("""
-            GROUP BY b.cltcd
-        )
-        SELECT
-            m.id AS cltcd,
-            m."Name" AS clt_name,
-            TO_CHAR(COALESCE(f.prev_amt, 0), 'FM999,999,999,999') AS receivables,
-			TO_CHAR(COALESCE(s.sales, 0), 'FM999,999,999,999') AS sales,
-			TO_CHAR(COALESCE(s.sales, 0) - COALESCE(a.accin, 0), 'FM999,999,999,999') AS "AmountDeposited", -- 미지총액
-			TO_CHAR(
-				(COALESCE(f.prev_amt, 0) + COALESCE(s.sales, 0))
-				- (COALESCE(s.sales, 0) - COALESCE(a.accin, 0)),
-				'FM999,999,999,999'
-			) AS balance -- 상계잔액 = 미수총액 - 미지총액
-        FROM company m
-        LEFT JOIN final_prev_amt f ON m.id = f.cltcd
-        LEFT JOIN sales_amt s ON m.id = s.cltcd
-        LEFT JOIN accin_amt a ON m.id = a.cltcd
-        WHERE COALESCE(f.prev_amt, 0) + COALESCE(s.sales, 0) - COALESCE(a.accin, 0) <> 0
-    """);
-
-		if (company != null) {
-			sql.append(" AND m.id = :company");
-		}
-
-		sql.append(" ORDER BY m.\"Name\"");
-
-		return this.sqlRunner.getRows(sql.toString(), paramMap);
+		List<Map<String, Object>> result = this.sqlRunner.getRows(sql.toString(), paramMap);
+		return result != null ? result : new ArrayList<>();
 	}
+
+
+
 
 
 
@@ -1480,141 +1516,6 @@ public class DashBoardService {
     """);
 
 		return this.sqlRunner.getRows(sql.toString(), paramMap);
-	}
-
-
-
-
-	// 미지급 현황
-	public List<Map<String, Object>> getDetailWdrw(Integer company, String spjangcd, String jumunDate) {
-		MapSqlParameterSource paramMap = new MapSqlParameterSource();
-
-		DateTimeFormatter inputFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
-		DateTimeFormatter dbFormatter = DateTimeFormatter.ofPattern("yyyyMMdd");
-
-		LocalDate jumun_date = LocalDate.parse(jumunDate, inputFormatter);
-		String formattedStart = jumun_date.format(dbFormatter);
-
-		YearMonth baseYm = YearMonth.from(jumun_date);
-		String baseYmStr = baseYm.format(DateTimeFormatter.ofPattern("yyyyMM"));
-
-		paramMap.addValue("start", formattedStart);
-		paramMap.addValue("baseYm", baseYmStr);
-		paramMap.addValue("spjangcd", spjangcd);
-
-		if (company != null) {
-			paramMap.addValue("company", company);
-		}
-
-		String sql = """
-    WITH client AS (
-        SELECT id, '0' AS cltflag, "Name" AS cltname FROM company WHERE spjangcd = :spjangcd
-        UNION ALL
-        SELECT id, '1' AS cltflag, "Name" AS cltname FROM person WHERE spjangcd = :spjangcd
-        UNION ALL
-        SELECT bankid AS id, '2' AS cltflag, banknm AS cltname FROM tb_xbank WHERE spjangcd = :spjangcd
-        UNION ALL
-        SELECT id, '3' AS cltflag, cardnm AS cltname FROM tb_iz010 WHERE spjangcd = :spjangcd
-    ),
-    lastym AS (
-        SELECT cltcd, MAX(yyyymm) AS yyyymm
-        FROM tb_yearamt
-        WHERE yyyymm < :baseYm
-          AND ioflag = '1'
-          AND spjangcd = :spjangcd
-        GROUP BY cltcd
-    ),
-    last_amt AS (
-        SELECT y.cltcd, y.yearamt, y.yyyymm
-        FROM tb_yearamt y
-        JOIN lastym m ON y.cltcd = m.cltcd AND y.yyyymm = m.yyyymm
-        WHERE y.ioflag = '1'
-          AND y.spjangcd = :spjangcd
-    ),
-    post_close_txns AS (
-        SELECT
-            c.id AS cltcd,
-            SUM(COALESCE(i.totalamt, 0)) AS extra_purchase,
-            SUM(COALESCE(b.accout, 0)) AS extra_payment
-        FROM client c
-        LEFT JOIN tb_invoicement i ON c.id = i.cltcd
-            AND i.misdate BETWEEN 
-                TO_CHAR((SELECT TO_DATE(MAX(yyyymm), 'YYYYMM') + interval '1 month' FROM last_amt), 'YYYYMMDD')
-                AND TO_CHAR(TO_DATE(:start, 'YYYYMMDD') - interval '1 day', 'YYYYMMDD')
-            AND i.spjangcd = :spjangcd
-        LEFT JOIN tb_banktransit b ON c.id = b.cltcd
-            AND b.trdate BETWEEN 
-                TO_CHAR((SELECT TO_DATE(MAX(yyyymm), 'YYYYMM') + interval '1 month' FROM last_amt), 'YYYYMMDD')
-                AND TO_CHAR(TO_DATE(:start, 'YYYYMMDD') - interval '1 day', 'YYYYMMDD')
-            AND b.ioflag = '1'
-            AND b.spjangcd = :spjangcd
-        GROUP BY c.id
-    ),
-    uncalculated_txns AS (
-        SELECT
-            c.id AS cltcd,
-            SUM(COALESCE(i.totalamt, 0)) AS total_purchase,
-            SUM(COALESCE(b.accout, 0)) AS total_payment
-        FROM client c
-        LEFT JOIN tb_invoicement i ON c.id = i.cltcd
-            AND i.misdate < :start
-            AND i.spjangcd = :spjangcd
-        LEFT JOIN tb_banktransit b ON c.id = b.cltcd
-            AND b.trdate < :start
-            AND b.ioflag = '1'
-            AND b.spjangcd = :spjangcd
-        WHERE NOT EXISTS (
-            SELECT 1 FROM last_amt y WHERE y.cltcd = c.id
-        )
-        GROUP BY c.id
-    ),
-    final_prev_amt AS (
-        SELECT
-            y.cltcd,
-            y.yearamt + COALESCE(p.extra_purchase, 0) - COALESCE(p.extra_payment, 0) AS prev_amt
-        FROM last_amt y
-        LEFT JOIN post_close_txns p ON y.cltcd = p.cltcd
-        UNION
-        SELECT
-            u.cltcd,
-            COALESCE(u.total_purchase, 0) - COALESCE(u.total_payment, 0)
-        FROM uncalculated_txns u
-    ),
-    payment_amt AS (
-        SELECT cltcd, SUM(accout) AS payment
-        FROM tb_banktransit
-        WHERE trdate = :start
-          AND ioflag = '1'
-          AND spjangcd = :spjangcd
-        GROUP BY cltcd
-    )
-    SELECT
-        c.id AS cltcd,
-        c.cltflag,
-        CASE c.cltflag
-            WHEN '0' THEN '업체'
-            WHEN '1' THEN '직원정보'
-            WHEN '2' THEN '은행계좌'
-            WHEN '3' THEN '카드사'
-        END AS cltflagnm,
-        c.cltname,
-        COALESCE(f.prev_amt, 0) AS prev_balance,
-        COALESCE(b.payment, 0) AS amount_paid,
-        COALESCE(f.prev_amt, 0) - COALESCE(b.payment, 0) AS balance
-    FROM client c
-    LEFT JOIN final_prev_amt f ON c.id = f.cltcd
-    LEFT JOIN payment_amt b ON c.id = b.cltcd
-    WHERE COALESCE(f.prev_amt, 0) - COALESCE(b.payment, 0) <> 0
-    """;
-
-		if (company != null) {
-			sql += " AND c.id = :company ";
-		}
-
-		sql += " ORDER BY c.cltflag, c.cltname ";
-
-		List<Map<String, Object>> items = this.sqlRunner.getRows(sql, paramMap);
-		return items;
 	}
 
 

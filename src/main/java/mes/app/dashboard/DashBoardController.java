@@ -103,7 +103,7 @@ public class DashBoardController {
 				// 입금 매출 그리드 조회
 				depDetail.put("TotalList", dashBoardService.getDepositTotalList(startDate, endDate, company_id, spjangcd));
 				// 입금 매출 미수총액 등 조회
-				depDetail.put("getDetail", dashBoardService.getDetailDeposit(company_id, spjangcd, JumunDate));
+				depDetail.put("getDetail", dashBoardService.getDetailFinanceTotal(company_id, spjangcd, JumunDate));
 				item.add(depDetail);
 				break;
 			case "출금":
@@ -111,7 +111,7 @@ public class DashBoardController {
 				// 출금 매입 그리드 조회
 				wdrawDetail.put("TotalList", dashBoardService.getPayableTotalList(startDate, endDate, company_id, spjangcd));
 				// 출금 매입 미수총액 등 조회
-				wdrawDetail.put("getDetail", dashBoardService.getDetailDeposit(company_id, spjangcd, JumunDate));
+				wdrawDetail.put("getDetail", dashBoardService.getDetailFinanceTotal(company_id, spjangcd, JumunDate));
 				item.add(wdrawDetail);
 				break;
 
