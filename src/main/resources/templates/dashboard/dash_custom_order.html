@@ -528,7 +528,9 @@
                     // 입금/출금일 때: 미수내역 표시 + resultGrid 숨김
 
                     this.depositGrid.itemsSource = new wijmo.collections.CollectionView(result.data[0].TotalList);
-                    console.log('result.data.TotalList', result.data[0].TotalList)
+                    document.getElementById('totalDeposit').value = result.data[0].getDetail[0].sales;
+                    document.getElementById('totalUnDeposit').value = result.data[0].getDetail[0].AmountDeposited;
+                    document.getElementById('totalRowDeposit').value = result.data[0].getDetail[0].balance;
                     resultGridContainer.style.display = 'none';
                     depositContainer.style.display = 'flex';
                 }
