@@ -1326,7 +1326,7 @@ public class DashBoardService {
                 (SELECT TO_CHAR(TO_DATE(MAX(yyyymm), 'YYYYMM') + interval '1 month', 'YYYYMMDD') FROM lastym)
                 AND :end
               AND s.spjangcd = :spjangcd
-        """);
+    """);
 
 		if (company != null) {
 			sql.append(" AND s.cltcd = :company ");
@@ -1343,7 +1343,7 @@ public class DashBoardService {
                 AND :end
               AND b.ioflag = '0'
               AND b.spjangcd = :spjangcd
-        """);
+    """);
 
 		if (company != null) {
 			sql.append(" AND b.cltcd = :company ");
@@ -1355,10 +1355,14 @@ public class DashBoardService {
         SELECT
             m.id AS cltcd,
             m."Name" AS clt_name,
-            COALESCE(f.prev_amt, 0) AS receivables,
-            COALESCE(s.sales, 0) AS sales,
-            COALESCE(a.accin, 0) AS "AmountDeposited",
-            COALESCE(f.prev_amt, 0) + COALESCE(s.sales, 0) - COALESCE(a.accin, 0) AS balance
+            TO_CHAR(COALESCE(f.prev_amt, 0), 'FM999,999,999,999') AS receivables,
+			TO_CHAR(COALESCE(s.sales, 0), 'FM999,999,999,999') AS sales,
+			TO_CHAR(COALESCE(s.sales, 0) - COALESCE(a.accin, 0), 'FM999,999,999,999') AS "AmountDeposited", -- 미지총액
+			TO_CHAR(
+				(COALESCE(f.prev_amt, 0) + COALESCE(s.sales, 0))
+				- (COALESCE(s.sales, 0) - COALESCE(a.accin, 0)),
+				'FM999,999,999,999'
+			) AS balance -- 상계잔액 = 미수총액 - 미지총액
         FROM company m
         LEFT JOIN final_prev_amt f ON m.id = f.cltcd
         LEFT JOIN sales_amt s ON m.id = s.cltcd
@@ -1374,6 +1378,7 @@ public class DashBoardService {
 
 		return this.sqlRunner.getRows(sql.toString(), paramMap);
 	}
+
 
 
 	//출금
@@ -1403,7 +1408,7 @@ public class DashBoardService {
 //				""";
 //		return sqlRunner.getRows(sql, paramMap);
 //	}
-	public List<Map<String, Object>> getPayableList(String start_date, String end_date, Integer company, String spjangcd) {
+	public List<Map<String, Object>> getPayableTotalList(String start_date, String end_date, Integer company, String spjangcd) {
 		MapSqlParameterSource paramMap = new MapSqlParameterSource();
 
 		DateTimeFormatter inputFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
@@ -1415,137 +1420,68 @@ public class DashBoardService {
 		String formattedStart = startDate.format(dbFormatter);
 		String formattedEnd = endDate.format(dbFormatter);
 
-		YearMonth baseYm = YearMonth.from(startDate);
-		String baseYmStr = baseYm.format(DateTimeFormatter.ofPattern("yyyyMM"));
-
 		paramMap.addValue("start", formattedStart);
 		paramMap.addValue("end", formattedEnd);
-		paramMap.addValue("baseYm", baseYmStr);
 		paramMap.addValue("spjangcd", spjangcd);
 
 		if (company != null) {
 			paramMap.addValue("company", company);
 		}
 
-		String sql = """
-    WITH client AS (
-        SELECT id, '0' AS cltflag, "Name" AS cltname FROM company WHERE spjangcd = :spjangcd
-        UNION ALL
-        SELECT id, '1' AS cltflag, "Name" AS cltname FROM person WHERE spjangcd = :spjangcd
-        UNION ALL
-        SELECT bankid AS id, '2' AS cltflag, banknm AS cltname FROM tb_xbank WHERE spjangcd = :spjangcd
-        UNION ALL
-        SELECT id, '3' AS cltflag, cardnm AS cltname FROM tb_iz010 WHERE spjangcd = :spjangcd
-    ),
-    lastym AS (
-        SELECT cltcd, MAX(yyyymm) AS yyyymm
-        FROM tb_yearamt
-        WHERE yyyymm < :baseYm
-          AND ioflag = '1'
-          AND spjangcd = :spjangcd
-        GROUP BY cltcd
-    ),
-    last_amt AS (
-        SELECT y.cltcd, y.yearamt, y.yyyymm
-        FROM tb_yearamt y
-        JOIN lastym m ON y.cltcd = m.cltcd AND y.yyyymm = m.yyyymm
-        WHERE y.ioflag = '1'
-          AND y.spjangcd = :spjangcd
-    ),
-    post_close_txns AS (
-        SELECT
-            c.id AS cltcd,
-            SUM(COALESCE(i.totalamt, 0)) AS extra_purchase,
-            SUM(COALESCE(b.accout, 0)) AS extra_payment
-        FROM client c
-        LEFT JOIN tb_invoicement i ON c.id = i.cltcd
-            AND i.misdate BETWEEN 
-                TO_CHAR((SELECT TO_DATE(MAX(yyyymm), 'YYYYMM') + interval '1 month' FROM last_amt), 'YYYYMMDD')
-                AND TO_CHAR(TO_DATE(:start, 'YYYYMMDD') - interval '1 day', 'YYYYMMDD')
-            AND i.spjangcd = :spjangcd
-        LEFT JOIN tb_banktransit b ON c.id = b.cltcd
-            AND b.trdate BETWEEN 
-                TO_CHAR((SELECT TO_DATE(MAX(yyyymm), 'YYYYMM') + interval '1 month' FROM last_amt), 'YYYYMMDD')
-                AND TO_CHAR(TO_DATE(:start, 'YYYYMMDD') - interval '1 day', 'YYYYMMDD')
-            AND b.ioflag = '1'
-            AND b.spjangcd = :spjangcd
-        GROUP BY c.id
-    ),
-    uncalculated_txns AS (
-        SELECT
-            c.id AS cltcd,
-            SUM(COALESCE(i.totalamt, 0)) AS total_purchase,
-            SUM(COALESCE(b.accout, 0)) AS total_payment
-        FROM client c
-        LEFT JOIN tb_invoicement i ON c.id = i.cltcd
-            AND i.misdate < :start
-            AND i.spjangcd = :spjangcd
-        LEFT JOIN tb_banktransit b ON c.id = b.cltcd
-            AND b.trdate < :start
-            AND b.ioflag = '1'
-            AND b.spjangcd = :spjangcd
-        WHERE NOT EXISTS (
-            SELECT 1 FROM last_amt y WHERE y.cltcd = c.id
-        )
-        GROUP BY c.id
-    ),
-    final_prev_amt AS (
-        SELECT
-            y.cltcd,
-            y.yearamt + COALESCE(p.extra_purchase, 0) - COALESCE(p.extra_payment, 0) AS prev_amt
-        FROM last_amt y
-        LEFT JOIN post_close_txns p ON y.cltcd = p.cltcd
-        UNION
-        SELECT
-            u.cltcd,
-            COALESCE(u.total_purchase, 0) - COALESCE(u.total_payment, 0)
-        FROM uncalculated_txns u
-    ),
-    purchase_amt AS (
-        SELECT cltcd, SUM(totalamt) AS purchase
-        FROM tb_invoicement
-        WHERE misdate = :start
-          AND spjangcd = :spjangcd
-        GROUP BY cltcd
-    ),
-    payment_amt AS (
-        SELECT cltcd, SUM(accout) AS payment
-        FROM tb_banktransit
-        WHERE trdate = :start
-          AND ioflag = '1'
-          AND spjangcd = :spjangcd
-        GROUP BY cltcd
-    )
-    SELECT
-        c.id AS cltcd,
-        c.cltflag,
-        CASE c.cltflag
-            WHEN '0' THEN '업체'
-            WHEN '1' THEN '직원정보'
-            WHEN '2' THEN '은행계좌'
-            WHEN '3' THEN '카드사'
-        END AS cltflagnm,
-        c.cltname,
-        COALESCE(f.prev_amt, 0) AS prev_balance,
-        COALESCE(p.purchase, 0) AS purchase,
-        COALESCE(b.payment, 0) AS payment,
-        COALESCE(f.prev_amt, 0) + COALESCE(p.purchase, 0) - COALESCE(b.payment, 0) AS balance
-    FROM client c
-    LEFT JOIN final_prev_amt f ON c.id = f.cltcd
-    LEFT JOIN purchase_amt p ON c.id = p.cltcd
-    LEFT JOIN payment_amt b ON c.id = b.cltcd
-    WHERE COALESCE(f.prev_amt, 0) + COALESCE(p.purchase, 0) - COALESCE(b.payment, 0) <> 0
-    """;
+		StringBuilder sql = new StringBuilder();
+
+		sql.append("""
+        WITH purchase_data AS (
+            SELECT 
+                TO_CHAR(TO_DATE(i.misdate, 'YYYYMMDD'), 'YYYY-MM-DD') AS date,
+                COUNT(*) AS purchase_count,
+                SUM(i.totalamt) AS purchase
+            FROM tb_invoicement i
+            WHERE i.misdate BETWEEN :start AND :end
+              AND i.spjangcd = :spjangcd
+    """);
 
 		if (company != null) {
-			sql += " AND c.id = :company ";
+			sql.append(" AND i.cltcd = :company ");
 		}
 
-		sql += " ORDER BY c.cltflag, c.cltname ";
+		sql.append("""
+            GROUP BY TO_CHAR(TO_DATE(i.misdate, 'YYYYMMDD'), 'YYYY-MM-DD')
+        ),
+        payment_data AS (
+            SELECT 
+                TO_CHAR(TO_DATE(b.trdate, 'YYYYMMDD'), 'YYYY-MM-DD') AS date,
+                COUNT(*) AS payment_count,
+                SUM(b.accout) AS payment
+            FROM tb_banktransit b
+            WHERE b.trdate BETWEEN :start AND :end
+              AND b.ioflag = '1'
+              AND b.spjangcd = :spjangcd
+    """);
 
-		List<Map<String, Object>> items = this.sqlRunner.getRows(sql, paramMap);
-		return items;
+		if (company != null) {
+			sql.append(" AND b.cltcd = :company ");
+		}
+
+		sql.append("""
+            GROUP BY TO_CHAR(TO_DATE(b.trdate, 'YYYYMMDD'), 'YYYY-MM-DD')
+        )
+        SELECT
+            COALESCE(p.date, b.date) AS date,
+            COALESCE(p.purchase_count, 0) AS purchase_count,
+            TO_CHAR(COALESCE(p.purchase, 0), 'FM999,999,999,999') AS purchase,
+            COALESCE(b.payment_count, 0) AS payment_count,
+            TO_CHAR(COALESCE(b.payment, 0), 'FM999,999,999,999') AS payment,
+            TO_CHAR(COALESCE(p.purchase, 0) - COALESCE(b.payment, 0), 'FM999,999,999,999') AS unpaid_balance
+        FROM purchase_data p
+        FULL OUTER JOIN payment_data b
+        ON p.date = b.date
+        ORDER BY date
+    """);
+
+		return this.sqlRunner.getRows(sql.toString(), paramMap);
 	}
+
 
 
 

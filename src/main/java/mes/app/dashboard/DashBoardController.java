@@ -109,9 +109,9 @@ public class DashBoardController {
 			case "출금":
 				Map<String, Object> wdrawDetail = new HashMap<>();
 				// 출금 매입 그리드 조회
-				wdrawDetail.put("TotalList", dashBoardService.getPayableList(startDate, endDate, company_id, spjangcd));
+				wdrawDetail.put("TotalList", dashBoardService.getPayableTotalList(startDate, endDate, company_id, spjangcd));
 				// 출금 매입 미수총액 등 조회
-				wdrawDetail.put("getDetail", dashBoardService.getDetailWdrw(company_id, spjangcd, JumunDate));
+				wdrawDetail.put("getDetail", dashBoardService.getDetailDeposit(company_id, spjangcd, JumunDate));
 				item.add(wdrawDetail);
 				break;
 

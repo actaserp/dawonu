@@ -115,6 +115,27 @@
                         <div id="deposit_grid"></div>
                     </div>
                 </div>
+                <div id="wdraw-container" style="display: none; margin-top: 5px;">
+                    <div style="width: 20%; display: grid;">
+                        <tbody>
+                        <th>미수총액</th>
+                        <td>
+                            <input type="text" id="totalDeposit2" style="width: 80%;" readonly>
+                        </td>
+                        <th>미지총액</th>
+                        <td>
+                            <input type="text" id="totalUnDeposit2" style="width: 80%;" readonly>
+                        </td>
+                        <th>상계잔액</th>
+                        <td>
+                            <input type="text" id="totalRowDeposit2" style="width: 80%;" readonly>
+                        </td>
+                        </tbody>
+                    </div>
+                    <div class="container-fluid" style="margin-top: 5px; width: 75%">
+                        <div id="wdraw_grid"></div>
+                    </div>
+                </div>
             </section>
 
             <div class="tab-wrap" style="flex: 1; min-width: 0;">
@@ -214,6 +235,7 @@
                 this.grid = null;
                 this.resultGrid = null;
                 this.depositGrid = null;
+                this.wdrawGrid = null;
                 this.historyGrid = null;
                 this.baseUrl = '/api/dashboard';
                 this.init();
@@ -491,9 +513,54 @@
                     ],
                     itemsSource: new wijmo.collections.CollectionView([]),
                 });
+                // ✅ Footer 패널 사용 설정
+                this.depositGrid.columnFooters.rows.push(new wijmo.grid.Row());
+                this.depositGrid.bottomLeftCells.setCellData(0, 0, '총합');
+
+                // ✅ Footer 합계 값 설정 (수동)
+                this.depositGrid.loadedRows.addHandler(() => {
+                    const rows = this.depositGrid.rows;
+                    const footer = this.depositGrid.columnFooters.rows[0];
+
+                    const getSum = (field) => rows.map(r => +r.dataItem[field] || 0).reduce((a, b) => a + b, 0);
+
+                    footer.dataItem = {
+                        date: '합계',
+                        sales_count: getSum('sales_count'),
+                        sales: getSum('sales'),
+                        accin_count: getSum('accin_count'),
+                        accin: getSum('accin'),
+                    };
+                });
 
                 new FlexGridContextMenu(this.depositGrid);
-                this.depositGrid.downloadFileName = '미수내역';
+                this.depositGrid.downloadFileName = '입금내역';
+
+
+                this.wdrawGrid = new wijmo.grid.FlexGrid('#wdraw_grid', {
+                    autoGenerateColumns: false,
+                    selectionMode: wijmo.grid.SelectionMode.Row,
+                    headersVisibility: wijmo.grid.HeadersVisibility.Column,
+                    showMarquee: true,
+                    formatItem: (s, e) => {
+                        if (e.panel.cellType === wijmo.grid.CellType.ColumnHeader) {
+                            e.cell.style.textAlign = 'center';
+                        }
+                    },
+                    columns: [
+                        {binding: 'id', visible:false},
+                        // {binding: 'JumunDate', header: 'No', width: '*', align: 'center', isReadOnly: true},
+                        {binding: 'date', header: '일자', width: '*', align: 'center', isReadOnly: true},
+                        {binding: 'purchase_count', header: '매입건수', width: '*', align: 'left', isReadOnly: true},
+                        {binding: 'purchase', header: '매입', width: '*', align: 'center', isReadOnly: true},
+                        {binding: 'payment_count', header: '지급건수', width: '*', align: 'right', isReadOnly: true},
+                        {binding: 'payment', header: '지급', width: '*', align: 'right', isReadOnly: true},
+                    ],
+                    itemsSource: new wijmo.collections.CollectionView([]),
+                });
+
+                new FlexGridContextMenu(this.wdrawGrid);
+                this.wdrawGrid.downloadFileName = '출금내역';
 
             }
 
@@ -506,10 +573,12 @@
                 if (!result || !result.data) return;
 
                 const isSuju = String(it.division) === '수주';
-                const isDeposit = String(it.division) === '입금' || String(it.division) === '출금';
+                const isDeposit = String(it.division) === '입금';
+                const isWdraw = String(it.division) === '출금';
 
                 const resultGridContainer = document.querySelector('#result-grid').closest('.container-fluid');
                 const depositContainer = document.querySelector('#deposit-container');
+                const wdrawContainer = document.querySelector('#wdraw-container');
 
                 // 트리 모드 on/off
                 this.resultGrid.childItemsPath = isSuju ? 'children' : null;
@@ -523,16 +592,27 @@
                     // 표시 전환
                     resultGridContainer.style.display = 'flex';
                     depositContainer.style.display = 'none';
+                    wdrawContainer.style.display = 'none';
                 }
                 else if (isDeposit) {
-                    // 입금/출금일 때: 미수내역 표시 + resultGrid 숨김
-
+                    // 입금 때: 미수내역 표시 + resultGrid 숨김
                     this.depositGrid.itemsSource = new wijmo.collections.CollectionView(result.data[0].TotalList);
                     document.getElementById('totalDeposit').value = result.data[0].getDetail[0].sales;
                     document.getElementById('totalUnDeposit').value = result.data[0].getDetail[0].AmountDeposited;
                     document.getElementById('totalRowDeposit').value = result.data[0].getDetail[0].balance;
                     resultGridContainer.style.display = 'none';
                     depositContainer.style.display = 'flex';
+                    wdrawContainer.style.display = 'none';
+                }
+                else if(isWdraw){
+                    //출금일 때: 미수내역 표시 + resultGrid 숨김
+                    this.wdrawGrid.itemsSource = new wijmo.collections.CollectionView(result.data[0].TotalList);
+                    document.getElementById('totalDeposit2').value = result.data[0].getDetail[0].sales;
+                    document.getElementById('totalUnDeposit2').value = result.data[0].getDetail[0].AmountDeposited;
+                    document.getElementById('totalRowDeposit2').value = result.data[0].getDetail[0].balance;
+                    resultGridContainer.style.display = 'none';
+                    depositContainer.style.display = 'none';
+                    wdrawContainer.style.display = 'flex';
                 }
                 else {
                     // 일반 평면 데이터
@@ -540,6 +620,7 @@
 
                     resultGridContainer.style.display = 'flex';
                     depositContainer.style.display = 'none';
+                    wdrawContainer.style.display = 'none';
                 }
 
                 // 선택/스크롤 초기화(선택)
