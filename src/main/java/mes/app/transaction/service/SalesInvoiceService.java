@@ -51,6 +51,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Slf4j
 @Service
@@ -441,7 +442,20 @@ public class SalesInvoiceService {
 
             if (itemName == null) break; // 더 이상 항목 없음
 
-            if (itemName.trim().isEmpty()) {
+            boolean isItemNameEmpty = itemName.trim().isEmpty();
+
+            // 다른 컬럼 값 중 하나라도 입력되어 있으면 true
+            boolean hasOtherValues = Stream.of(
+                    form.get(prefix + ".Spec"),
+                    form.get(prefix + ".Qty"),
+                    form.get(prefix + ".SupplyCost"),
+                    form.get(prefix + ".Tax"),
+                    form.get(prefix + ".TotalAmount"),
+                    form.get(prefix + ".UnitCost")
+            ).anyMatch(v -> v != null && !v.toString().trim().isEmpty());
+
+            // ✅ 완전히 빈 행만 건너뛰기 (ItemName 비어있어도 다른 값 있으면 저장)
+            if (isItemNameEmpty && !hasOtherValues) {
                 i++;
                 continue;
             }
@@ -607,14 +621,14 @@ public class SalesInvoiceService {
         paramMap.addValue("cltcd", cltcd);
 
         String sql = """
-                WITH material_summary AS (
-                	SELECT\s
+                WITH suju_summary AS (
+                	SELECT
                 		s."ShipmentHead_id",
-                		STRING_AGG(s."Material_id"::text, ',' ORDER BY s."Material_id") AS material_ids
+                		STRING_AGG(s."SourceDataPk"::text, ',' ORDER BY s."SourceDataPk") AS suju_ids
                 	FROM shipment s
+                	WHERE s."SourceTableName" = 'rela_data'
                 	GROUP BY s."ShipmentHead_id"
                 )
-                			
                 SELECT
                 	sh.id,
                 	sh."Company_id" AS company_id,
@@ -631,12 +645,11 @@ public class SalesInvoiceService {
                 	sh."StatementIssuedYN" AS issue_yn,
                 	sh."StatementNumber" AS stmt_number,
                 	sh."IssueDate" AS issue_date,
-                	ms.material_ids
+                	ss.suju_ids
                 FROM shipment_head sh
                 JOIN company c
                 	ON c.id = sh."Company_id"
-                LEFT JOIN material_summary ms
-                	ON ms."ShipmentHead_id" = sh.id
+                LEFT JOIN suju_summary ss ON ss."ShipmentHead_id" = sh.id
                 WHERE sh."ShipDate" BETWEEN CAST(:dateFrom AS DATE) AND CAST(:dateTo AS DATE)
                   AND sh."State" = 'shipped'
                   AND sh."misnum" IS NULL
@@ -654,12 +667,49 @@ public class SalesInvoiceService {
         return items;
     }
 
+    public Map<String, Object> getSuju(Integer suju_id) {
+
+        MapSqlParameterSource dicParam = new MapSqlParameterSource();
+        dicParam.addValue("suju_id", suju_id);
+
+        String sql = """
+			select s.id as id
+			, s."Standard" as standard
+			, m."Name" as material_name
+			, s."UnitPrice" as unit_price
+			from suju s
+			inner join material m on m.id = s."Material_id" 
+			inner join mat_grp mg on mg.id = m."MaterialGroup_id" 
+			where s.id=:suju_id
+			and mg."MaterialType" in ('product')
+			order by s.id
+			""";
+
+        Map<String, Object> suju = this.sqlRunner.getRow(sql, dicParam);
+
+        String sql_suju_detail = """
+			SELECT
+				sd.id,
+				sd."suju_id",
+				sd."Standard",
+				sd."Qty"
+			FROM suju_detail sd
+			WHERE sd."suju_id" = :suju_id
+			ORDER BY sd.id
+		""";
+
+        List<Map<String, Object>> suju_detail = this.sqlRunner.getRows(sql_suju_detail, dicParam);
+        suju.put("details", suju_detail);
+
+        return suju;
+    }
+
     public Map<String, Object> getInvoiceDetail(Integer misnum) throws IOException {
         MapSqlParameterSource paramMap = new MapSqlParameterSource();
         paramMap.addValue("misnum", misnum);
 
         String sql = """ 
-                SELECT\s
+                SELECT
                 	m.misdate,
                 	m.vercode,
                 	TO_CHAR(TO_DATE(m.misdate, 'YYYYMMDD'), 'YYYY-MM-DD') AS "writeDate",
@@ -1672,10 +1722,28 @@ public class SalesInvoiceService {
                 String itemName = (String) form.get(prefix + ".ItemName");
 
                 if (itemName == null) break; // 더 이상 항목 없음
-                if (itemName.trim().isEmpty()) {
+
+                boolean isItemNameEmpty = itemName.trim().isEmpty();
+
+                // 다른 컬럼 값 중 하나라도 입력되어 있으면 true
+                boolean hasOtherValues = Stream.of(
+                        form.get(prefix + ".Spec"),
+                        form.get(prefix + ".Qty"),
+                        form.get(prefix + ".SupplyCost"),
+                        form.get(prefix + ".Tax"),
+                        form.get(prefix + ".TotalAmount"),
+                        form.get(prefix + ".UnitCost")
+                ).anyMatch(v -> v != null && !v.toString().trim().isEmpty());
+
+                if (isItemNameEmpty && hasOtherValues) {
+                    throw new RuntimeException((i + 1) + "번째 행: 품목명이 비어 있습니다.");
+                }
+
+                if (isItemNameEmpty) {
                     i++;
                     continue;
                 }
+
 
                 String serialNum = String.valueOf(serialIndex++);
 
@@ -2077,11 +2145,8 @@ public class SalesInvoiceService {
             """;
 
         Map<String, Object> master = this.sqlRunner.getRow(sql, paramMap);
-        List<Map<String, Object>> detailList = this.sqlRunner.getRows(detailSql, paramMap);
+        List<Map<String, Object>> detailList = this.sqlRunner.getRows(fallbackDetailSql, paramMap);
 
-        if (detailList == null || detailList.isEmpty()) {
-            detailList = this.sqlRunner.getRows(fallbackDetailSql, paramMap);
-        }
 
         UtilClass.decryptItem(master, "ivercorpnum", 0);
 

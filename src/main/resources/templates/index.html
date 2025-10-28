@@ -626,14 +626,14 @@
                                 nthTabs.bindBookmarkEvent(objid, _bookmark);
                             }
                             const winWidth = $(window).width();
-                            if (winWidth <= 1366) {
-                                $('.menu_area').addClass('hidden');
-                                $('#navbarBarMenu2 .open_menu').removeClass('menu_open'); // 버튼 상태 초기화
-                                $('.con_area, .tab-content').css({
-                                    'width': '100%',
-                                    'left': '0'
-                                });
-                            }
+                            // if (winWidth <= 1366) {
+                            //     $('.menu_area').addClass('hidden');
+                            //     $('#navbarBarMenu2 .open_menu').removeClass('menu_open'); // 버튼 상태 초기화
+                            //     $('.con_area, .tab-content').css({
+                            //         'width': '100%',
+                            //         'left': '0'
+                            //     });
+                            // }
                         });
                     }
                 }
@@ -644,43 +644,42 @@
         Object.keys(dep2Mappings).forEach(FrontFolderId => {
             loadMenu(FrontFolderId, $(dep2Mappings[FrontFolderId]));
         });
-        
+
         $(function () {
-            let userToggled = false; // 사용자가 직접 토글했는지 여부
+            let userToggled = false;  // 사용자가 직접 토글했는지 여부
+            let autoHiddenOnce = false; // 1366 이상일 때 자동 숨김을 한 번만 실행하도록
 
             function adjustMenu() {
                 const winWidth = $(window).width();
 
-                // 사용자가 직접 토글하지 않았을 때만 자동 처리
                 if (!userToggled) {
                     if (winWidth <= 1366) {
+                        // 작은 화면: 항상 메뉴 숨김
                         $('.menu_area').addClass('hidden');
                         $('.con_area, .tab-content').css({
                             'width': '100%',
                             'left': '0'
                         });
                     } else {
-                        $('.menu_area').removeClass('hidden');
-                        $('.con_area, .tab-content').css({
-                            'width': 'calc(100% - 250px)',
-                            'left': '250px'
-                        });
+                        // 큰 화면(1366 초과): 한 번만 자동 숨김
+                        if (!autoHiddenOnce) {
+                            $('.menu_area').addClass('hidden');
+                            $('.con_area, .tab-content').css({
+                                'width': '100%',
+                                'left': '0'
+                            });
+                            autoHiddenOnce = true; // 한 번만 실행되도록 플래그 설정
+                        }
                     }
                 }
             }
 
-            $(window).on('load', function () {
-                setTimeout(() => {
-                    $('#navbarBarMenu2 .open_menu').trigger('click');
-                }, 100); // ← 원하는 만큼 늘리세요 (ms)
-            });
-
-            // 페이지 로드/리사이즈 시 적용
+            // 페이지 로드 및 리사이즈 시 적용
             $(window).on('load resize', adjustMenu);
 
-            // 토글 버튼 이벤트
+            // 메뉴 토글 버튼 클릭 시
             $('#navbarBarMenu2 .open_menu').click(function () {
-                userToggled = true; // 사용자가 직접 조작했으므로 자동 모드 해제
+                userToggled = true; // 사용자가 직접 조작했으므로 자동모드 해제
 
                 $(this).toggleClass('menu_open');
                 $('.menu_area').toggleClass('hidden');
@@ -692,6 +691,7 @@
                 });
             });
         });
+
 
         // 북마크 및 default_menu를 한 번에 처리
         $.getJSON('/api/system/bookmark', function (result) {
@@ -1051,9 +1051,9 @@
 
 <script type="text/javascript">
     // 날씨 정보
-    fetchWeatherData();
+    // fetchWeatherData();
     // 30분마다 날씨 정보 자동 갱신
-    setInterval(fetchWeatherData, 1800000);
+    // setInterval(fetchWeatherData, 1800000);
 
     function sseConnect(){
 

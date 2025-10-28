@@ -71,6 +71,18 @@ public class SalesInvoiceController {
 		return result;
 	}
 
+	@GetMapping("/get_suju")
+	public AjaxResult getSuju(
+			@RequestParam("suju_id") Integer id
+	) {
+
+		Map<String, Object> item = this.salesInvoiceService.getSuju(id);
+
+		AjaxResult result = new AjaxResult();
+		result.data = item;
+		return result;
+	}
+
 
 	// 공급자(사업장) 정보 가져오기
 	@GetMapping("/invoicer_read")

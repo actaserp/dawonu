@@ -50,6 +50,7 @@ public class ProdResultListService {
 		             , coalesce(mp."LossQty", 0) as loss_qty
 		             , coalesce(mp."ScrapQty", 0) as scrap_qty
 		             , COALESCE(s."Standard", m."Standard1") as standard
+		             ,s."CompanyName" as company_name
 	            from job_res jr 
 	            inner join mat_produce mp on mp."JobResponse_id" = jr.id
 	            left join material m on m.id = jr."Material_id"
@@ -62,6 +63,7 @@ public class ProdResultListService {
 	            where jr."ProductionDate" between :date_from and :date_to
 	            and jr."State" = 'finished'
 	            and jr.spjangcd = :spjangcd
+	            and jr."Parent_id" is null
             """;
         if (StringUtils.isEmpty(shift_code)==false) 
         	sql += " and mp.\"ShiftCode\" = :shift_code ";

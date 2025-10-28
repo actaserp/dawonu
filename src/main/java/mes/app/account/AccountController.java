@@ -69,7 +69,7 @@ public class AccountController {
 
 		//User-Agent를 기반으로 모바일 여부 감지
 		String userAgent = request.getHeader("User-Agent").toLowerCase();
-		boolean isMobile = userAgent.contains("mobile") || userAgent.contains("android") || userAgent.contains("iphone");
+		boolean isMobile = userAgent.contains("mobile") || userAgent.contains("iphone");
 
 		String serverName = request.getServerName();
 

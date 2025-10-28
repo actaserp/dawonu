@@ -339,8 +339,9 @@
                 columns: [
                     { binding: 'prod_date', header: '생산일', width: 110, align: 'center', isReadOnly: true, allowMerging: true },
                     { binding: 'order_num', header: '작지번호', width: 140, align: 'center', isReadOnly: true, allowMerging: true },
-                    { binding: 'mat_code', header: '제품코드', width: 100, align: 'left', isReadOnly: true, allowMerging: true },
-                    { binding: 'mat_name', header: '제품', width: 150, align: 'left', isReadOnly: true, allowMerging: true },
+                    { binding: 'company_name', header: '판매처', width: 140, align: 'left', isReadOnly: true},
+                    { binding: 'mat_code', header: '제품코드', width: 100, align: 'left', isReadOnly: true},
+                    { binding: 'mat_name', header: '제품', width: 150, align: 'left', isReadOnly: true},
                     { binding: 'standard', header: '규격', width: 80, align: 'center', isReadOnly: true},
                     { binding: 'process', header: '공정', width: 120, align: 'center', isReadOnly: true },
                     { binding: 'workcenter', header: '워크센터', width: 120, align: 'center', isReadOnly: true },
@@ -357,6 +358,9 @@
                 ],
                 itemsSource: new wijmo.collections.CollectionView([]),
                 formatItem: (s, e) => {
+                    if (e.panel.cellType === wijmo.grid.CellType.ColumnHeader) {
+                        e.cell.style.textAlign = 'center';
+                    }
                     if (e.panel.cellType === wijmo.grid.CellType.Cell) {
                         const col = s.columns[e.col];
                         const item = s.rows[e.row].dataItem;

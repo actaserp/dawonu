@@ -6,10 +6,10 @@
 .page-login {background-color: #F3F8FF; height: 100vh;}
 .dashboard-login-wrap {display: flex; flex-flow: column wrap; justify-content: center; align-items: center; height: 100%;}
 .dashboard-login-wrap .copyright {position: absolute; left: 50%; bottom: 20px; transform: translate(-50%, 0%); color: #868FAE;}
-.login-wrap {display: flex; box-shadow: 0px 0px 30px rgba(0,0,0,0.15); border-radius: 30px; overflow: hidden;}
+.login-wrap {display: flex; box-shadow: 0px 0px 30px rgba(0,0,0,0.15); border-radius: 30px; overflow: auto;}
 .login-wrap .left {background-color: #03428E; display: flex; justify-content: center; align-items: center;}
 .login-wrap .left img {height: 100%; }
-.login-wrap .right {background-color: #fff; padding: 90px;}
+/*.login-wrap .right {background-color: #fff; padding: 90px;}*/
 .login-wrap .right .login-logo {width: 100%; text-align: center; margin-bottom: 36px;}
 .login-wrap .login-form {width: 340px;}
 .login-wrap .login-form dl {margin-bottom: 24px;}

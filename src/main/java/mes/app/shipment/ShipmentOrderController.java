@@ -215,7 +215,7 @@ public class ShipmentOrderController {
 					result.message = "품목 [" + material.getName() + "]의 재고 현황이 존재하지 않습니다.";
 					return result;
 				}
-				if(totalQty > currentStock){
+				if (Math.round(totalQty * 1000) / 1000.0 > Math.round(currentStock * 1000) / 1000.0) {
 					result.success = false;
 					result.message = "품목 [" + material.getName() + "]의 출하 수량이 현재고를 초과합니다.";
 					return result;

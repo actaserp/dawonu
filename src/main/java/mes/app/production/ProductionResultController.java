@@ -140,6 +140,18 @@ public class ProductionResultController {
         return result;
     }
 
+    @GetMapping("/print_detail")
+    public AjaxResult getProdResultPrintDetail(
+            @RequestParam(value = "jr_pk", required = false) Integer jrPk) {
+
+        Map<String, Object> items = this.productionResultService.getProdResultPrintDetail(jrPk);
+
+        AjaxResult result = new AjaxResult();
+        result.data = items;
+
+        return result;
+    }
+
     @GetMapping("/process-step-meta")
     public AjaxResult getProcessStepMeta(
             @RequestParam Integer material_id,

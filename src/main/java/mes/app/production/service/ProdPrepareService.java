@@ -44,6 +44,7 @@ public class ProdPrepareService {
                 , jr."State"
                 , fn_code_name('job_state', jr."State") as state_name
                 , COALESCE(s."Standard", m."Standard1") as standard
+                , s."CompanyName" as company_name
                 from job_res jr 
                 left join material m on m.id = jr."Material_id"
                 left join mat_grp mg on mg.id = m."MaterialGroup_id"

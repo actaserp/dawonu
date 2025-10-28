@@ -52,6 +52,7 @@ public class ProductionMonthDefectProService {
 	            ,(coalesce(sum(jr."GoodQty"),0) + coalesce(sum(jr."DefectQty"),0)) as prod_sum
 	            , 100 * coalesce(sum(jr."DefectQty"),0) / nullif(coalesce(sum(jr."GoodQty"),0) + coalesce(sum(jr."DefectQty"),0),0 ) as defect_pro
 	            , COALESCE(s."Standard", m."Standard1") as standard
+	            , s."CompanyName" as company_name
 	            from job_res jr
 	            inner join material m on m.id = jr."Material_id"
 	            left join mat_grp mg on mg.id = m."MaterialGroup_id"
@@ -76,7 +77,8 @@ public class ProductionMonthDefectProService {
 		sql += """
 				group by jr."Material_id", mg."MaterialType", mg."Name" , m."Name" , m."Code", m."UnitPrice", s."Standard", m."Standard1"
                 , u."Name"
-                , extract (month from jr."ProductionDate") 
+                , extract (month from jr."ProductionDate")
+                , s."CompanyName"
 	            )
 	            select A.mat_pk, A.mat_type_name, A.mat_grp_name, A.mat_code, A.mat_name
                 , A.unit_name
@@ -85,6 +87,7 @@ public class ProductionMonthDefectProService {
                 , sum(defect_money) as year_defect_money
                 , sum(prod_sum) as prod_Sum
                 , A.standard
+                , A.company_name
 				""";
 		
 		for(int i=1; i<13; i++) {
@@ -95,7 +98,7 @@ public class ProductionMonthDefectProService {
 		
 		sql += """ 
 				from A 
-				group by A.mat_pk, A.mat_type_name, A.mat_grp_name, A.mat_code, A.mat_name, A.unit_name, A.standard
+				group by A.mat_pk, A.mat_type_name, A.mat_grp_name, A.mat_code, A.mat_name, A.unit_name, A.standard, A.company_name
 				""";
 		
 		if(chkOnlyDefect.equals("checkd")) {

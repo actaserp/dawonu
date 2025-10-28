@@ -196,23 +196,23 @@ public class ShipmentDoBService {
 		paramMap.addValue("lot_number", lot_number);
 		
 		String sql = """
-				select\s
-				         ml.id as ml_id\s
-				        , ml."LotNumber"\s
-				        , ml."InputQty"\s
-				        , ml."CurrentStock"\s
-				        , ml."InputDateTime"        \s
+				select
+				         ml.id as ml_id
+				        , ml."LotNumber"
+				        , ROUND(ml."InputQty"::numeric, 2) as "InputQty"
+				        , ROUND(ml."CurrentStock"::numeric, 2) as "CurrentStock"
+				        , to_char(ml."InputDateTime"::timestamp without time zone, 'YYYY-MM-DD HH24:MI:SS') AS "InputDateTime"
 				        , ml."Material_id"
 				        , u."Name" as unit_name
 				        , m."Code" as mat_code
 				        , m."Name" as mat_name
 				        , to_char(ml."EffectiveDate", 'YYYY-MM-DD HH24:MI:SS') as "EffectiveDate"
 				        , to_char(ml."InputDateTime", 'YYYY-MM-DD HH24:MI:SS') as "InputDateTime"
-				from mat_lot ml\s
-				    inner join material m on m.id = ml."Material_id"\s
-				    left join mat_grp mg on mg.id= m."MaterialGroup_id"\s
+				from mat_lot ml
+				    inner join material m on m.id = ml."Material_id"
+				    left join mat_grp mg on mg.id= m."MaterialGroup_id"
 				    left join unit u on u.id = m."Unit_id"
-				where ml."CurrentStock" > 0\s
+				where ml."CurrentStock" > 0
 		        		 """;
 		if (material_id != null) {
 			sql += " and ml.\"Material_id\" = :material_id ";

@@ -45,6 +45,7 @@ public class ProductionMonthService {
 	            , sum(jr."GoodQty") as year_qty_sum
                 , sum(jr."GoodQty" * m."UnitPrice") as year_money_sum
                 , COALESCE(s."Standard", m."Standard1") as standard
+                , s."CompanyName" as company_name
 				""";
 		
 		for(int i=1; i<13; i++) {
@@ -75,7 +76,7 @@ public class ProductionMonthService {
 		}
 		
 		sql += """
-				group by jr."Material_id", mg."MaterialType", mg."Name", m."Name", m."Code", u."Name", s."Standard", m."Standard1"
+				group by jr."Material_id", mg."MaterialType", mg."Name", m."Name", m."Code", u."Name", s."Standard", m."Standard1", s."CompanyName"
 				order by mg."MaterialType", mg."Name" , m."Name" , m."Code" 
 				""";
 		

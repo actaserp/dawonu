@@ -317,6 +317,7 @@ public class ProductionResultService {
 			   , TO_CHAR(B."ProductionDate" + M."ValidDays", 'yyyy-mm-dd') AS "ValidDays"
 			   , M."Routing_id"                               AS routing_id
 			   , COALESCE(su."Standard", M."Standard1") as standard
+			   ,su."CompanyName" as company_name
 			  FROM S
 			  JOIN job_res       C  ON C.id = S.child_id              -- child = 대표행
 			  JOIN job_res       B  ON B.id = S.base_id               -- base = 부모
@@ -416,6 +417,103 @@ public class ProductionResultService {
 			""";
 
 		return this.sqlRunner.getRow(sql, p);
+	}
+
+	public Map<String, Object> getProdResultPrintDetail(Integer jrPk) {
+		MapSqlParameterSource p = new MapSqlParameterSource().addValue("jrPk", jrPk);
+
+		String sql = """
+			WITH target AS (
+				SELECT jr.id AS child_id, jr."Parent_id" AS parent_id
+				FROM job_res jr
+				WHERE jr.id = :jrPk
+			),
+			base_pick AS (
+				SELECT COALESCE(parent_id, child_id) AS base_id
+				FROM target
+			)
+			SELECT
+				-- PK들(프런트에서 쓰기 좋게 모두 내려줌)
+				c.id                             AS id,              -- ★ child jr_pk (현재 상세의 주인공)
+				t.parent_id                      AS parent_jr_pk,    -- 부모 있으면 부모 pk
+				b.base_id                        AS base_jr_pk,      -- 부모가 있으면 부모, 없으면 자기 자신
+		
+				-- 기본 정보는 base 기준(=부모 우선)
+				c."WorkOrderNumber"              AS order_num,       -- 작업지시번호는 child/parent 동일하므로 child 써도 무방
+				base_m.id                        AS mat_pk,
+				base_m."Code"                    AS mat_code,
+				base_m."Name"                    AS mat_name,
+				base_m."LotSize"                 AS lot_size,
+				u."Name"  AS unit,
+				ROUND(COALESCE(base_jr."OrderQty", 0)::numeric, 2)   AS order_qty,
+				 ROUND(COALESCE(base_jr."GoodQty", 0)::numeric, 2)    AS good_qty,
+				 ROUND(COALESCE(base_jr."DefectQty", 0)::numeric, 2)  AS defect_qty,
+				 ROUND(COALESCE(base_jr."LossQty", 0)::numeric, 2)    AS loss_qty,
+				 ROUND(COALESCE(base_jr."ScrapQty", 0)::numeric, 2)   AS scrap_qty,
+				to_char(base_jr."ProductionDate",'yyyy-mm-dd') AS prod_date,
+				to_char(c."StartTime",'hh24:mi')   AS start_time,
+				c."EndDate" AS end_date,
+				to_char(c."StartTime",'yyyy-mm-dd') AS start_date,
+				to_char(c."EndTime",'hh24:mi')  AS end_time,
+				c."ShiftCode"  AS shift_code,
+				sh."Name"   AS shift_name,
+				base_m."ValidDays",
+				base_m."Routing_id"  AS routing_id,
+		
+				-- 공정/워크센터/설비/상태는 child 기준(=현재 공정)
+				c."State"  AS state,
+				fn_code_name('job_state', c."State")   AS job_state,
+				child_wc.id   AS workcenter_id,
+				child_wc."Name"  AS workcenter_name,
+				e.id   AS equipment_id,
+				e."Name"  AS equipment_name,
+				child_p.id AS process_id,
+				child_p."Name" AS process_nm,
+		
+				-- 필요하면 정렬/표시용
+				base_jr."WorkIndex" AS work_idx,
+				c."LotNumber" AS lot_num,
+				base_jr."SourceDataPk" AS suju_id,
+				s."CompanyName" as company_name,
+				s."Standard" as standard
+		
+			FROM target t
+			JOIN base_pick b                 ON 1=1
+			JOIN job_res c                   ON c.id = t.child_id              -- child
+			JOIN job_res base_jr             ON base_jr.id = b.base_id         -- base(부모 있으면 부모)
+			LEFT JOIN material base_m        ON base_m.id = base_jr."Material_id"
+			LEFT JOIN unit u                 ON u.id = base_m."Unit_id"
+			LEFT JOIN shift sh               ON sh."Code" = base_jr."ShiftCode"
+			LEFT JOIN work_center child_wc   ON child_wc.id = c."WorkCenter_id"
+			LEFT JOIN process child_p        ON child_p.id = child_wc."Process_id"
+			LEFT JOIN equ e                  ON e.id = c."Equipment_id"
+			left join suju s on s.id = base_jr."SourceDataPk" and base_jr."SourceTableName" = 'suju'
+			""";
+
+		Map<String, Object> job = this.sqlRunner.getRow(sql, p);
+		if (job == null) return null;
+
+		// ② 하위 품목 리스트(suju_detail)
+		MapSqlParameterSource p2 = new MapSqlParameterSource().addValue("suju_id", job.get("suju_id"));
+		String sql_suju_detail = """
+			SELECT
+				sd.id,
+				sd."suju_id",
+				sd."Standard",
+				sd."Qty"
+			FROM suju_detail sd
+			WHERE sd."suju_id" = :suju_id
+			ORDER BY sd.id
+		""";
+		List<Map<String, Object>> suju_detail = this.sqlRunner.getRows(sql_suju_detail, p2);
+
+		// ③ items 키로 리스트 추가 (print_report 에서 {%= o.items %})
+		job.put("items", suju_detail);
+
+		// ④ title 추가
+		job.put("title", "제 품 확 인 서");
+
+		return job;
 	}
 
 
