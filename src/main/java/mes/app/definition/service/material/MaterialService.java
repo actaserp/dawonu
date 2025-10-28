@@ -384,7 +384,9 @@ public class MaterialService {
 						 , :pressure
 						 , :matUserCode
 						)
+						RETURNING id
 					""";
+			return this.sqlRunner.queryForObject(sql, dicParam, (rs, rowNum) -> rs.getInt("id"));
 		}else {
 			sql = """
 					UPDATE public.material
@@ -442,11 +444,9 @@ public class MaterialService {
 					WHERE id = :id
 					AND spjangcd = :spjangcd
 					""";
+			this.sqlRunner.execute(sql, dicParam);
+			return id;
 		}
-
-
-
-		return this.sqlRunner.execute(sql, dicParam);
 	}
 
 	public int deleteMaterial(int matPK){

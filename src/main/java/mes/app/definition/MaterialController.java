@@ -167,10 +167,11 @@ public class MaterialController {
 				// ==========================
 				BomComponent bomComp = new BomComponent();
 				bomComp.setBomId(bom.getId());       // 생성된 BOM ID
-				bomComp.setMaterialId(saveMatId);    // 해당 품목(Material) ID
+				bomComp.setMaterialId(10853);
 				bomComp.setAmount(1);
 				bomComp.set_order(1);
 				bomComp.setDescription("품목자동저장");
+				bomComp.set_audit(user);
 
 				this.bomServiceOfMaterial.saveBomComponent(bomComp);
 

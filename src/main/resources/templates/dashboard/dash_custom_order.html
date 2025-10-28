@@ -99,15 +99,15 @@
                         <tbody>
                         <th>미수총액</th>
                         <td>
-                            <input type="text" id="totalDeposit" style="width: 80%;" readonly>
+                            <input type="text" id="totalDeposit" style="width: 80%; text-align: right;" readonly>
                         </td>
                         <th>미지총액</th>
                         <td>
-                            <input type="text" id="totalUnDeposit" style="width: 80%;" readonly>
+                            <input type="text" id="totalUnDeposit" style="width: 80%; text-align: right;" readonly>
                         </td>
                         <th>상계잔액</th>
                         <td>
-                            <input type="text" id="totalRowDeposit" style="width: 80%;" readonly>
+                            <input type="text" id="totalRowDeposit" style="width: 80%; text-align: right;" readonly>
                         </td>
                         </tbody>
                     </div>
@@ -120,15 +120,15 @@
                         <tbody>
                         <th>미수총액</th>
                         <td>
-                            <input type="text" id="totalDeposit2" style="width: 80%;" readonly>
+                            <input type="text" id="totalDeposit2" style="width: 80%; text-align: right;" readonly>
                         </td>
                         <th>미지총액</th>
                         <td>
-                            <input type="text" id="totalUnDeposit2" style="width: 80%;" readonly>
+                            <input type="text" id="totalUnDeposit2" style="width: 80%; text-align: right;" readonly>
                         </td>
                         <th>상계잔액</th>
                         <td>
-                            <input type="text" id="totalRowDeposit2" style="width: 80%;" readonly>
+                            <input type="text" id="totalRowDeposit2" style="width: 80%; text-align: right;" readonly>
                         </td>
                         </tbody>
                     </div>
@@ -511,8 +511,8 @@
                         {binding: 'id', visible:false},
                         // {binding: 'JumunDate', header: 'No', width: '*', align: 'center', isReadOnly: true},
                         {binding: 'date', header: '일자', width: '*', align: 'center', isReadOnly: true},
-                        {binding: 'sales_count', header: '매출건수', width: '*', align: 'left', isReadOnly: true},
-                        {binding: 'sales', header: '매출', width: '*', align: 'center', isReadOnly: true},
+                        {binding: 'sales_count', header: '매출건수', width: '*', align: 'right', isReadOnly: true},
+                        {binding: 'sales', header: '매출', width: '*', align: 'right', isReadOnly: true},
                         {binding: 'accin_count', header: '수급건수', width: '*', align: 'right', isReadOnly: true},
                         {binding: 'accin', header: '수금', width: '*', align: 'right', isReadOnly: true},
                     ],
@@ -556,8 +556,8 @@
                         {binding: 'id', visible:false},
                         // {binding: 'JumunDate', header: 'No', width: '*', align: 'center', isReadOnly: true},
                         {binding: 'date', header: '일자', width: '*', align: 'center', isReadOnly: true},
-                        {binding: 'purchase_count', header: '매입건수', width: '*', align: 'left', isReadOnly: true},
-                        {binding: 'purchase', header: '매입', width: '*', align: 'center', isReadOnly: true},
+                        {binding: 'purchase_count', header: '매입건수', width: '*', align: 'right', isReadOnly: true},
+                        {binding: 'purchase', header: '매입', width: '*', align: 'right', isReadOnly: true},
                         {binding: 'payment_count', header: '지급건수', width: '*', align: 'right', isReadOnly: true},
                         {binding: 'payment', header: '지급', width: '*', align: 'right', isReadOnly: true},
                     ],
