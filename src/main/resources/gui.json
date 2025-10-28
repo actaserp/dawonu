@@ -2,6 +2,7 @@
   "wm_dash_board": {  "name": "공지사항", "templates": { "default": "document/notice_board.html" } },
   "wm_dashboard_summary": { "name": "공정진행현황", "templates": { "default": "dashboard/dash_summary_main.html" }},
   "wm_custom_order": { "name": "진행현황", "templates": { "default": "dashboard/dash_custom_order.html" } },
+  "wm_storyboard" : {"name" : "스토리보드", "templates" : {"default" : "dashboard/storyboard.html"}},
 
   "wm_company": { "name": "거래처 정보", "templates": { "default": "definition/company.html" } },
   "wm_area": { "name": "에어리어", "templates": { "default": "definition/area.html" } },
@@ -271,6 +272,6 @@
 
   "wm_dashboard_haccp": { "name": "HACCP 대시보드", "templates": { "default": "dashboard/dash_haccp.html" }},
   "wm_custom_service_stat": { "name": "CS 현황", "templates": { "default": "dashboard/custom_service_stat.html" } },
-  "wm_storyboard": { "name": "스토리보드", "templates": { "default": "dashboard/storyboard.html" } }
+  "wm_storyboard" : {"name" : "스토리보드", "templates" : {"default" : "dashboard/storyboard.html"}}
   }
 }
