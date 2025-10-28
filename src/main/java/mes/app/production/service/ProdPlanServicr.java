@@ -57,9 +57,11 @@ public class ProdPlanServicr {
                inner join material m on m.id = s."Material_id"
                inner join mat_grp mg on mg.id = m."MaterialGroup_id"
                left join unit u on m."Unit_id" = u.id
+               inner join suju_head h on h.id = s."SujuHead_id"
                where 1 = 1 and mg."MaterialType"!='sangpum'
                and s.spjangcd = :spjangcd
                and s.confirm = '0'
+               and h."SujuType" != 'estimate'
         """;
 
     if ("suju_date".equals(date_kind)) {

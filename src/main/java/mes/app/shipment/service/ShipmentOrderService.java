@@ -68,6 +68,7 @@ public class ShipmentOrderService {
                 left join company c2 on c2.id = suju."Company_id"
 	            where suju."JumunDate" between cast(:dateFrom as date) and cast(:dateTo as date) 
 	            AND suju."State" NOT IN ('canceled')
+	            and sh."SujuType" <> 'estimate'
                 """;
         
         if (StringUtils.isEmpty(compPk)==false)  sql += " and suju.\"Company_id\" = cast(:compPk as Integer) ";
