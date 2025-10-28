@@ -1,11 +1,14 @@
 package mes.app.definition;
 
+import java.sql.Timestamp;
+import java.time.LocalDate;
 import java.util.*;
 import java.util.stream.Collectors;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.transaction.Transactional;
 
+import mes.app.definition.service.BomService;
 import mes.domain.entity.*;
 import mes.domain.repository.MaterialGroupRepository;
 import mes.domain.repository.UserCodeRepository;
@@ -43,6 +46,9 @@ public class MaterialController {
 
 	@Autowired
 	private BomByMatService bomService;
+
+	@Autowired
+	BomService bomServiceOfMaterial;
 
 	@Autowired
 	private RoutingByMatService routingService;
@@ -122,19 +128,74 @@ public class MaterialController {
 	 * @param data 품목정보
 	 * @return
 	 */
+	@Transactional
 	@PostMapping("/save")
 	public AjaxResult saveMaterial(@RequestBody MultiValueMap<String,Object> data) {
 		SecurityContext sc = SecurityContextHolder.getContext();
 		Authentication auth = sc.getAuthentication();
 		User user = (User)auth.getPrincipal();
 		data.set("user_id", user.getId());
+		String spjangcd = user.getSpjangcd();
 
 		AjaxResult result = new AjaxResult();
 
 		int saveMatId = this.materialService.saveMaterial(data);
 
-		// bom 디폴트 save
+		// INSERT일 경우: 기본 BOM 자동 생성
+		if (!data.containsKey("id") || data.getFirst("id") == null || data.getFirst("id").toString().isEmpty()) {
+			try {
+				// ==========================
+				// ✅ 1. BOM 자동 생성
+				// ==========================
+				Bom bom = new Bom();
+				String matName = data.getFirst("Name") != null ? data.getFirst("Name").toString() : "New Material";
 
+				bom.setName(matName);
+				bom.setMaterialId(saveMatId);
+				bom.setOutputAmount(1F);
+				bom.setBomType("manufacturing");
+				bom.setVersion("1.0");
+				bom.setStartDate(Timestamp.valueOf(LocalDate.now().atStartOfDay()));
+				bom.setEndDate(Timestamp.valueOf("2100-12-31 23:59:59"));
+				bom.set_audit(user);
+				bom.setSpjangcd(spjangcd);
+
+				this.bomServiceOfMaterial.saveBom(bom);
+
+				// ==========================
+				// ✅ 2. BOM_COMPONENT 자동 생성
+				// ==========================
+				BomComponent bomComp = new BomComponent();
+				bomComp.setBomId(bom.getId());       // 생성된 BOM ID
+				bomComp.setMaterialId(saveMatId);    // 해당 품목(Material) ID
+				bomComp.setAmount(1);
+				bomComp.set_order(1);
+				bomComp.setDescription("품목자동저장");
+
+				this.bomServiceOfMaterial.saveBomComponent(bomComp);
+
+				// ==========================
+				// ✅ 3. 반환 데이터 구성
+				// ==========================
+				result.data = Map.of(
+						"materialId", saveMatId,
+						"bomId", bom.getId(),
+						"bomComponentId", bomComp.getId()
+				);
+				result.success = true;
+				result.message = "품목 및 BOM 자동등록 완료";
+
+			} catch (Exception e) {
+				e.printStackTrace();
+				result.success = false;
+				result.message = "BOM/구성 자동 생성 중 오류가 발생했습니다: " + e.getMessage();
+				return result;
+			}
+		} else {
+			result.data = Map.of("materialId", saveMatId);
+			result.success = true;
+			result.message = "품목 수정 완료";
+		}
 
 		return result;
 	}

@@ -3,6 +3,7 @@ package mes.app.definition.service.material;
 import java.util.List;
 import java.util.Map;
 
+import mes.domain.entity.Bom;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.stereotype.Service;
@@ -67,4 +68,5 @@ public class BomByMatService {
         List<Map<String, Object>> items = this.sqlRunner.getRows(sql, dicParam);
         return items;
 	}
+
 }
