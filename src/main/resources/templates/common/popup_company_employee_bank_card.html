@@ -90,10 +90,9 @@
           'item2': $('#item2').val(),
           'spjangcd': getSpjangcdFromSession()
         };
-        console.log('params =>', data);
         let result = AjaxUtil.getSyncData(url, data);
 
-        console.log('rere', result);
+        // console.log('rere', result);
         if (result) {
           _this.viewData.sourceCollection = result.data;
         }
