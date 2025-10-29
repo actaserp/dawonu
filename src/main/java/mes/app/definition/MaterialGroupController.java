@@ -1,9 +1,6 @@
 package mes.app.definition;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import javax.servlet.http.HttpServletRequest;
@@ -166,10 +163,18 @@ public class MaterialGroupController {
 
 	// 중분류 리스트 조회
 	@GetMapping("/userCodeList")
-	public AjaxResult getUserCodes(@RequestParam("parent_id") Integer parentId) {
+	public AjaxResult getUserCodes(@RequestParam(value = "parent_id", required = false) Integer parentId) {
 		AjaxResult result = new AjaxResult();
 		try {
-			List<UserCode> codes = userCodeRepository.findByParentId(parentId);
+			List<UserCode> codes;
+
+			if (parentId == null) {
+				// parent_id가 null일 때, DB에서 parent_id IS NULL인 데이터도 조회하지 않음
+				codes = Collections.emptyList();
+			} else {
+				codes = userCodeRepository.findByParentId(parentId);
+			}
+
 			result.success = true;
 			result.data = codes;
 		} catch (Exception e) {
@@ -178,6 +183,7 @@ public class MaterialGroupController {
 		}
 		return result;
 	}
+
 
 	// 대분류 리스트 조회
 	@GetMapping("/parent")
