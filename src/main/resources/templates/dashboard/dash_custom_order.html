@@ -739,8 +739,7 @@
                     d.tel_number      = formatPhone(d.tel_number);
                     d.fax_number      = formatPhone(d.fax_number);
                     FormUtil.BindDataForm(d, $('#companyForm'));
-                    document.getElementById('description').value = it.Description;
-
+                    document.getElementById('description').value = (it && it.Description) ? it.Description : '';
                 }
 
             };
