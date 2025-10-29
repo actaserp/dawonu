@@ -206,6 +206,9 @@ public class MaterialService {
 		dicParam.addValue("pressure", CommonUtil.tryFloatNull(data.getFirst("Pressure")));
 		dicParam.addValue("validDays", CommonUtil.tryFloatNull(data.getFirst("ValidDays")));
 		String validDaysStr = data.getFirst("ValidDays") != null ? data.getFirst("ValidDays").toString().trim() : "";
+		dicParam.addValue("temperature", CommonUtil.tryIntNull(data.getFirst("Temperature")));
+		dicParam.addValue("thickness", CommonUtil.tryIntNull(data.getFirst("Thickness")));
+		dicParam.addValue("color", CommonUtil.tryString(data.getFirst("Color")));
 
 		if(data.containsKey("lot_use_yn")) {
 			dicParam.addValue("lotUseYN", data.getFirst("lot_use_yn").toString());

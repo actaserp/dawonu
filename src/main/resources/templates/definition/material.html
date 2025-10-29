@@ -231,9 +231,11 @@
                                         <caption style="text-align: left; margin-bottom: 8px;">상세테이블</caption>
                                         <colgroup>
                                             <col class="wp17">
-                                            <col class="wp33">
                                             <col class="wp17">
-                                            <col class="wp33">
+                                            <col class="wp17">
+                                            <col class="wp17">
+                                            <col class="wp17">
+                                            <col class="wp17">
                                         </colgroup>
                                         <input type="hidden" id="id" name="id" readonly>
                                         <tbody>
@@ -241,7 +243,7 @@
                                             <th>
                                                 <label for="MaterialGroup_id"><span class="eq">*</span>품목그룹</label>
                                             </th>
-                                            <td>
+                                            <td colspan="2">
                                                 <select id="MaterialGroup_id" name="MaterialGroup_id"
                                                         style="width: 100%;" required></select>
                                             </td>
@@ -249,7 +251,7 @@
                                             <th>
                                                 <label for="MaterialMidCode"><span class="eq">*</span>품목중분류</label>
                                             </th>
-                                            <td>
+                                            <td colspan="2">
                                                 <select id="MaterialMidCode" name="MaterialMidCode"
                                                         style="width: 100%;" required></select>
                                             </td>
@@ -266,7 +268,7 @@
                                             <th>
                                                 <label for="Name"><span class="eq">*</span>품목명</label>
                                             </th>
-                                            <td colspan="3">
+                                            <td colspan="5">
                                                 <input type="text" style="width: 100%;" id="Name"
                                                        name="Name" required>
                                             </td>
@@ -276,7 +278,7 @@
                                             <th>
                                                 <label for="Code"><span class="eq">*</span>품목코드<br>(바코드)</label>
                                             </th>
-                                            <td>
+                                            <td colspan="2">
                                                 <input type="text" id="Code" name="Code"
                                                        style="width: 100%;" required>
                                             </td>
@@ -284,7 +286,7 @@
                                             <th>
                                                 <label for="Unit_id"><span class="eq">*</span>단위<br>(생산/투입)</label>
                                             </th>
-                                            <td>
+                                            <td colspan="2">
                                                 <select style="width: 100%;" id="Unit_id"
                                                         name="Unit_id" required></select>
                                             </td>
@@ -293,7 +295,7 @@
                                             <th>
                                                 <label for="Factory_id"><span class="eq">*</span>공장</label>
                                             </th>
-                                            <td>
+                                            <td colspan="2">
                                                 <select type="text" id="Factory_id" name="Factory_id"
                                                         style="width: 100%;"></select>
                                             </td>
@@ -301,7 +303,7 @@
                                             <th>
                                                 <label for="mtyn">재고관리여부</label>
                                             </th>
-                                            <td>
+                                            <td colspan="2">
                                                 <input type="checkbox" id="mtyn" name="mtyn" value="1" style="display: block; margin: auto; height: 26px; width: 26px;" checked>
                                             </td>
 
@@ -310,52 +312,28 @@
                                             <th>
                                                 <label for="useyn">사용중지여부</label>
                                             </th>
-                                            <td>
+                                            <td colspan="2">
                                                 <input type="checkbox" id="useyn" name="useyn" value="1" style="display: block; margin: auto; height: 26px; width: 26px;">
                                             </td>
                                             <th style="font-size: 14px;">
                                                 <label for="LotSize">(생산/발주)<br>로트사이즈</label>
                                             </th>
-                                            <td>
+                                            <td colspan="2">
                                                 <input type="text" id="LotSize" name="LotSize"
                                                        style="width: 100%;">
                                             </td>
-
-
-
-                                            <!--                                        <th>-->
-                                            <!--                                            <label for="Thickness">두께(mm)</label>-->
-                                            <!--                                        </th>-->
-                                            <!--                                        <td>-->
-                                            <!--                                            <input type="number" style="width: 100%;" id="Thickness"-->
-                                            <!--                                                   name="Thickness">-->
-                                            <!--                                        </td>-->
-                                            <!--                                        <th>-->
-                                            <!--                                            <label for="Width">폭(mm)</label>-->
-                                            <!--                                        </th>-->
-                                            <!--                                        <td>-->
-                                            <!--                                            <input type="number" id="Width" name="Width"-->
-                                            <!--                                                   style="width: 100%;">-->
-                                            <!--                                        </td>-->
-                                            <!--                                        <th>-->
-                                            <!--                                            <label for="Length">길이(mm)</label>-->
-                                            <!--                                        </th>-->
-                                            <!--                                        <td>-->
-                                            <!--                                            <input type="number" id="Length" name="Length"-->
-                                            <!--                                                   style="width: 100%;">-->
-                                            <!--                                        </td>-->
                                         </tr>
                                         <tr>
                                             <th>
                                                 <label for="Temperature">온도(℃)</label>
                                             </th>
-                                            <td>
+                                            <td colspan="2">
                                                 <input type="text" style="width: 100%;" id="Temperature" name="Temperature" value="">
                                             </td>
                                             <th style="font-size: 14px;">
                                                 <label for="Pressure">압력(Pa)</label>
                                             </th>
-                                            <td>
+                                            <td colspan="2">
                                                 <input type="text" id="Pressure" name="Pressure"
                                                        style="width: 100%;">
                                             </td>
@@ -363,16 +341,38 @@
                                         </tr>
                                         <tr>
                                             <th>
-                                                <label for="CustomerBarcode">고객바코드</label>
+                                                <label for="Temperature">폭(cm)</label>
                                             </th>
                                             <td>
+                                                <input type="number" style="width: 100%;" id="Width" name="Width" value="">
+                                            </td>
+                                            <th style="font-size: 14px;">
+                                                <label for="Pressure">두께(mm)</label>
+                                            </th>
+                                            <td>
+                                                <input type="number" id="Thickness" name="Thickness"
+                                                       style="width: 100%;">
+                                            </td>
+                                            <th style="font-size: 14px;">
+                                                <label for="Pressure">색상</label>
+                                            </th>
+                                            <td>
+                                                <input type="text" id="Color" name="Color"
+                                                       style="width: 100%;">
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <th>
+                                                <label for="CustomerBarcode">고객바코드</label>
+                                            </th>
+                                            <td colspan="2">
                                                 <input type="text" style="width: 100%;" id="CustomerBarcode"
                                                        name="CustomerBarcode">
                                             </td>
                                             <th>
                                                 <label for="Standard1">규격1</label>
                                             </th>
-                                            <td>
+                                            <td colspan="2">
                                                 <input type="text" id="Standard1" name="Standard1"
                                                        style="width: 100%;">
                                             </td>
@@ -406,14 +406,14 @@
                                             <th>
                                                 <label for="Standard2">규격2</label>
                                             </th>
-                                            <td>
+                                            <td colspan="2">
                                                 <input type="text" style="width: 100%;" id="Standard2"
                                                        name="Standard2">
                                             </td>
                                             <th>
                                                 <label for="Class1">분류1</label>
                                             </th>
-                                            <td>
+                                            <td colspan="2">
                                                 <input type="text" id="Class1" name="Class1"
                                                        style="width: 100%;">
                                             </td>
@@ -424,14 +424,14 @@
                                             <th>
                                                 <label for="Class2">분류2</label>
                                             </th>
-                                            <td>
+                                            <td colspan="2">
                                                 <input type="text" style="width: 100%;" id="Class2"
                                                        name="Class2">
                                             </td>
                                             <th>
                                                 <label for="Class3">분류3</label>
                                             </th>
-                                            <td>
+                                            <td colspan="2">
                                                 <input type="text" style="width: 100%;" id="Class3"
                                                        name="Class3">
                                             </td>
@@ -440,7 +440,7 @@
                                             <th>
                                                 <label for="Usage">용도</label>
                                             </th>
-                                            <td>
+                                            <td colspan="2">
                                                 <input type="text" id="Usage" name="Usage"
                                                        style="width: 100%;">
                                             </td>
@@ -448,7 +448,7 @@
                                             <th>
                                                 <label for="Description">비고</label>
                                             </th>
-                                            <td>
+                                            <td colspan="2">
                                                 <!--<textarea id="Description" name="Description"></textarea>-->
                                                 <input type="text" id="Description" name="Description"
                                                        style="width: 100%;">
