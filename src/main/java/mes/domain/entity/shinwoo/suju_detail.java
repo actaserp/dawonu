@@ -23,4 +23,19 @@ public class suju_detail {
 
   @Column(name="\"Qty\"")
   Double Qty;
+
+  @Column(name="\"UnitPrice\"")
+  Double UnitPrice;
+
+  @Column(name="\"UnitName\"")
+  String UnitName;
+
+  @Column(name="\"Price\"")
+  Double Price;
+
+  @Column(name="\"Vat\"")
+  Double Vat;
+
+  @Column(name="\"TotalAmount\"")
+  Double TotalAmount;
 }

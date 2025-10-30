@@ -142,6 +142,23 @@ public class SujuController {
     return result;
   }
 
+  //규격  테이블 리스트
+  @GetMapping("/detail_list")
+  public AjaxResult getDetailList(@RequestParam("sujuId") Integer sujuId) {
+    AjaxResult result = new AjaxResult();
+    if (sujuId == null || sujuId <= 0) {
+      result.success = false;
+      result.message = "잘못된 수주 ID입니다.";
+      result.data = List.of();
+      return result;
+    }
+
+    List<Map<String, Object>> details = sujuService.getDetailList(sujuId);
+    result.success = true;
+    result.data = details;
+    return result;
+  }
+
   // 제품 정보 조회
   @GetMapping("/product_info")
   public AjaxResult getSujuMatInfo(
@@ -211,6 +228,7 @@ public class SujuController {
     head.setSuJuOrderId(order_id);
     head.setSuJuOrderName(SuJuOrderName);
     head.setDeliveryName(DeliveryName);
+    head.setEstimateMemo((String) payload.get("EstimateMemo"));
 
 
     head.set_status("manual");
@@ -326,36 +344,17 @@ public class SujuController {
       SujuRepository.save(suju);
       Integer sujuId = suju.getId();
 
-// 우선: items 요소에 배열 형태로 온 경우
+    // 우선: items 요소에 배열 형태로 온 경우
       Object sdObj = item.get("standardDetails");
       if (sdObj instanceof List) {
-        suJuDetailRepository.deleteBySujuId(sujuId);
-        @SuppressWarnings("unchecked")
+//        @SuppressWarnings("unchecked")
         List<Map<String, Object>> details = (List<Map<String, Object>>) sdObj;
-        for (Map<String, Object> d : details) {
-          String std = str(d.get("standard"));
-          String qtyStr = numStr(d.get("qty"));
-          Double qty = 0d;
-          if (!qtyStr.isEmpty()) {
-            try {
-              qty = Double.valueOf(qtyStr);
-            } catch (Exception ignore) {
-            }
-          }
-          if ((std == null || std.isEmpty()) && (qty == null || qty == 0d)) continue;
-
-          suju_detail row = new suju_detail();
-          row.setSujuId(sujuId);
-          row.setStandard(std);
-          row.setQty(qty == null ? 0d : qty);
-          suJuDetailRepository.save(row);
-        }
+        saveSujuDetailsList(sujuId, details);
       } else {
         // 폴백: suffix 기반 JSON 문자열
         String detailJson = resolveDetailJsonForItem(item, payload);
         saveSujuDetailsFromJson(sujuId, detailJson);
       }
-
     }
 
 
@@ -384,6 +383,67 @@ public class SujuController {
 
   private static String str(Object o) {
     return (o == null) ? "" : o.toString().trim();
+  }
+
+  private static Double dnum(Object o) {
+    String v = numStr(o); // 콤마 제거 + trim
+    if (v.isEmpty() || v.equals("-") || v.equals(".")) return 0d;
+    try { return Double.valueOf(v); } catch (Exception e) { return 0d; }
+  }
+
+  private void saveSujuDetailsList(Integer sujuId, List<Map<String, Object>> details) {
+    if (sujuId == null || sujuId <= 0 || details == null) return;
+
+    // 수정 케이스 대비: 기존 상세 먼저 삭제
+    suJuDetailRepository.deleteBySujuId(sujuId);
+
+    for (Map<String, Object> d : details) {
+      // 기본 필드
+      String std = str(d.get("standard"));           // "7.25"
+      Double qty = dnum(d.get("qty"));               // 2.0
+
+      // 완전 공백 레코드는 스킵(규격/수량 둘 다 비면)
+      if ((std == null || std.isEmpty()) && (qty == null || qty == 0d)) continue;
+
+      // 금액/단위 필드 (프런트 키 매핑 포함)
+      String unitName   = str(d.get("UnitName"));
+      if (unitName.isEmpty()) unitName = str(d.get("unit"));      // 혹시 다른 키로 올 때
+
+      Double unitPrice  = dnum(d.get("sd_UnitPrice"));
+      if (unitPrice == 0d) unitPrice = dnum(d.get("UnitPrice"));  // 백업 키
+
+      Double price      = dnum(d.get("sd_price"));
+      if (price == 0d)  price = dnum(d.get("Price"));
+
+      Double vat        = dnum(d.get("sd_vat"));
+      if (vat == 0d)    vat   = dnum(d.get("Vat"));
+
+      Double total      = dnum(d.get("TotalAmount"));
+
+      // 누락값 보정(프런트 계산과 동일 규칙: 소수점 반올림)
+      if (price == null || price == 0d) {
+        price = Math.round((qty == null ? 0d : qty) * (unitPrice == null ? 0d : unitPrice)) * 1d;
+      }
+      if (vat == null || vat == 0d) {
+        vat = Math.round(price * 0.1) * 1d; // 부가세 10%
+      }
+      if (total == null || total == 0d) {
+        total = price + vat;
+      }
+
+      // 엔티티 저장
+      suju_detail row = new suju_detail();
+      row.setSujuId(sujuId);
+      row.setStandard(std);
+      row.setQty(qty == null ? 0d : qty);
+      row.setUnitName(unitName);
+      row.setUnitPrice(unitPrice);
+      row.setPrice(price);
+      row.setVat(vat);
+      row.setTotalAmount(total);
+
+      suJuDetailRepository.save(row);
+    }
   }
 
   // ----------------------------------------------------------
@@ -462,45 +522,22 @@ public class SujuController {
   }
 
   // JSON 문자열을 파싱해 suju_detail에 저장(수정 시 기존행 삭제)
+  // JSON 문자열을 파싱해 suju_detail에 저장(수정 시 기존행 삭제는 공통 메서드에서 수행)
   private void saveSujuDetailsFromJson(Integer sujuId, String detailJson) {
     if (sujuId == null || sujuId <= 0) return;
     if (detailJson == null || detailJson.trim().isEmpty()) return;
 
     try {
       List<Map<String, Object>> details =
-          objectMapper.readValue(detailJson, new com.fasterxml.jackson.core.type.TypeReference<List<Map<String, Object>>>() {
-          });
+          objectMapper.readValue(detailJson,
+              new com.fasterxml.jackson.core.type.TypeReference<List<Map<String, Object>>>() {});
 
-      // 수정 케이스 대비: 기존 상세 먼저 삭제
-      suJuDetailRepository.deleteBySujuId(sujuId);
+      saveSujuDetailsList(sujuId, details);
 
-      for (Map<String, Object> d : details) {
-        String std = str(d.get("standard"));
-        String qtyStr = numStr(d.get("qty"));
-
-        Double qty = 0d;
-        if (!qtyStr.isEmpty()) {
-          try {
-            qty = Double.valueOf(qtyStr);
-          } catch (Exception ignore) {
-            qty = 0d;
-          }
-        }
-
-        // 완전 공백 레코드는 스킵
-        if ((std == null || std.isEmpty()) && (qty == null || qty == 0d)) continue;
-
-        suju_detail row = new suju_detail();
-        row.setSujuId(sujuId);
-        row.setStandard(std);
-        row.setQty(qty == null ? 0d : qty);
-
-        suJuDetailRepository.save(row);
-      }
     } catch (Exception e) {
+      // 필요 시 로깅
     }
   }
-
 
   public String generateJumunNumber(Date jumunDate) {
     String dateStr = new SimpleDateFormat("yyyyMMdd").format(jumunDate);
@@ -1072,6 +1109,9 @@ public class SujuController {
                                  @RequestParam("Unit_id") Integer Unit_id,
                                  @RequestParam(value = "Standard", required = false) String Standard,
                                  @RequestParam("Factory_id") Integer Factory_id,
+                                 @RequestParam("Thickness") Float Thickness,
+                                 @RequestParam("Width") Float Width,
+                                 @RequestParam("Color") String Color,
                                  @RequestParam("spjangcd") String spjangcd,
                                  Authentication auth
   ) {
@@ -1104,6 +1144,9 @@ public class SujuController {
       material.setUnitId(Unit_id);
       material.setStandard1(Standard);
       material.setSpjangcd(spjangcd);
+      material.setThickness(Thickness);
+      material.setWidth(Width);
+      material.setColor(Color);
       material.setUseyn("0");
       material.setWorkCenterId(45);  // 컷팅워크센터를 기본으로
       if (Standard != null && !Standard.trim().isEmpty()) {
@@ -1199,22 +1242,6 @@ public class SujuController {
     bc.set_audit(user);
 
     bomService.saveBomComponent(bc);
-  }
-
-  @GetMapping("/detail_list")
-  public AjaxResult getDetailList(@RequestParam("sujuId") Integer sujuId) {
-    AjaxResult result = new AjaxResult();
-    if (sujuId == null || sujuId <= 0) {
-      result.success = false;
-      result.message = "잘못된 수주 ID입니다.";
-      result.data = List.of();
-      return result;
-    }
-
-    List<Map<String, Object>> details = sujuService.getDetailList(sujuId);
-    result.success = true;
-    result.data = details;
-    return result;
   }
 
   @PostMapping("/estimate_confirm")

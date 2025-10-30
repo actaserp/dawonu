@@ -63,4 +63,7 @@ public class SujuHead extends AbstractAuditModel {
 	@Column(name="\"SuJuOrderName\"")
 	String SuJuOrderName;
 
+	@Column(name="\"EstimateMemo\"")
+	String EstimateMemo;
+
 }

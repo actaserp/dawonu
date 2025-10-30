@@ -58,7 +58,33 @@
                     <select type="text" id="Factory_id" name="Factory_id" > </select>
                   </td>
                </tr>
+               <tr>
+                 <th>
+                     <label for="Thickness">폭</label>
+                 </th>
+                 <td>
+                     <input type="text" id="Thickness" name="Thickness"/>
+                 </td>
+                 <th>
+                     <label for="Width">두께(mm)</label>
+                  </th>
+                  <td>
+                     <input type="text" id="Width" name="Width"/>
+                  </td>
+               </tr>
+                <tr>
+                 <th>
+                     <label for="Color">색상</label>
+                  </th>
+                  <td>
+                     <input type="text" id="Color" name="Color"/>
+                  </td>
 
+                  <th>
+                  </th>
+                  <td>
+                  </td>
+               </tr>
              </tbody>
            </table>
          </form>
@@ -90,7 +116,7 @@
         this.focusAfterClose = focusAfterClose || document.activeElement;
 
         const $content = $(tmpl('popup_MatSaveTemplate', {}));
-        this.modalContainer.open({ width: 1000, height: 320, $content });
+        this.modalContainer.open({ width: 1000, height: 370, $content });
 
         const $form = $content.find('#MaterialSaveForm');
         const $matGroup = $content.find('#MaterialGroup_id');
