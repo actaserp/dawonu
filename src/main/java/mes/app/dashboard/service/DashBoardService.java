@@ -395,24 +395,33 @@ public class DashBoardService {
 				  GROUP BY sh.id
 				),
 				shipment_summary AS (
-					SELECT
-						s."SujuHead_id",
-						SUM(s."SujuQty") AS total_qty,
-						COALESCE(SUM(shp."shippedQty"), 0) AS total_shipped,
-						CASE
-							WHEN COUNT(shp."SourceDataPk") = 0 THEN ''                             -- 조인 안 됨
-							WHEN COALESCE(SUM(shp."shippedQty"), 0) = 0 THEN 'ordered'             -- 조인 됐는데 출하량 0
-							WHEN SUM(shp."shippedQty") >= SUM(s."SujuQty") THEN 'shipped'          -- 전량 출하
-							WHEN SUM(shp."shippedQty") < SUM(s."SujuQty") THEN 'partial'           -- 일부 출하
-							ELSE ''
-				  		END AS shipment_state
-					  FROM suju s
-					  LEFT JOIN (
-						SELECT "SourceDataPk", SUM("Qty") AS "shippedQty"
-						FROM shipment
-						GROUP BY "SourceDataPk"
-					  ) shp ON shp."SourceDataPk" = s.id
-					  GROUP BY s."SujuHead_id"
+				  SELECT
+				    s."SujuHead_id",
+				    SUM(s."SujuQty") AS total_qty,
+				    COALESCE(SUM(shp."shippedQty"), 0) AS total_shipped,
+				    CASE
+				      WHEN COUNT(shp."SourceDataPk") = 0 THEN ''
+				      WHEN COALESCE(SUM(shp."shippedQty"), 0) = 0 THEN 'ordered'
+				      WHEN SUM(shp."shippedQty") >= SUM(s."SujuQty") THEN 'shipped'
+				      WHEN SUM(shp."shippedQty") < SUM(s."SujuQty") THEN 'partial'
+				      ELSE ''
+				    END AS shipment_state
+				  FROM suju s
+				  LEFT JOIN (
+				    SELECT sh."SourceDataPk", SUM(sh."Qty") AS "shippedQty"
+				    FROM shipment sh
+				    JOIN shipment_head shh ON shh.id = sh."ShipmentHead_id"
+				    WHERE shh.misnum IS NULL                -- 💡 미발행만 포함
+				    GROUP BY sh."SourceDataPk"
+				  ) shp ON shp."SourceDataPk" = s.id
+				  WHERE NOT EXISTS (                        -- 💡 misnum 있는 출하건 연결된 수주는 제외
+				      SELECT 1
+				      FROM shipment s2
+				      JOIN shipment_head shh2 ON shh2.id = s2."ShipmentHead_id"
+				      WHERE s2."SourceDataPk" = s.id
+				        AND shh2.misnum IS NOT NULL
+				  )
+				  GROUP BY s."SujuHead_id"
 				)
 				SELECT
 				  sh.id,
@@ -442,9 +451,11 @@ public class DashBoardService {
 				JOIN suju s ON s."SujuHead_id" = sh.id
 				JOIN material m ON m.id = s."Material_id"
 				LEFT JOIN (
-				  SELECT "SourceDataPk", SUM("Qty") AS "shippedQty"
-				  FROM shipment
-				  GROUP BY "SourceDataPk"
+				  SELECT sh."SourceDataPk", SUM(sh."Qty") AS "shippedQty"
+				  FROM shipment sh
+				  JOIN shipment_head shh ON shh.id = sh."ShipmentHead_id"
+				  WHERE shh.misnum IS NULL          -- 💡 세금계산서 미발행건만 포함
+				  GROUP BY sh."SourceDataPk"
 				) shp ON shp."SourceDataPk" = s.id
 				LEFT JOIN company c ON c.id = sh."Company_id"
 				LEFT JOIN shipment_summary ss ON ss."SujuHead_id" = sh.id
@@ -458,6 +469,15 @@ public class DashBoardService {
 					and sh.spjangcd = :spjangcd
 					and sh."DeliveryDate" between :start and :end
 					and c."Name" like :choComp
+					AND NOT EXISTS (
+				       SELECT 1
+				       FROM shipment s2
+				       JOIN shipment_head shh2 ON shh2.id = s2."ShipmentHead_id"
+				       WHERE s2."SourceDataPk" IN (
+				           SELECT s3.id FROM suju s3 WHERE s3."SujuHead_id" = sh.id
+				       )
+				       AND shh2.misnum IS NOT NULL
+				   )
 					group by
 						 sh.id,
 						 sh."JumunNumber",

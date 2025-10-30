@@ -90,6 +90,32 @@
             /* 표시용 텍스트가 select와 겹쳐 보이도록 */
             padding-right: 28px; /* 화살표 영역 여유 */
         }
+
+        /* ✅ 1377px 이하일 때 */
+        @media (max-width: 1377px) {
+
+            /* “완료 포함”과 “검색”을 새 줄로 */
+            .search-wrap dl:nth-child(3),  /* 완료 포함 */
+            .search-wrap dl:nth-child(4) { /* 검색 버튼 */
+                width: 100%;
+                margin-top: 10px;
+            }
+
+            /* “완료 포함” 텍스트와 버튼이 자연스럽게 정렬되게 */
+            .search-wrap dl:nth-child(3) dd,
+            .search-wrap dl:nth-child(4) dd {
+                display: flex;
+                align-items: center;
+            }
+
+            /* 검색 버튼 가운데 정렬 */
+            .search-wrap .btn-search {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                width: 120px;
+            }
+        }
     </style>
     <style id="print_css">
         @media print {

@@ -488,29 +488,32 @@ public class MaterialInoutController {
 	}
 
 	@PostMapping("/delete")
+	@Transactional
 	public AjaxResult getInoutDelete(@RequestBody Map<String, Object> body) {
 		Integer mio_pk = Integer.valueOf(body.get("mio_pk").toString());
 
 		AjaxResult result = new AjaxResult();
 
+		// 1️⃣ mat_inout 존재 여부 확인
 		MaterialInout mi = matInoutRepository.findById(mio_pk)
-					.orElseThrow(() -> new RuntimeException("기존 데이터 없음: " + mio_pk));
+				.orElseThrow(() -> new RuntimeException("기존 데이터 없음: " + mio_pk));
 
 		Integer matPk = mi.getMaterialId();
 		Integer storeHouseId = mi.getStoreHouseId();
 
+		// 2️⃣ mat_lot 삭제 (참조되는 lot 데이터 제거)
+		jdbcTemplate.update(
+				"DELETE FROM mat_lot WHERE \"SourceTableName\" = ? AND \"SourceDataPk\" = ?",
+				"mat_inout", mio_pk
+		);
+
+		// 3️⃣ mat_inout 삭제
 		matInoutRepository.deleteById(mio_pk);
-//		this.matInoutRepository.flush();
 
-//		jdbcTemplate.query(
-//				"SELECT sp_update_mat_in_house_by_inout(?, ?)",
-//				rs -> {},  // 결과 무시
-//				matPk, storeHouseId
-//		);
-
+		// ✅ (선택) 관련 재고 보정 함수 호출 가능
+		// jdbcTemplate.query("SELECT sp_update_mat_in_house_by_inout(?, ?)", rs -> {}, matPk, storeHouseId);
 
 		result.success = true;
-
 		return result;
 	}
 	
