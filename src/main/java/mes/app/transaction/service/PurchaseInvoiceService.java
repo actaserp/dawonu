@@ -360,7 +360,10 @@ public class PurchaseInvoiceService {
                 	m.remark3 AS "Remark3",
                 	
                     m.supplycost AS "SupplyCostTotal",
-                	m.taxtotal AS "TaxTotal"
+                	m.taxtotal AS "TaxTotal",
+                 
+                    m.cltflag AS "cltflag",
+                    m.paycltflag AS "paycltflag" 
                  
                 FROM tb_invoicement m
                    
