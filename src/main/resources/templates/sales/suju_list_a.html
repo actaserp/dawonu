@@ -628,7 +628,6 @@
   <th:block th:replace="/common/popup_company :: popup_company"></th:block>
   <th:block th:replace="/sales/popup_company_new_save :: popup_company_new_save"></th:block>
   <th:block th:replace="/sales/popup_material_save :: popup_material_new_save"></th:block>
-<!--  <th:block th:replace="/sales/print_estimate2 :: print_estimate"></th:block>-->
   <th:block th:replace="/sales/print_estimate :: print_estimate"></th:block>
   <script type="text/javascript">
 
@@ -667,9 +666,9 @@
             }
           },
           columns: [
-            {binding: 'CompanyName', header: '판매처', width: 150, align: 'left'},
+            {binding: 'CompanyName', header: '판매처', width: 190, align: 'left'},
             {binding: 'JumunDate', header: '수주일', width: 120, align: 'center'},
-            {binding: 'JumunNumber', header: '수주 번호', width: 150, align: 'center'},
+            {binding: 'JumunNumber', header: '수주 번호', width: 150, align: 'center', visible: false},
             {binding: 'product_name', header: '제품명', width: 400},
             {binding: 'TotalPrice', header: '총액', width: 120, align: 'right', format: 'n0'},
             {binding: 'DueDate', header: '납기일', width: 120, align: 'center'},
@@ -683,7 +682,7 @@
               align: 'center',
               isReadOnly: true
             },
-            {binding: 'Description', header: '비고', width: 250}
+            {binding: 'Description', header: '비고', width: '*'}
           ],
           itemsSource: this.viewData, // 데이터를 설정할 배열
         });
@@ -935,7 +934,27 @@
           };
         }
 
-        // ====== 클릭 핸들러 ======
+        // 1) 유틸: URL → data URI (인쇄 안전)
+        async function toDataURL(url) {
+          const res = await fetch(url, { cache: 'reload' }); // 캐시 우회
+          const blob = await res.blob();
+          return await new Promise(resolve => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.readAsDataURL(blob);
+          });
+        }
+
+// 2) 유틸: 문서 내 모든 이미지 로딩 대기
+        async function waitImages(doc) {
+          const imgs = Array.from(doc.images || []);
+          await Promise.all(imgs.map(img => (
+            img.complete ? Promise.resolve()
+              : new Promise(res => { img.onload = img.onerror = res; })
+          )));
+        }
+
+// 3) 클릭 핸들러
         $('#btnEstimatePrint').off('click').on('click', async function () {
           const grid = _this.grid;
           const selected = grid?.selectedItems || [];
@@ -949,11 +968,27 @@
           const TEMPLATE_ID = 'print_estimate';
           if (!document.getElementById(TEMPLATE_ID)) return Alert.alert('오류', `#${TEMPLATE_ID} 템플릿을 찾을 수 없습니다.`);
 
+          // ✅ 직인 이미지 data URI 준비(한 번만)
+          const ctx =
+            window.APP_CONTEXT_PATH
+            || document.querySelector('base')?.getAttribute('href')?.replace(/\/$/, '')
+            || '';
+          const sealHttpUrl = `${ctx}/images/sample/stamp.png`;
+
+          let sealDataUri = null;
+          try {
+            sealDataUri = await toDataURL(sealHttpUrl);
+          } catch (e) {
+            console.warn('직인 dataURI 변환 실패, 원본 URL 사용', e);
+            sealDataUri = sealHttpUrl; // 폴백
+          }
+
+          // 출력용 HTML 조립
           let allHtml = `
-          <html><head><title>견적서 출력</title>
-          <style>body{font-family:'Malgun Gothic';margin:20px}
-          @media print{.print-page{page-break-after:always}}</style>
-          </head><body>`;
+  <html><head><title>견적서 출력</title>
+  <style>body{font-family:'Malgun Gothic';margin:20px}
+  @media print{.print-page{page-break-after:always}}</style>
+  </head><body>`;
 
           // 상세 병렬 조회
           const responses = await Promise.allSettled(
@@ -972,6 +1007,10 @@
             }
 
             const data = buildPrintDataFromRow(row, detail);
+
+            // ✅ 직인 URL 주입 (data에 넣어 템플릿 o.*로 전달)
+            if (!data.SupplierSealUrl) data.SupplierSealUrl = sealDataUri;
+
             // (선택) 품목 없으면 건너뛰기
             if (!data.items || data.items.length === 0) {
               Alert.alert('', '이 견적은 품목이 없습니다. (상세 등록 또는 서버 응답 확인)');
@@ -988,15 +1027,23 @@
           if (!w) return Alert.alert('', '팝업이 차단되었습니다. 팝업 허용 후 다시 시도해 주세요.');
           w.document.open(); w.document.write(allHtml); w.document.close();
 
-          const doPrint = () => { w.focus(); w.print(); };
-          if ('fonts' in w.document) {
-            w.document.fonts.ready
-              .then(() => { w.requestAnimationFrame(() => w.requestAnimationFrame(doPrint)); })
-              .catch(doPrint);
+          // ✅ 인쇄 전: 새 창의 이미지/폰트 로딩 완료 보장
+          const doPrint = async () => {
+            try { await waitImages(w.document); } catch(e) {}
+            if ('fonts' in w.document) {
+              try { await w.document.fonts.ready; } catch(e){}
+            }
+            w.focus();
+            w.print();
+          };
+
+          if (w.document.readyState === 'complete') {
+            w.requestAnimationFrame(() => w.requestAnimationFrame(doPrint));
           } else {
-            w.onload = () => w.requestAnimationFrame(doPrint);
+            w.onload = () => w.requestAnimationFrame(() => w.requestAnimationFrame(doPrint));
           }
         });
+
 
 
         // 엔터키 검색
@@ -1494,81 +1541,6 @@
 
         let isInternalFormatting = false;
 
-       /* function calculateAmounts($row, source = null) {
-          if (isInternalFormatting) return;
-          isInternalFormatting = true;
-
-          try {
-            const quantity  = getNumericValue($row.find('input[name^="quantity_"]'), 0);
-            const unitPrice = getNumericValue($row.find('input[name^="unitPrice_"]'), 0);
-            const $standard = $row.find('input[type="text"][name^="standard_"]');
-
-            // 규격 숫자 여부
-            const standardRaw    = (($standard.val() ?? '') + '').trim();
-            const standardNumStr = standardRaw.replace(/,/g, '');
-            const isStandardNumeric = standardNumStr !== '' && /^\d+(\.\d+)?$/.test(standardNumStr);
-            const standardNum = isStandardNumeric ? parseFloat(standardNumStr) : 0;
-
-            const baseQty    = Number.isFinite(quantity) ? quantity : 0;
-            const qtyForCalc = isStandardNumeric ? (standardNum * baseQty) : baseQty;
-
-            const isVatIncluded = $row.find('input[name^="VatIncluded_"]').is(':checked');
-            const isVatExempt   = false;
-
-            let supplyAmount     = getNumericValue($row.find('input[name^="supplyAmount_"]'), 0);
-            let vatAmount        = getNumericValue($row.find('input[name^="VatAmount_"]'), 0);
-            const isSupplyEdited = $row.data('supplyEdited') === true;
-            const isVatEdited    = $row.data('vatEdited') === true;
-
-            const adjustment = isAdjustmentRow($row); // ← 추가
-
-            // 자동계산: 조정 행이 아닐 때만 수행
-            const shouldAuto = !adjustment && ((source === 'unit') || (!isSupplyEdited && !isVatEdited));
-            if (shouldAuto) {
-              const lineTotal = qtyForCalc * unitPrice;
-
-              if (isVatExempt) {
-                supplyAmount = lineTotal;
-                vatAmount    = 0;
-              } else if (isVatIncluded) {
-                supplyAmount = Math.round(lineTotal / 1.1);
-                vatAmount    = lineTotal - supplyAmount;
-              } else {
-                supplyAmount = lineTotal;
-                vatAmount    = Math.floor(supplyAmount * 0.1);
-              }
-
-              if (!isSupplyEdited) {
-                $row.find('input[name^="supplyAmount_"]').val(supplyAmount === 0 ? '' : supplyAmount.toLocaleString());
-              }
-              if (!isVatEdited) {
-                $row.find('input[name^="VatAmount_"]').val(isVatExempt ? '면세' : (vatAmount === 0 ? '' : vatAmount.toLocaleString()));
-              }
-            }
-
-            // 합계(표시용)
-            const sNum = getNumericValue($row.find('input[name^="supplyAmount_"]'), 0);
-            const vNum = getNumericValue($row.find('input[name^="VatAmount_"]'), 0);
-            const autoSum = sNum + vNum;
-
-            if (!adjustment) {
-              // 일반 행: 자동 합계로 덮어쓰기
-              $row.find('input[name^="totalAmount_"]').val(autoSum === 0 ? '' : autoSum.toLocaleString());
-            } else {
-              // 조정 행: 사용자가 입력한 totalAmount_를 보존, 표시만 정리
-              const userTotalNum = getNumericValue($row.find('input[name^="totalAmount_"]'), 0, true);
-              $row.find('input[name^="totalAmount_"]').val(userTotalNum === 0 ? '' : userTotalNum.toLocaleString());
-            }
-
-            // 수량 / 단가 표시 포맷팅
-            $row.find('input[name^="quantity_"]').val(quantity  === 0 ? '' : quantity.toLocaleString());
-            $row.find('input[name^="unitPrice_"]').val(unitPrice === 0 ? '' : unitPrice.toLocaleString());
-
-            calculateTotalSum($content);
-          } finally {
-            isInternalFormatting = false;
-          }
-        }*/
         function calculateAmounts($row, source = null) {
           if (isInternalFormatting) return;
           isInternalFormatting = true;
@@ -1602,6 +1574,17 @@
             // 단가 없으면 자동계산 금지
             const shouldAuto = !adjustment && hasUnitPrice && ((source === 'unit') || (!isSupplyEdited && !isVatEdited));
 
+            if (adjustment) {
+              let supplyAmount = getNumericValue($row.find('input[name^="supplyAmount_"]'), 0, true); // 음수 허용
+              // (정책상 단수정리 필요하면 여기서 Math.floor 등 적용)
+              $row.find('input[name^="VatAmount_"]').val(''); // VAT=0 표기
+              $row.find('input[name^="totalAmount_"]').val(
+                supplyAmount === 0 ? '' : supplyAmount.toLocaleString('ko-KR')
+              );
+              calculateTotalSum($content);
+              return; // 조정행은 여기서 종료(일반 자동계산 덮어쓰기 방지)
+            }
+
             if (shouldAuto) {
               const lineTotal = qtyForCalc * unitPrice;
 
@@ -1623,28 +1606,14 @@
                 $row.find('input[name^="VatAmount_"]').val(isVatExempt ? '면세' : (vatAmount === 0 ? '' : vatAmount.toLocaleString()));
               }
             } else if (!hasUnitPrice && !adjustment && !isSupplyEdited && !isVatEdited) {
-              // 단가 없음 + 수동 편집 이력 없음 → 기존 값 보존(아무것도 안 함)
-              // (옵션) 팝업에서 내려온 합계 히든값이 있으면 채우고 싶다면 여기서 반영:
-              // const sup = Number(($row.find('input[name="standard_popup_total_supply"]').val()||'').replace(/,/g,''))||0;
-              // const vat = Number(($row.find('input[name="standard_popup_total_vat"]').val()||'').replace(/,/g,''))||0;
-              // if (sup || vat) {
-              //   $row.find('input[name^="supplyAmount_"]').val(sup ? sup.toLocaleString() : '');
-              //   $row.find('input[name^="VatAmount_"]').val(vat ? vat.toLocaleString() : '');
-              //   $row.find('input[name^="totalAmount_"]').val((sup+vat) ? (sup+vat).toLocaleString() : '');
-              // }
-            }
 
+            }
             // 합계(표시용)
             const sNum = getNumericValue($row.find('input[name^="supplyAmount_"]'), 0);
             const vNum = getNumericValue($row.find('input[name^="VatAmount_"]'), 0);
             const autoSum = sNum + vNum;
 
-            if (!adjustment) {
-              $row.find('input[name^="totalAmount_"]').val(autoSum === 0 ? '' : autoSum.toLocaleString());
-            } else {
-              const userTotalNum = getNumericValue($row.find('input[name^="totalAmount_"]'), 0, true);
-              $row.find('input[name^="totalAmount_"]').val(userTotalNum === 0 ? '' : userTotalNum.toLocaleString());
-            }
+            $row.find('input[name^="totalAmount_"]').val(autoSum === 0 ? '' : autoSum.toLocaleString('ko-KR') );
 
             // 표기 포맷
             $row.find('input[name^="quantity_"]').val(quantity  === 0 ? '' : quantity.toLocaleString());
@@ -1748,6 +1717,29 @@
               const cursorPos = input.selectionStart;
               const rightRemain = prevLen - cursorPos;
 
+              // ── supplyAmount_ 전용: 조정 행일 때만 '-' 허용 ──
+              if (name.startsWith('supplyAmount_')) {
+                const adjustment = isAdjustmentRow($row);
+                let raw = String($this.val() || '').replace(/,/g, '');
+
+                // 조정행만 '-' 허용, 소수점은 불허(정수)
+                raw = raw.replace(adjustment ? /[^0-9\-]/g : /[^0-9]/g, '');
+                if (adjustment) raw = raw.replace(/(?!^)-/g, ''); // 선행 '-' 하나만 허용
+
+                if (raw === '' || raw === '-') { isInternalFormatting = false; return; }
+                const num = Number(raw);
+                if (!isFinite(num)) { isInternalFormatting = false; return; }
+
+                const formatted = num.toLocaleString('ko-KR');
+                $this.val(formatted);
+
+                const newLen = formatted.length;
+                const pos = Math.max(0, newLen - rightRemain);
+                input.setSelectionRange(pos, pos);
+                isInternalFormatting = false;
+                return;
+              }
+
               // ── totalAmount_ 전용: 조정 행일 때만 '-' 허용 ──
               if (name.startsWith('totalAmount_')) {
                 const adjustment = isAdjustmentRow($row);
@@ -1816,14 +1808,59 @@
               let v = String($this.val() || '').replace(/,/g, '');
               if (!v) return;
 
+              if (name.startsWith('supplyAmount_')) {
+                const adjustment = isAdjustmentRow($row);
+                v = v.replace(/,/g, '');
+                v = v.replace(adjustment ? /[^0-9\-]/g : /[^0-9]/g, '');
+                if (adjustment) v = v.replace(/(?!^)-/g, '');
+                if (v === '' || v === '-') { $this.val(''); return; }
+
+                const num = Number(v);
+                if (!isFinite(num)) { $this.val(''); return; }
+
+                // 필요 시 여기서 단수정리(절사/반올림) 수행
+                // num = Math.floor(num); // 정책에 맞게
+
+                $this.val(num.toLocaleString('ko-KR'));
+
+                // 조정행이면 공급가 수동편집 플래그 세우고 재계산(VAT=0 정책이라면 calculateAmounts에서 처리)
+                if (adjustment) {
+                  $row.data('supplyEdited', true);
+                  $row.removeData('vatEdited');
+                  calculateAmounts($row);
+                }
+                return;
+              }
+
+              //  totalAmount_ 분기 대체
               if (name.startsWith('totalAmount_')) {
                 const adjustment = isAdjustmentRow($row);
+
+                // 숫자 정리(+ 조정행은 음수 허용)
                 v = v.replace(adjustment ? /[^0-9.\-]/g : /[^0-9.]/g, '');
                 if (adjustment) v = v.replace(/(?!^)-/g, '');
                 v = v.replace(/\.(?=.*\.)/g, '');
                 if (v === '' || v === '-' || v === '.') { $this.val(''); return; }
+
                 const num = Number(v);
                 if (!isFinite(num)) { $this.val(''); return; }
+
+                if (adjustment) {
+                  // ✅ 합계 입력값을 '공급가액'으로 이관
+                  const $sup = $row.find('input[name^="supplyAmount_"]');
+                  $sup.val(num ? Number(num).toLocaleString('ko-KR') : '');
+
+                  // 부가세는 단수정리 행에서는 0으로(관례) —— 필요 시 정책으로 바꾸세요.
+                  $row.find('input[name^="VatAmount_"]').val('');
+                  $row.data('supplyEdited', true);
+                  $row.removeData('vatEdited');
+
+                  // 합계는 supply+vat로 자동 반영
+                  calculateAmounts($row);
+                  return; // total은 사용자가 직접 넣는 필드가 아님
+                }
+
+                // 일반행: 기존 포맷만 유지
                 $this.val(num.toLocaleString('ko-KR'));
                 return;
               }

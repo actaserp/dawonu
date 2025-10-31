@@ -1,275 +1,336 @@
 <th:block th:fragment="print_estimate">
   <script type="text/x-tmpl" id="print_estimate">
-    <div style="width:900px; margin:0 auto; font-family:'Malgun Gothic',sans-serif; font-size:14px; line-height:1.25;">
+    <style>
+     @media print {
+       .note-cell { word-break: break-all; overflow-wrap: anywhere; }
+     }
+     .print-page { page-break-after: always; }
+     .print-page:last-child { page-break-after: auto; }
 
-      {%
-        // ========= 유틸 =========
-        const N = v => (Number.isFinite(Number(v)) ? Number(v) : 0);
-        const T = v => (v == null ? '' : String(v));
-        const F = v => (v == null || v === '' || isNaN(v) ? '' : Number(v).toLocaleString());
-        const koDate = (s) => {
-          if (!s) return '';
-          const d = s.replace(/\./g,'-').replace(/\//g,'-');
-          const [y,m,dd] = d.split('-').map(x=>x?.trim());
-          if (!y || !m || !dd) return s;
-          return `${y} 년 ${Number(m)}월 ${Number(dd)}일`;
-        };
+     /* 직인 겹침 스타일 */
+     .seal-cell { position: relative; overflow: visible; }
+     .seal-name { white-space: nowrap; }
+     .seal-overlay {
+       position: absolute;
+       right: -12px;           /* 겹침 정도 조절 */
+       top: 50%;
+       transform: translateY(-50%);
+       height: 42px;           /* 직인 크기 조절 */
+       opacity: 0.95;
+       mix-blend-mode: multiply;
+       z-index: 2;
+       pointer-events: none;
+     }
+     @media print {
+  .seal-overlay {
+    right: 0 !important;           /* 셀 경계 밖으로 안 나가게 */
+    opacity: 1 !important;         /* 반투명 해제 */
+    mix-blend-mode: normal !important; /* 혼합 해제 */
+    image-rendering: auto;
+  }
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
+   </style>
 
-        // ======== 데이터 정리 ========
-        const items = Array.isArray(o.items) ? o.items : [];
-        const dateStr = T(o.ProductionDate || o.JumunDate || o.DueDate || o.Date);
-        let sumSupply = 0, sumVat = 0, sumTotal = 0;
-        for (const r of items) {
-          const qty   = N(r?.Qty ?? r?.quantity);
-          const price = N(r?.UnitPrice ?? r?.unit_price);
-          const s     = r?.SupplyAmount != null ? N(r.SupplyAmount) : qty * price;
-          const v     = r?.VatAmount     != null ? N(r.VatAmount)     : Math.round(s * 0.1);
-          const t     = r?.TotalAmount   != null ? N(r.TotalAmount)   : s + v;
-          r.__s = s; r.__v = v; r.__t = t;
-          sumSupply += s; sumVat += v; sumTotal += t;
-        }
-        if (!items.length && (o.SupplyAmount || o.TotalPrice)) {
-          const s = N(o.SupplyAmount);
-          const v = o.VatAmount != null ? N(o.VatAmount) : Math.round(s * 0.1);
-          const t = o.TotalPrice != null ? N(o.TotalPrice) : (s + v);
-          sumSupply = s; sumVat = v; sumTotal = t;
-        }
+       <div style="width:900px; margin:0 auto; font-family:'Malgun Gothic',sans-serif; font-size:14px; line-height:1.25;">
 
-        const ROWS = 12; // 표 고정 행 수 (필요 시 조정)
-        // === 품목 그룹핑: 같은 헤더(= head_id/suju_id)로 묶기 ===
-        const keyOf = (r) => (r.head_id ?? r.suju_id ?? (T(r.product_name) + '|' + T(r.Description)));
-        const groups = [];
-        {
-          const map = new Map();
-          for (const r of items) {
-            const k = keyOf(r);
-            let g = map.get(k);
-            if (!g) {
-              g = {
-                key: k,
-                product_name: T(r.product_name),
-                head_description: T(r.Description),
-                children: [],
-                totalStandard: 0,
-                sumS: 0, sumV: 0, sumT: 0,
-                sujuQty2: null,
-              };
-              map.set(k, g);
-              groups.push(g);
-            }
-            const s = N(r.__s ?? r.SupplyAmount);
-            const v = N(r.__v ?? r.VatAmount);
-            const t = N(r.__t ?? r.TotalAmount);
-            g.sumS += s; g.sumV += v; g.sumT += t;
-            g.totalStandard += N(r.Standard);
-            if (g.sujuQty2 == null && Number.isFinite(N(r.SujuQty2))) {
-              g.sujuQty2 = N(r.SujuQty2);
-            }
-            g.children.push(r);
-          }
-        }
+         {%
+           // ========= 유틸 =========
+           const N = v => (Number.isFinite(Number(v)) ? Number(v) : 0);
+           const T = v => (v == null ? '' : String(v));
+           const F = v => (v == null || v === '' || isNaN(v) ? '' : Number(v).toLocaleString());
+           const koDate = (s) => {
+             if (!s) return '';
+             const d = s.replace(/\./g,'-').replace(/\//g,'-');
+             const [y,m,dd] = d.split('-').map(x=>x?.trim());
+             if (!y || !m || !dd) return s;
+             return `${y} 년 ${Number(m)}월 ${Number(dd)}일`;
+           };
 
-      %}
+           // ======== 데이터 정리 ========
+           const items = Array.isArray(o.items) ? o.items : [];
+           const dateStr = T(o.ProductionDate || o.JumunDate || o.DueDate || o.Date);
 
-      <!-- 상단 타이틀 -->
-      <table style="width:100%; border-collapse:collapse; border:3px solid #000; border-bottom:0;">
-        <tr>
-          <td style="height:56px; text-align:center; font-size:36px; font-weight:800; border:1px solid #000;">견 적 서</td>
-        </tr>
-      </table>
+           let sumSupply = 0, sumVat = 0, sumTotal = 0;
+           for (const r of items) {
+             const qty   = N(r?.Qty ?? r?.quantity);
+             const price = N(r?.UnitPrice ?? r?.unit_price);
+             const s     = r?.SupplyAmount != null ? N(r.SupplyAmount) : qty * price;
+             const v     = r?.VatAmount     != null ? N(r.VatAmount)     : Math.round(s * 0.1);
+             const t     = r?.TotalAmount   != null ? N(r.TotalAmount)   : s + v;
+             r.__s = s; r.__v = v; r.__t = t;
+             sumSupply += s; sumVat += v; sumTotal += t;
+           }
+           if (!items.length && (o.SupplyAmount || o.TotalPrice)) {
+             const s = N(o.SupplyAmount);
+             const v = o.VatAmount != null ? N(o.VatAmount) : Math.round(s * 0.1);
+             const t = o.TotalPrice != null ? N(o.TotalPrice) : (s + v);
+             sumSupply = s; sumVat = v; sumTotal = t;
+           }
 
-      <!-- 공급자/우측 안내 -->
-      <table style="width:100%; border-collapse:collapse; border:3px solid #000; border-top:0;">
-        <tr>
-          <td style="width:620px; vertical-align:top; border-right:1px solid #000;">
-            <!-- (좌측) 공급자 표 : 4열 구성(라벨/값 + 라벨/값) -->
-            <table style="width:100%; border-collapse:collapse;">
-              <tr>
-                <td rowspan="5"
-                    style="width:70px; text-align:center; border-right:1px solid #000; border-bottom:1px solid #000; height:32px;">
-                  공<br>급<br>자
-                </td>
-                <td style="width:130px; border-bottom:1px solid #000; height:32px;">사 업 자 등록번호</td>
-                <td style="border-left:1px solid #000; border-bottom:1px solid #000;" colspan="3">
-                  {%= T(o.SupplierBizNo) %}
-                </td>
-              </tr>
+           // === 품목 그룹핑: 같은 헤더(= head_id/suju_id)로 묶기 ===
+           const keyOf = (r) => (r.head_id ?? r.suju_id ?? (T(r.product_name) + '|' + T(r.Description)));
+           const groups = [];
+           {
+             const map = new Map();
+             for (const r of items) {
+               const k = keyOf(r);
+               let g = map.get(k);
+               if (!g) {
+                 g = {
+                   key: k,
+                   product_name: T(r.product_name),
+                   head_description: T(r.Description),
+                   children: [],
+                   totalStandard: 0,
+                   sumS: 0, sumV: 0, sumT: 0,
+                   sujuQty2: null,
+                 };
+                 map.set(k, g);
+                 groups.push(g);
+               }
+               const s = N(r.__s ?? r.SupplyAmount);
+               const v = N(r.__v ?? r.VatAmount);
+               const t = N(r.__t ?? r.TotalAmount);
+               g.sumS += s; g.sumV += v; g.sumT += t;
+               g.totalStandard += N(r.Standard);
+               if (g.sujuQty2 == null && Number.isFinite(N(r.SujuQty2))) {
+                 g.sujuQty2 = N(r.SujuQty2);
+               }
+               g.children.push(r);
+             }
+           }
 
-              <tr>
-                <td style="border-bottom:1px solid #000; height:32px;">상 호</td>
-                <td style="border-left:1px solid #000; border-bottom:1px solid #000;">
-                  {%= T(o.SupplierName) %}
-                </td>
-                <!-- 구분용 라벨/값 열 -->
-                <td style="width:70px; text-align:center; border-left:1px solid #000; border-bottom:1px solid #000;">성 명</td>
-                <td style="width:150px; border-left:1px solid #000; border-bottom:1px solid #000;">
-                  {%= T(o.SupplierCeo || o.RepresentativeName || '') %}
-                </td>
-              </tr>
+           // === 페이지 분할 계산 ===
+           const linesOf = (g) => (g.children.length === 1 ? 1 : 1 + g.children.length);
+           const PAGE_ROWS = 22;           // 필요 시 조정
+           const pages = [];
+           let cur = [], remain = PAGE_ROWS;
+           for (const g of groups) {
+             const need = linesOf(g);
+             if (need > remain) { pages.push(cur); cur = []; remain = PAGE_ROWS; }
+             cur.push(g); remain -= need;
+           }
+           if (cur.length) pages.push(cur);
 
-              <tr>
-                <td style="border-bottom:1px solid #000; height:32px;">사 업 자 소 재 지</td>
-                <td style="border-left:1px solid #000; border-bottom:1px solid #000;" colspan="3">
-                  {%= T(o.SupplierAddress) %}
-                </td>
-              </tr>
+           let seqAll = 0; // 페이지 넘어가도 순번 이어지도록
 
-              <tr>
-                <td style="border-bottom:1px solid #000; height:32px;">업 태</td>
-                <td style="border-left:1px solid #000; border-bottom:1px solid #000;">
-                  {%= T(o.SupplierBizType) %}
-                </td>
-                <!-- 구분용 라벨/값 열 -->
-                <td style="text-align:center; border-left:1px solid #000; border-bottom:1px solid #000;">종 목</td>
-                <td style="border-left:1px solid #000; border-bottom:1px solid #000;">
-                  {%= T(o.SupplierBizItem) %}
-                </td>
-              </tr>
+           const todayStr = (() => {
+             const d = new Date();
+             const y = d.getFullYear();
+             const m = String(d.getMonth() + 1).padStart(2, '0');
+             const dd = String(d.getDate()).padStart(2, '0');
+             return `${y}-${m}-${dd}`; // koDate가 YYYY-MM-DD 형태를 좋아함
+           })();
+         %}
 
-              <tr>
-                <td style="height:32px;">연락처</td>
-                <td style="border-left:1px solid #000;" colspan="3">
-                  {%= T(o.SupplierTel) %}
-                </td>
-              </tr>
-            </table>
-          </td>
+         {% for (let p = 0; p < pages.length; p++) {
+              const pageGroups = pages[p];
+              let filled = 0;
+         %}
 
-          <!-- (우측) 일자/거래처 안내는 기존 그대로 -->
-          <td style="vertical-align:top;">
-            <table style="width:100%; border-collapse:collapse;">
-              <tr>
-                <td style="width:80px; height:32px;">일자:</td>
-                <td style="height:32px;">{%= koDate(dateStr) %}</td>
-              </tr>
-              <tr>
-                <td style="height:32px;"></td>
-                <td style="height:32px;">{%= T(o.CustomerName || o.CompanyName) %}　귀하</td>
-              </tr>
-              <tr>
-                <td colspan="2" style="height:32px; text-align:center;">아래와 같이 견적합니다.</td>
-              </tr>
-            </table>
-          </td>
-        </tr>
-      </table>
+         <div class="print-page est-wrap">
+           <!-- 상단 타이틀 (모든 페이지에 출력) -->
+           <table style="width:100%; border-collapse:collapse; border:3px solid #000; border-bottom:0;">
+             <tr>
+               <td style="height:56px; text-align:center; font-size:36px; font-weight:800; border:1px solid #000;">견 적 서</td>
+             </tr>
+           </table>
 
-      <!-- 합계금액 표시 줄 -->
-      <table style="width:100%; border-collapse:collapse; border:3px solid #000; border-top:0; border-bottom:0;">
-        <tr>
-          <td style="width:160px; border-right:1px solid #000; height:32px;">합계금액<br>(공급가액+세액)</td>
-          <td style="text-align:right; padding-right:8px;">
-            {%= F(sumSupply + sumVat) %} ({%= F(sumSupply) %} + {%= F(sumVat) %})
-          </td>
-        </tr>
-      </table>
+           <!-- 공급자/우측 안내 (모든 페이지에 출력) -->
+           <table style="width:100%; border-collapse:collapse; border:3px solid #000; border-top:0;">
+             <tr>
+               <td style="width:620px; vertical-align:top; border-right:1px solid #000;">
+                 <!-- (좌측) 공급자 표 : 4열 구성(라벨/값 + 라벨/값) -->
+                 <table style="width:100%; border-collapse:collapse;">
+                   <tr>
+                     <td rowspan="5"
+                         style="width:70px; text-align:center; border-right:1px solid #000; border-bottom:1px solid #000; height:34px; font-weight:bold;">
+                       공<br>급<br>자
+                     </td>
+                     <td style="width:130px; border-bottom:1px solid #000; height:32px; font-weight:bold;">
+                       사 업 자 등록번호
+                     </td>
+                     <td style="border-left:1px solid #000; border-bottom:1px solid #000;" colspan="3">
+                       {%= T(o.SupplierBizNo) %}
+                     </td>
+                   </tr>
 
-      <!-- 품목 표 -->
-      <table style="width:100%; border-collapse:collapse; border:3px solid #000; border-top:0;">
-        <thead>
-          <tr style="background:#f5f5f5;">
-            <th style="width:60px;  border:1px solid #000; height:28px;">순번</th>
-            <th style="border:1px solid #000; height:28px;">품명/규격</th>
-            <th style="width:80px;  border:1px solid #000; height:28px;">단위</th>
-            <th style="width:90px;  border:1px solid #000; height:28px;">수량</th>
-            <th style="width:110px; border:1px solid #000; height:28px;">단가</th>
-            <th style="width:140px; border:1px solid #000; height:28px;">공급가액</th>
-            <th style="width:110px; border:1px solid #000; height:28px;">세액</th>
-            <th style="width:140px; border:1px solid #000; height:28px;">비고</th>
-          </tr>
-        </thead>
-        <tbody>
-          {%
-            let seq = 0;
+                   <tr>
+                     <td style="border-bottom:1px solid #000; height:32px; font-weight:bold;">상 호</td>
+                     <td style="border-left:1px solid #000; border-bottom:1px solid #000;">
+                       {%= T(o.SupplierName) %}
+                     </td>
+                     <!-- 구분용 라벨/값 열 -->
+                     <td style="width:70px; text-align:center; border-left:1px solid #000; border-bottom:1px solid #000; font-weight:bold;">
+                        성 명
+                      </td>
 
-            for (const g of groups) {
+                      <td class="seal-cell" style="width:150px; border-left:1px solid #000; border-bottom:1px solid #000;">
+                        <span class="seal-name">{%= T(o.SupplierCeo || o.RepresentativeName || '') %}</span>
 
-              if (g.children.length === 1) {
-                // 단일 아이템: 한 줄
-                const r = g.children[0];
-                const nameSpec = T(g.product_name) + (r?.Standard ? ' / ' + T(r.Standard) : '');
-                const unit  = T(r.UnitName || r.Unit || r.unit);
-                const qty   = T(r.Qty ?? r.quantity ?? '');
-                const price = F(r.UnitPrice ?? r.unit_price);
-                const supply= F(r.__s ?? r.SupplyAmount);
-                const vat   = F(r.__v ?? r.VatAmount);
-                const remark= T(r.Remark || r.remark || g.head_description || '');
-          %}
-          <tr>
-            <td style="text-align:center; border:1px solid #000; height:26px;">{%= ++seq %}</td>
-            <td style="text-align:left;   border:1px solid #000; padding:0 6px;">{%= nameSpec %}</td>
-            <td style="text-align:center; border:1px solid #000;">{%= unit %}</td>
-            <td style="text-align:center; border:1px solid #000;">{%= qty %}</td>
-            <td style="text-align:right;  border:1px solid #000; padding-right:6px;">{%= price %}</td>
-            <td style="text-align:right;  border:1px solid #000; padding-right:6px;">{%= supply %}</td>
-            <td style="text-align:right;  border:1px solid #000; padding-right:6px;">{%= vat %}</td>
-            <td style="text-align:left;   border:1px solid #000; padding:0 6px;">{%= remark %}</td>
-          </tr>
-          {%
-              } else {
-                // 다중 상세: 부모행 + 상세행들
-          %}
-          <!-- 부모행 -->
-          <tr>
-            <td style="text-align:center; border:1px solid #000; height:26px;">{%= ++seq %}</td>
-            <td style="text-align:left;   border:1px solid #000; padding:0 6px; font-weight:700;">
-              {%= T(g.product_name) %}
-            </td>
-            <td style="text-align:center; border:1px solid #000;"></td>
-            <td style="text-align:center; border:1px solid #000;">
-              {%= (g.sujuQty2 != null && !isNaN(g.sujuQty2)) ? g.sujuQty2.toLocaleString() : F(g.totalStandard) %}
-            </td>
-            <td style="text-align:right;  border:1px solid #000; padding-right:6px;"></td>
-            <td style="text-align:right;  border:1px solid #000; padding-right:6px;"></td>
-            <td style="text-align:right;  border:1px solid #000; padding-right:6px;"></td>
-            <td style="text-align:left;   border:1px solid #000; padding:0 6px;">{%= T(g.head_description) %}</td>
-          </tr>
+                        {% if (o.SupplierSealUrl) { %}
+                          <img class="seal-overlay" src="{%= T(o.SupplierSealUrl) %}" alt="직인">
+                        {% } %}
+                      </td>
+                   </tr>
 
-          <!-- 상세행들 -->
-          {%
-                for (const r of g.children) {
-                  const unit  = T(r.UnitName || r.Unit || r.unit);
-                  const qty   = T(r.Qty ?? r.quantity ?? '');
-                  const price = F(r.UnitPrice ?? r.unit_price);
-                  const supply= F(r.__s ?? r.SupplyAmount);
-                  const vat   = F(r.__v ?? r.VatAmount);
-          %}
-          <tr>
-            <!-- ✅ 상세행도 순번 부여 -->
-            <td style="text-align:center; border:1px solid #000; height:26px;">{%= ++seq %}</td>
-            <td style="text-align:left;   border:1px solid #000; padding:0 6px;">{%= T(r.Standard) %}</td>
-            <td style="text-align:center; border:1px solid #000;">{%= unit %}</td>
-            <td style="text-align:center; border:1px solid #000;">{%= qty %}</td>
-            <td style="text-align:right;  border:1px solid #000; padding-right:6px;">{%= price %}</td>
-            <td style="text-align:right;  border:1px solid #000; padding-right:6px;">{%= supply %}</td>
-            <td style="text-align:right;  border:1px solid #000; padding-right:6px;">{%= vat %}</td>
-            <td style="text-align:left;   border:1px solid #000; padding:0 6px;"></td>
-          </tr>
-          {%
-                } // end children
-              } // end else
-            } // end groups
+                   <tr>
+                     <td style="border-bottom:1px solid #000; height:32px; font-weight:bold;">사 업 자 소 재 지</td>
+                     <td style="border-left:1px solid #000; border-bottom:1px solid #000;" colspan="3">
+                       {%= T(o.SupplierAddress) %}
+                     </td>
+                   </tr>
 
-            // 고정행(빈줄) 채우기 — 빈줄은 번호 없음
-            const printed = seq;
-            for (let i = printed; i < ROWS; i++) {
-          %}
-          <tr>
-            <td style="border:1px solid #000; height:26px;">&nbsp;</td>
-            <td style="border:1px solid #000;">&nbsp;</td>
-            <td style="border:1px solid #000;">&nbsp;</td>
-            <td style="border:1px solid #000;">&nbsp;</td>
-            <td style="border:1px solid #000;">&nbsp;</td>
-            <td style="border:1px solid #000;">&nbsp;</td>
-            <td style="border:1px solid #000;">&nbsp;</td>
-            <td style="border:1px solid #000;">&nbsp;</td>
-          </tr>
-          {% } %}
-        </tbody>
-      </table>
+                   <tr>
+                     <td style="border-bottom:1px solid #000; height:32px; font-weight:bold;">업 태</td>
+                     <td style="border-left:1px solid #000; border-bottom:1px solid #000;">
+                       {%= T(o.SupplierBizType) %}
+                     </td>
+                     <!-- 구분용 라벨/값 열 -->
+                     <td style="text-align:center; border-left:1px solid #000; border-bottom:1px solid #000; font-weight:bold;">종 목</td>
+                     <td style="border-left:1px solid #000; border-bottom:1px solid #000;">
+                       {%= T(o.SupplierBizItem) %}
+                     </td>
+                   </tr>
 
-      <!-- 하단 메모 영역 -->
-      <div style="width:100%; border:3px solid #000; border-top:0; height:160px;"></div>
-    </div>
+                   <tr>
+                     <td style="height:32px; font-weight:bold;">연락처</td>
+                     <td style="border-left:1px solid #000;" colspan="3">
+                       {%= T(o.SupplierTel) %}
+                     </td>
+                   </tr>
+                 </table>
+               </td>
+
+               <!-- (우측) 일자/거래처 안내 -->
+               <td style="vertical-align:top;">
+                 <table style="width:100%; border-collapse:collapse;">
+                   <tr>
+                     <td style="width:40px; height:32px;">일자:</td>
+                     <td style="height:32px;">{%= koDate(dateStr || todayStr) %}</td>
+                   </tr>
+                   <tr></tr>
+                   <tr>
+                     <td style="height:32px;"></td>
+                     <td style="height:80px;"> <b>{%= T(o.CustomerName || o.CompanyName) %}</b> 귀하</td>
+                   </tr>
+                   <tr>
+                     <td colspan="2" style="height:32px; text-align:center; font-weight:bold;">아래와 같이 견적합니다.</td>
+                   </tr>
+                 </table>
+               </td>
+             </tr>
+           </table>
+
+           <!-- 합계금액 표시 줄 (모든 페이지 동일 표기) -->
+           <table style="width:100%; border-collapse:collapse; border:3px solid #000; border-top:0; border-bottom:0;">
+             <tr>
+               <td style="width:205px; border-right:1px solid #000; height:32px; font-weight:bold;">합계금액 (공급가액+세액)</td>
+               <td style="text-align:right; padding-right:8px;">
+                 {%= F(sumSupply + sumVat) %} ({%= F(sumSupply) %} + {%= F(sumVat) %})
+               </td>
+             </tr>
+           </table>
+
+           <!-- 품목 표 -->
+           <table style="width:100%; border-collapse:collapse; border:3px solid #000; border-top:0; table-layout:fixed;">
+             <thead>
+               <tr style="background:#f5f5f5;">
+                 <th style="width:60px;  border:1px solid #000; height:28px;">순번</th>
+                 <th style="border:1px solid #000; height:28px;">품명/규격</th>
+                 <th style="width:80px;  border:1px solid #000; height:28px;">단위</th>
+                 <th style="width:90px;  border:1px solid #000; height:28px;">수량</th>
+                 <th style="width:110px; border:1px solid #000; height:28px;">단가</th>
+                 <th style="width:140px; border:1px solid #000; height:28px;">공급가액</th>
+                 <th style="width:110px; border:1px solid #000; height:28px;">세액</th>
+                 <th style="width:140px; border:1px solid #000; height:28px;">비고</th>
+               </tr>
+             </thead>
+             <tbody>
+               {%
+                 for (const g of pageGroups) {
+                   const hasNumericStd = g.children.some(r => /^\d+(\.\d+)?$/.test(String(r.Standard ?? '').replace(/,/g,'')));
+                   const wantSimple = (g.children.length === 1);
+
+                   if (wantSimple) {
+                     const r = g.children[0];
+                     const unit   = T(r.UnitName || r.Unit || r.unit);
+                     const qty    = T(r.Qty ?? r.quantity ?? '');
+                     const price  = F(r.UnitPrice ?? r.unit_price);
+                     const supply = F(r.__s ?? r.SupplyAmount);
+                     const vat    = F(r.__v ?? r.VatAmount);
+                     const nameSpec = T(g.product_name) + (r?.Standard ? ' / ' + T(r.Standard) : '');
+               %}
+               <tr>
+                 <td style="text-align:center; border:1px solid #000; height:26px;">{%= ++seqAll %}</td>
+                 <td style="text-align:left;   border:1px solid #000; padding:0 6px;">{%= nameSpec %}</td>
+                 <td style="text-align:center; border:1px solid #000;">{%= unit %}</td>
+                 <td style="text-align:center; border:1px solid #000;">{%= qty %}</td>
+                 <td style="text-align:right;  border:1px solid #000; padding-right:6px;">{%= price %}</td>
+                 <td style="text-align:right;  border:1px solid #000; padding-right:6px;">{%= supply %}</td>
+                 <td style="text-align:right;  border:1px solid #000; padding-right:6px;">{%= vat %}</td>
+                 <td class="note-cell" style="text-align:left; border:1px solid #000; padding:0 6px;">{%= T(g.head_description) %}</td>
+               </tr>
+               {% filled += 1; %}
+
+               {% } else {
+                    const headerQty = (g.sujuQty2 != null && !isNaN(g.sujuQty2))
+                      ? g.sujuQty2 : (hasNumericStd ? g.totalStandard : '');
+               %}
+               <tr>
+                 <td style="text-align:center; border:1px solid #000; height:26px;">{%= ++seqAll %}</td>
+                 <td style="text-align:left;   border:1px solid #000; padding:0 6px; font-weight:700;">{%= T(g.product_name) %}</td>
+                 <td style="text-align:center; border:1px solid #000;"></td>
+                 <td style="text-align:center; border:1px solid #000;">{%= headerQty !== '' ? F(headerQty) : '' %}</td>
+                 <td style="text-align:right;  border:1px solid #000; padding-right:6px;"></td>
+                 <td style="text-align:right;  border:1px solid #000; padding-right:6px;"></td>
+                 <td style="text-align:right;  border:1px solid #000; padding-right:6px;"></td>
+                 <td class="note-cell" style="text-align:left; border:1px solid #000; padding:0 6px;">{%= T(g.head_description) %}</td>
+               </tr>
+               {% filled += 1; %}
+
+               {% for (const r of g.children) {
+                    const unit   = T(r.UnitName || r.Unit || r.unit);
+                    const qty    = T(r.Qty ?? r.quantity ?? '');
+                    const price  = F(r.UnitPrice ?? r.unit_price);
+                    const supply = F(r.__s ?? r.SupplyAmount);
+                    const vat    = F(r.__v ?? r.VatAmount);
+               %}
+               <tr>
+                 <td style="text-align:center; border:1px solid #000; height:26px;">{%= ++seqAll %}</td>
+                 <td style="text-align:left;   border:1px solid #000; padding:0 6px;">{%= T(r.Standard) %}</td>
+                 <td style="text-align:center; border:1px solid #000;">{%= unit %}</td>
+                 <td style="text-align:center; border:1px solid #000;">{%= qty %}</td>
+                 <td style="text-align:right;  border:1px solid #000; padding-right:6px;">{%= price %}</td>
+                 <td style="text-align:right;  border:1px solid #000; padding-right:6px;">{%= supply %}</td>
+                 <td style="text-align:right;  border:1px solid #000; padding-right:6px;">{%= vat %}</td>
+                 <td style="text-align:left;   border:1px solid #000; padding:0 6px;"></td>
+               </tr>
+               {% filled += 1; %}
+
+               {% } } } %}
+
+               <!-- 페이지 테두리 맞춤(빈행 채우기) -->
+               {% for (let i = filled; i < PAGE_ROWS; i++) { %}
+               <tr>
+                 <td style="border:1px solid #000; height:26px;">&nbsp;</td>
+                 <td style="border:1px solid #000;">&nbsp;</td>
+                 <td style="border:1px solid #000;">&nbsp;</td>
+                 <td style="border:1px solid #000;">&nbsp;</td>
+                 <td style="border:1px solid #000;">&nbsp;</td>
+                 <td style="border:1px solid #000;">&nbsp;</td>
+                 <td style="border:1px solid #000;">&nbsp;</td>
+                 <td style="border:1px solid #000;">&nbsp;</td>
+               </tr>
+               {% } %}
+             </tbody>
+           </table>
+
+           <!-- 하단 박스(모든 페이지에 동일 출력) -->
+           <div style="width:100%; border:3px solid #000; border-top:0; height:160px;"></div>
+         </div>
+         {% } %}
+       </div>
   </script>
 </th:block>

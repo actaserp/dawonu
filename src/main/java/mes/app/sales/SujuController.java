@@ -234,12 +234,15 @@ public class SujuController {
     head.set_status("manual");
     head = sujuHeadRepository.save(head);
 
+
     for (Map<String, Object> item : items) {
       Suju suju;
       String standard = java.util.Objects.toString(
           item.containsKey("Standard") ? item.get("Standard") : item.get("standard"),
           ""
       );
+
+
       // ✅ 수정인지 확인
       if (item.containsKey("suju_id") && item.get("suju_id") != null && !item.get("suju_id").toString().isEmpty()) {
         Integer sujuId = Integer.parseInt(item.get("suju_id").toString());
@@ -265,6 +268,7 @@ public class SujuController {
         boolean coreChanged =
             !java.util.Objects.equals(suju.getMaterialId(), mid) ||
                 !java.util.Objects.equals(suju.getSujuQty(), qty) ||
+                !java.util.Objects.equals(suju.getSujuQty2(), qty) ||
                 !java.util.Objects.equals(suju.getUnitPrice(), unitPrice) ||
                 !java.util.Objects.equals(suju.getCompanyId(), companyId) ||
                 !java.util.Objects.equals(suju.getDueDate(), newDueDate);
@@ -522,7 +526,6 @@ public class SujuController {
   }
 
   // JSON 문자열을 파싱해 suju_detail에 저장(수정 시 기존행 삭제)
-  // JSON 문자열을 파싱해 suju_detail에 저장(수정 시 기존행 삭제는 공통 메서드에서 수행)
   private void saveSujuDetailsFromJson(Integer sujuId, String detailJson) {
     if (sujuId == null || sujuId <= 0) return;
     if (detailJson == null || detailJson.trim().isEmpty()) return;
@@ -1293,7 +1296,7 @@ public class SujuController {
 
   @GetMapping("/print_list")
   public AjaxResult getPrintList( @RequestParam("id") int id){
-    log.info("견적서 인쇄 들어옴, id:{}", id);
+    //log.info("견적서 인쇄 들어옴, id:{}", id);
     Map<String, Object> item = this.sujuService.getPrintList(id);
 
     AjaxResult result = new AjaxResult();
