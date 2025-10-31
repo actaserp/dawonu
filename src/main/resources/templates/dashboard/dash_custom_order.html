@@ -602,6 +602,9 @@
                 const isSuju = String(it.division) === '수주';
                 const isDeposit = String(it.division) === '입금';
                 const isWdraw = String(it.division) === '출금';
+                const isSales = String(it.division) === '매출';
+                const isBalju = String(it.division) === '발주';
+                const isPurchase = String(it.division) === '매입';
 
                 const resultGridContainer = document.querySelector('#result-grid').closest('.container-fluid');
                 const depositContainer = document.querySelector('#deposit-container');
@@ -621,8 +624,8 @@
                     depositContainer.style.display = 'none';
                     wdrawContainer.style.display = 'none';
                 }
-                else if (isDeposit) {
-                    // 입금 때: 미수내역 표시 + resultGrid 숨김
+                else if (isDeposit || isSales) {
+                    // 입금, 매출 때: 미수내역 표시 + resultGrid 숨김
                     this.depositGrid.itemsSource = new wijmo.collections.CollectionView(result.data[0].TotalList);
                     document.getElementById('totalDeposit').value = result.data[0].getDetail[0].misu_total;
                     document.getElementById('totalUnDeposit').value = result.data[0].getDetail[0].miji_total;
@@ -631,8 +634,8 @@
                     depositContainer.style.display = 'flex';
                     wdrawContainer.style.display = 'none';
                 }
-                else if(isWdraw){
-                    //출금일 때: 미수내역 표시 + resultGrid 숨김
+                else if(isWdraw || isPurchase || isBalju){
+                    //출금, 매입 때: 미수내역 표시 + resultGrid 숨김
                     this.wdrawGrid.itemsSource = new wijmo.collections.CollectionView(result.data[0].TotalList);
                     document.getElementById('totalDeposit2').value = result.data[0].getDetail[0].misu_total;
                     document.getElementById('totalUnDeposit2').value = result.data[0].getDetail[0].miji_total;

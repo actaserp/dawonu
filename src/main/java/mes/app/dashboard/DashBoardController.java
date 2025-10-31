@@ -87,16 +87,32 @@ public class DashBoardController {
 		List<Map<String, Object>> item = new ArrayList<>();
 		switch (key) {
 			case "발주":
-				item = dashBoardService.getBaljuDetail(id);
+//				item = dashBoardService.getBaljuDetail(id);
+				Map<String, Object> purchaseDetail = new HashMap<>();
+				// 출금 매입 그리드 조회
+				purchaseDetail.put("TotalList", dashBoardService.getPayableTotalList(startDate, endDate, company_id, spjangcd));
+				// 출금 매입 미수총액 등 조회
+				purchaseDetail.put("getDetail", dashBoardService.getDetailFinanceTotal(company_id, spjangcd, JumunDate));
+				item.add(purchaseDetail);
 				break;
 			case "수주":
 				item = dashBoardService.getSujuDetail(id);
 				break;
 			case "매입":
-				item = dashBoardService.getInvoDetail(id);
+				Map<String, Object> baljuDetail = new HashMap<>();
+				// 출금 매입 그리드 조회
+				baljuDetail.put("TotalList", dashBoardService.getPayableTotalList(startDate, endDate, company_id, spjangcd));
+				// 출금 매입 미수총액 등 조회
+				baljuDetail.put("getDetail", dashBoardService.getDetailFinanceTotal(company_id, spjangcd, JumunDate));
+				item.add(baljuDetail);
 				break;
 			case "매출":
-				item = dashBoardService.getSalesDetail(id);
+				Map<String, Object> salesDetail = new HashMap<>();
+				// 입금 매출 그리드 조회
+				salesDetail.put("TotalList", dashBoardService.getDepositTotalList(startDate, endDate, company_id, spjangcd));
+				// 입금 매출 미수총액 등 조회
+				salesDetail.put("getDetail", dashBoardService.getDetailFinanceTotal(company_id, spjangcd, JumunDate));
+				item.add(salesDetail);
 				break;
 			case "입금":
 				Map<String, Object> depDetail = new HashMap<>();
