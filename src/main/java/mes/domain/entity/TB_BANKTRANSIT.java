@@ -102,6 +102,15 @@ public class TB_BANKTRANSIT extends BaseEntity{
     @Column(length = 50)
     private String projno; //프로젝트 관리
 
+    @Column(length = 250)
+    private String paymentnum;
+
+    private Integer tax;
+
+    private Integer supplyamt;
+
+
+
 
 
 

@@ -9,9 +9,14 @@ import mes.domain.entity.*;
 import mes.domain.model.AjaxResult;
 import mes.domain.repository.CompanyRepository;
 import mes.domain.repository.MaterialRepository;
+import mes.domain.repository.TB_SalesDetailRepository;
+import mes.domain.repository.TB_SalesmentRepository;
+import org.apache.poi.hssf.usermodel.HSSFWorkbook;
+import org.apache.poi.ss.usermodel.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import com.openhtmltopdf.pdfboxout.PdfRendererBuilder;
@@ -39,6 +44,12 @@ public class SalesInvoiceController {
     private MaterialRepository materialRepository;
 	@Autowired
 	Settings settings;
+
+	@Autowired
+	private TB_SalesmentRepository salesmentRepository;
+
+	@Autowired
+	private TB_SalesDetailRepository salesDetailRepository;
 
 	@GetMapping("/shipment_head_list")
 	public AjaxResult getShipmentHeadList(
@@ -198,6 +209,191 @@ public class SalesInvoiceController {
 		return result;
 	}
 
+	//초가데이터 삽입용
+	@GetMapping("/read_excel")
+	@Transactional
+	public AjaxResult setInitData2() {
+		String filePath = "C:\\Users\\User\\Desktop\\신우\\invoicement_data.xls";
+		AjaxResult result = new AjaxResult();
+
+		try (FileInputStream fis = new FileInputStream(filePath);
+			 Workbook workbook = new HSSFWorkbook(fis)) {
+
+			// ✅ 수식 평가기 생성
+			FormulaEvaluator evaluator = workbook.getCreationHelper().createFormulaEvaluator();
+			Sheet sheet = workbook.getSheet("매출");
+			if (sheet == null) {
+				result.message = "시트 '매출'을 찾을 수 없습니다.";
+				return result;
+			}
+
+			int misseq = 1;
+
+			for (int i = 1; i <= sheet.getLastRowNum(); i++) {
+				Row row = sheet.getRow(i);
+				if (row == null) continue;
+
+				TB_Salesment tb = new TB_Salesment();
+				String misdate = "";
+				// ✅ 날짜 셀 처리
+				Cell cellC = row.getCell(2);
+				if (cellC != null) {
+					 misdate = getDateString(cellC);
+					tb.setMisdate(misdate);
+				}
+
+				// ✅ 거래처 코드 (VLOOKUP 계산 포함)
+				Integer cltcd = getIntegerValue(row.getCell(4), evaluator);
+				if (cltcd == null) {
+					System.out.println("❌ 거래처 코드 누락됨: " + (i + 1) + "행");
+					throw new RuntimeException("거래처코드없음");
+				}
+
+				Optional<Company> byId = companyRepository.findById(cltcd);
+				if (byId.isEmpty()) {
+					throw new RuntimeException("거래처없는데? 코드=" + cltcd);
+				}
+
+				tb.setCltcd(cltcd);
+				tb.setIssuetype("정발행");
+				tb.setTaxtype("과세");
+				tb.setPurposetype("청구");
+				tb.setSupplycost(getIntMoney(row.getCell(9), evaluator));
+				tb.setTaxtotal(getIntMoney(row.getCell(10), evaluator));
+				tb.setTotalamt(getIntMoney(row.getCell(11), evaluator));
+				tb.setRemark1(truncate(getStringValue(row.getCell(15), evaluator), 1000));
+
+				tb.setIcercorpnum("3178143546");
+				tb.setIcercorpnm("신우테크산업 주식회사");
+				tb.setIcerceonm("임덕빈");
+				tb.setIceraddr("충북 청주시 서원구 남이면 남석로 468-24");
+				tb.setIcerbiztype("제조업,도매및소매업");
+
+				tb.setIvercorpnum(byId.get().getBusinessNumber());
+				tb.setIvercorpnm(byId.get().getName());
+				tb.setIveraddr(byId.get().getAddress());
+				tb.setMisgubun("etc_sale");
+				tb.setSpjangcd("ZZ");
+				tb.setIssuediv("other"); //타사이트발행
+				tb.setInvoiceetype("사업자");
+
+				// ✅ 저장
+				TB_Salesment saved = salesmentRepository.save(tb);
+
+				// 자식 디테일 생성
+				TB_SalesDetail detail = new TB_SalesDetail();
+				detail.setMisdate(misdate);
+				detail.setItemnm(getStringValue(row.getCell(8), evaluator));
+				detail.setSupplycost(getIntMoney(row.getCell(9), evaluator));
+				detail.setTaxtotal(getIntMoney(row.getCell(10), evaluator));
+				detail.setTotalamt(getIntMoney(row.getCell(11), evaluator));
+				detail.setRemark(getStringValue(row.getCell(15), evaluator));
+				detail.setSpjangcd("ZZ");
+				detail.setPurchasedt(misdate);
+
+				TB_SalesDetailId id = new TB_SalesDetailId();
+				id.setMisnum(saved.getMisnum());
+				String misseq2 = String.format("%03d", misseq++).trim();
+				if(misseq2.length() > 3){
+					misseq2 = misseq2.substring(0, 3);
+					System.out.println("[WARN] misseq 잘림 → " + misseq2);
+				}
+				id.setMisseq(misseq2);
+				detail.setId(id);
+
+				detail.setSalesment(saved);
+				salesDetailRepository.save(detail);
+
+			}
+
+			result.message = "엑셀데이터 삽입 완료";
+
+		} catch (Exception e) {
+			e.printStackTrace();
+			result.message = "엑셀 처리 중 오류 발생: " + e.getMessage();
+		}
+
+		return result;
+	}
+
+	// ================= 헬퍼 =================
+
+	private String getDateString(Cell cell) {
+		if (cell == null) return null;
+		try {
+			if (DateUtil.isCellDateFormatted(cell)) {
+				java.util.Date date = cell.getDateCellValue();
+				return new java.text.SimpleDateFormat("yyyyMMdd").format(date);
+			} else {
+				String dateStr = cell.toString().trim().replace("-", "");
+				return dateStr.isEmpty() ? null : dateStr;
+			}
+		} catch (Exception e) {
+			return null;
+		}
+	}
+
+	private String truncate(String val, int max) {
+		if (val == null) return null;
+		return val.length() > max ? val.substring(0, max) : val;
+	}
+
+	// ✅ 문자열 (수식 포함)
+	private String getStringValue(Cell cell, FormulaEvaluator evaluator) {
+		if (cell == null) return null;
+		CellValue cv = evaluator.evaluate(cell);
+		if (cv == null) return null;
+
+		switch (cv.getCellType()) {
+			case STRING:
+				return cv.getStringValue().trim();
+			case NUMERIC:
+				return String.valueOf((int) cv.getNumberValue());
+			case BOOLEAN:
+				return String.valueOf(cv.getBooleanValue());
+			default:
+				return null;
+		}
+	}
+
+	// ✅ 정수형 (수식 포함)
+	private Integer getIntegerValue(Cell cell, FormulaEvaluator evaluator) {
+		if (cell == null) return null;
+		CellValue cv = evaluator.evaluate(cell);
+		if (cv == null) return null;
+
+		try {
+			if (cv.getCellType() == CellType.NUMERIC) {
+				return (int) Math.round(cv.getNumberValue());
+			} else if (cv.getCellType() == CellType.STRING) {
+				String s = cv.getStringValue().trim();
+				if (s.isEmpty()) return null;
+				return (int) Double.parseDouble(s);
+			}
+		} catch (Exception e) {
+			return null;
+		}
+		return null;
+	}
+
+	// ✅ 금액 셀 (수식 포함, ₩/쉼표 제거)
+	private Integer getIntMoney(Cell cell, FormulaEvaluator evaluator) {
+		if (cell == null) return null;
+		CellValue cv = evaluator.evaluate(cell);
+		if (cv == null) return null;
+		try {
+			if (cv.getCellType() == CellType.NUMERIC) {
+				return (int) Math.round(cv.getNumberValue());
+			} else if (cv.getCellType() == CellType.STRING) {
+				String val = cv.getStringValue().trim().replaceAll("[,\\s₩원]", "");
+				if (val.isEmpty()) return null;
+				return (int) Math.round(Double.parseDouble(val));
+			}
+		} catch (Exception e) {
+			return null;
+		}
+		return null;
+	}
 	// 세금계산서 저장
 	@PostMapping("/invoice_save")
 	public AjaxResult saveInvoice(@RequestBody Map<String, Object> form

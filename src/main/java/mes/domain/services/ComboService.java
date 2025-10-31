@@ -89,6 +89,7 @@ public class ComboService {
 		this._dicFunc_.put("workcenter", this.workcenter);
 		this._dicFunc_.put("workcd", this.workcd);
 		this._dicFunc_.put("iotype", this.iotype);
+		this._dicFunc_.put("iotype2", this.iotype2);
 	}
 
 	public List<Map<String, Object>> getComboList(String comboType, String cond1, String cond2, String cond3){
@@ -224,6 +225,8 @@ public class ComboService {
 				select to_char((current_date -  interval '1 year'), 'YYYY') as value , to_char(current_date-  interval '1 year','YYYY') as text  
 				union all
 				select to_char((current_date -  interval '2 year'), 'YYYY') as value , to_char(current_date-  interval '2 year','YYYY') as text  
+				union all
+				select to_char((current_date -  interval '3 year'), 'YYYY') as value , to_char(current_date-  interval '3 year','YYYY') as text  
 				""";
 		MapSqlParameterSource dicParam = new MapSqlParameterSource();
         dicParam.addValue("cond1", cond1);
@@ -862,6 +865,24 @@ public class ComboService {
 
 	ComboDataFunction iotype=(String cond1, String cond2, String cond3)-> {
 		String	sql = "select id as Value, \"Value\" as text from sys_code where \"CodeType\" = 'deposit_type'order by \"Value\" ";
+		/*if (StringUtils.hasText(cond1)) {
+			sql +="and \"Process_id\" in (select unnest(string_to_array(:cond1,','))::int)";
+		}
+		if (StringUtils.hasText(cond2)) {
+			sql +="and \"Area_id\" = :cond2 ";
+		}*/
+		//sql += " order by \"Name\" ";
+		MapSqlParameterSource dicParam = new MapSqlParameterSource();
+		/*
+		dicParam.addValue("cond1", cond1);
+		dicParam.addValue("cond2", cond2);
+		dicParam.addValue("cond3", cond3);
+		*/
+		return this.sqlRunner.getRows(sql, dicParam);
+	};
+
+	ComboDataFunction iotype2=(String cond1, String cond2, String cond3)-> {
+		String	sql = "select \"Code\" as Value, \"Value\" as text from sys_code where \"CodeType\" = 'deposit_type'order by \"Value\" ";
 		/*if (StringUtils.hasText(cond1)) {
 			sql +="and \"Process_id\" in (select unnest(string_to_array(:cond1,','))::int)";
 		}

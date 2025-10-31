@@ -542,6 +542,21 @@
 
                     <tr>
                         <th style="text-align: center">
+                            <label>세액</label>
+                        </th>
+                        <td>
+                            <input class="form-control2 tar" type="text" id="tax" name="tax">
+                        </td>
+                        <th style="text-align: center">
+                            <label>공급액</label>
+                        </th>
+                        <td>
+                            <input class="form-control2 tar" type="text" id="supplyamt" name="supplyamt">
+                        </td>
+                    </tr>
+
+                    <tr>
+                        <th style="text-align: center">
                             <label>금액</label> <span style='color : red'>*</span>
                         </th>
                         <td>
@@ -554,20 +569,15 @@
                             <select id="transactionTypeId" name="transactionTypeId"></select>
                         </td>
                     </tr>
+
+
+
                     <tr>
                         <th style="text-align: center">
                             <label for="">입출형태</label>
                         </th>
                         <td>
                             <select id='depositAndWithdrawalType' name='depositAndWithdrawalType'>
-                                <option value='0'>예금</option>
-                                <option value='1'>현금</option>
-                                <option value='2'>어음</option>
-                                <option value='3'>카드</option>
-                                <option value='4'>지로</option>
-                                <option value='5'>선수금</option>
-                                <option value='6'>CMS</option>
-                                <option value='7'>기타</option>
                             </select>
                         </td>
                         <th style="text-align: center">
@@ -589,6 +599,14 @@
                         </th>
                         <td>
                             <input class="form-control2" type="text" maxlength='8' placeholder='YYYYMMDD 형식' id="expiration" name="expiration" >
+                        </td>
+                    </tr>
+                    <tr>
+                        <th style="text-align: center">
+                            <label for="description">결제번호</label>
+                        </th>
+                        <td>
+                            <input class="form-control2" type="text" id="paymentnum" name="paymentnum" >
                         </td>
                     </tr>
                     <tr>
@@ -646,6 +664,7 @@
     <script src="/js/AccountInputHandler.js"></script>
     <script type="text/javascript">
         let tradetypeList;
+        let depositAndWithdrawalTypeList;
 
         const iotype = [
             { value : "0" , text: "예금"},
@@ -669,6 +688,7 @@
                 this.grid2 = null;
                 this.setting_grid = null;
                 tradetypeList = AjaxUtil.fillSelectOptions($('#transactionTypeId'), 'trade', 'choose', false);
+                //depositAndWithdrawalTypeList = AjaxUtil.fillSelectOptions($('#depositAndWithdrawalType'), 'iotype', 'choose', false)
 
                 this.head_id = 0;
                 this.ship_state = '';
@@ -702,6 +722,8 @@
                         { binding: 'id', header: '아이디', width: 10, visible: false, align: 'center', isReadOnly : true },
                         { binding: 'trade_date', header: '일자', width: 100, align: 'center', isReadOnly : true },
                         { binding: 'inoutFlag', header: '입출구분', width: 80, align: 'center', isReadOnly : true },
+                        { binding: 'tax', header: '세액', width: 100, format: 'n0', align: 'right', aggregate: 'Sum', isReadOnly: true },
+                        { binding: 'supplyamt', header: '공급액', width: 100, format: 'n0', align: 'right', aggregate: 'Sum', isReadOnly: true },
                         { binding: 'input_money', header: '입금액', width: 100, format: 'n0', aggregate: 'Sum', align: 'right', isReadOnly : true },
                         { binding: 'output_money',  header: ' 출금액', width: 100, format: 'n0', aggregate: 'Sum', align: 'right', isReadOnly : true},
                         { binding: 'balance',  header: '잔액', width: 100, format: 'n0', align: 'right', isReadOnly : true},
@@ -746,6 +768,7 @@
                                                 <button class="detail-btn" style="padding: 4px 8px; width: 50px; font-size: 12px;">상세보기</button>
                                            </div>`,
                             isReadOnly : true},*/
+                        { binding: 'paymentnum', header: '결제번호', width: 120, align: 'center' , isReadOnly : true},
                         { binding: 'bankname', header: '은행', width: 120, align: 'center' , isReadOnly : true},
                         { binding: 'account', header: '계좌', width: 150, align: 'center' , isReadOnly : true},
                         { binding: 'projno', header: '프로젝트번호', width: 150, align: 'center' , isReadOnly : true, visible: false},
@@ -1107,13 +1130,14 @@
                     money : '금액'
                 }
 
+
                 const bol = validationCheck(data, requiredField);
                 if(!bol) return;
 
                 if(iotype === '0' || iotype === '4'){
-                    if(accountNum === null || accountNum === ''){
+                    /*if(accountNum === null || accountNum === ''){
                         Alert.alert('', '계좌번호를 입력해주세요'); return;
-                    }
+                    }*/
                 }
 
 
@@ -1155,9 +1179,10 @@
                 let $content = $(content);
 
                 let modalContainer = new PopupDraggable('등록');
-                modalContainer.open({width: 1000, height: 700, $content});
+                modalContainer.open({width: 1000, height: 800, $content});
 
                 filterAndBindTradeTypes($('#inoutFlag').val(), tradetypeList, 'transactionTypeId');
+                AjaxUtil.fillSelectOptions($('#depositAndWithdrawalType'), 'iotype2', 'choose', false);
                 //AjaxUtil.fillSelectOptions($('#transactionTypeId'), 'trade', 'choose', false);
 
                 //키입력 핸들러
@@ -1190,6 +1215,20 @@
 
                 //숫자만 입력
                 $('#money').on('input', formatToCommaNumberInput);
+                $('#tax').on('input', formatToCommaNumberInput);
+                $('#supplyamt').on('input', formatToCommaNumberInput);
+
+                // ✅ 계좌번호 필드 값 변경 시 관련 필드 초기화
+                $('#accountNumber').on('input', function() {
+                    const val = $(this).val().trim();
+
+                    if (val === '') {
+                        // 값이 비어 있으면 관련 필드 초기화
+                        $('#accountId').val('');
+                        $('#bankName').val('');
+                        $('#bankcode_popup').val('');
+                    }
+                });
 
                 $('#commission').on('input', formatToCommaNumberInput);
 
@@ -1238,6 +1277,9 @@
 
                     $('#projno').val(data.projno);
                     $('#projectNumber').val(data.projnm);
+                    $('#paymentnum').val(data.paymentnum);
+                    $('#tax').val(data.tax);
+                    $('#supplyamt').val(data.supplyamt);
                 }
             }
 

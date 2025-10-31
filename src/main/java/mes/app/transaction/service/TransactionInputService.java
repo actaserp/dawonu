@@ -143,6 +143,9 @@ public class TransactionInputService {
                 ,b.eumtodt as expiration
                 ,d3.projno as projno
                 ,d3.projnm as projnm
+                ,b.paymentnum as paymentnum
+                ,b.tax as tax
+                ,b.supplyamt as supplyamt
                 FROM public.tb_banktransit b
                 left join tb_trade t on t.trid = b.trid
                 left join sys_code s on s."Code" = b.iotype and "CodeType" = 'deposit_type'
@@ -209,6 +212,10 @@ public class TransactionInputService {
 
         Integer accountId = dto.getAccountId();
         String accountNumber = null;
+
+        if(accountId == null){
+            accountNumber = dto.getAccountNumber();
+        }
 
         if (accountId != null && !StringUtils.isEmpty(dto.getAccountNumber())) {
             TB_ACCOUNT acc = accountRepository.findById(accountId).orElse(null);
@@ -320,6 +327,7 @@ public class TransactionInputService {
                 ,b.banknm as "bankName"
                 ,t.tradenm as trade_type
                 ,s."Value" as depositAndWithdrawalType
+                ,b.paymentnum as paymentnum
                 FROM public.tb_banktransit b
                 left join tb_trade t on t.trid = b.trid
                 left join sys_code s on s."Code" = b.iotype and "CodeType" = 'deposit_type'

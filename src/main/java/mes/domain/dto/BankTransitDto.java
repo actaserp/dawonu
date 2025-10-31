@@ -75,6 +75,13 @@ public class BankTransitDto {
     private String clientFlag; //거래처 구분값
 
     private String clientName;
+    private String paymentnum;
+
+    @Pattern(regexp = "^[\\d,]+$", message = "숫자와 쉼표만 입력가능합니다.")
+    private String tax;
+
+    @Pattern(regexp = "^[\\d,]+$", message = "숫자와 쉼표만 입력가능합니다.")
+    private String supplyamt;
 
     public static TB_BANKTRANSIT toEntity(BankTransitDto dto, TB_BANKTRANSIT banktransit){
 
@@ -91,6 +98,8 @@ public class BankTransitDto {
         Integer accin = 0;
         Integer accout = 0;
         String money = dto.getMoney().replaceAll(",", "");
+        String tax = dto.getTax().replaceAll(",", "");
+        String supplyamt = dto.getSupplyamt().replaceAll(",", "");
         String commission = dto.getCommission().replaceAll(",", "");
 
 
@@ -130,7 +139,10 @@ public class BankTransitDto {
         boolean hasClient = StringUtils.hasText(dto.getClientName());
         banktransit.setCltcd(hasClient ? UtilClass.parseInteger(dto.getClientId()) : null);
         banktransit.setCltflag(hasClient ? dto.getClientFlag() : null);
+        banktransit.setPaymentnum(dto.getPaymentnum());
 
+        banktransit.setTax(UtilClass.parseInteger(tax));
+        banktransit.setSupplyamt(UtilClass.parseInteger(supplyamt));
 
         return banktransit;
     }
