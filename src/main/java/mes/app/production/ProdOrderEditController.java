@@ -57,11 +57,12 @@ public class ProdOrderEditController {
 			@RequestParam(value="start", required=false) String start,
 			@RequestParam(value="end", required=false) String end,
 			@RequestParam(value="mat_group", required=false) Integer mat_group,
+			@RequestParam(value="factory", required=false) Integer cboFactory,
 			@RequestParam(value="mat_name", required=false) String mat_name,
 			@RequestParam("spjangcd") String spjangcd,
 			@RequestParam(value="not_flag", required=false) String not_flag) {
 
-		List<Map<String, Object>> items = this.prodOrderEditService.getSujuList(date_kind, start, end, mat_group, mat_name, not_flag, spjangcd);
+		List<Map<String, Object>> items = this.prodOrderEditService.getSujuList(date_kind, start, end, mat_group, mat_name, not_flag, spjangcd, cboFactory);
 		
         AjaxResult result = new AjaxResult();
         result.data = items;
@@ -147,6 +148,7 @@ public class ProdOrderEditController {
 		Material m = materialRepository.getMaterialById(matPk);
 		Integer routingPk = m.getRoutingId();
 		Integer locPk = m.getStoreHouseId();
+		Integer factoryPk = m.getFactory_id();
 
 		Timestamp prodDate = CommonUtil.tryTimestamp(productionDate);
 
@@ -193,7 +195,7 @@ public class ProdOrderEditController {
 		// 마지막 공정 = 헤더
 		RoutingProc last = steps.get(steps.size() - 1);
 		Integer lastProcId = last.getProcessId();
-		Workcenter lastWc = workcenterRepository.findByProcessId(lastProcId);
+		Workcenter lastWc = workcenterRepository.findByProcessIdAndFactoryId(lastProcId, factoryPk);
 		Integer lastWcId = (lastWc != null ? lastWc.getId() : null);
 
 		header.setRouting_id(routingPk);

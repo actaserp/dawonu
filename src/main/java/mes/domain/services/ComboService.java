@@ -324,12 +324,14 @@ public class ComboService {
 					 "                left join equ e on e.id = rd.\"DataPk2\"" +
 					 "            where rd.\"TableName1\"='work_center' and rd.\"TableName2\"='equ'";
 
-		if (StringUtils.hasText(cond1)) {
-			sql += " and rd.\"DataPk1\" = :cond1"; // 중복 방지
-		}
-
 		MapSqlParameterSource dicParam = new MapSqlParameterSource();
-		dicParam.addValue("cond1", Integer.parseInt(cond1));
+
+		if (StringUtils.hasText(cond1)) {
+			sql += " and rd.\"DataPk1\" = :cond1";
+			dicParam.addValue("cond1", Integer.parseInt(cond1));
+		} else {
+			dicParam.addValue("cond1", null);  // ✅ cond1이 없으면 null로 세팅
+		}
 		dicParam.addValue("cond2", cond2);
 		dicParam.addValue("cond3", cond3);
 		return this.sqlRunner.getRows(sql, dicParam);

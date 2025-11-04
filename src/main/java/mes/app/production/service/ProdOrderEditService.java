@@ -18,13 +18,14 @@ public class ProdOrderEditService {
 	SqlRunner sqlRunner;
 	
 	// 수주 목록 조회
-	public List<Map<String, Object>> getSujuList(String date_kind, String start, String end, Integer mat_group, String mat_name, String not_flag, String spjangcd) {
+	public List<Map<String, Object>> getSujuList(String date_kind, String start, String end, Integer mat_group, String mat_name, String not_flag, String spjangcd, Integer cboFactory) {
 		
 		MapSqlParameterSource dicParam = new MapSqlParameterSource();
 		dicParam.addValue("start", Timestamp.valueOf(start + " 00:00:00"));
 		dicParam.addValue("end", Timestamp.valueOf(end + " 23:59:59"));
 		dicParam.addValue("mat_group", mat_group);
 		dicParam.addValue("mat_name", mat_name);
+		dicParam.addValue("cboFactory", cboFactory);
 		dicParam.addValue("spjangcd", spjangcd);
 		
 		if (StringUtils.isEmpty(date_kind)) {
@@ -52,12 +53,14 @@ public class ProdOrderEditService {
 	                , s."State"
 	                , s."Description" as description
 	                , m."Routing_id"
+	                , f."Name" as fac_name
 					, r."Name" as routing_nm
 	                from suju s
 	                inner join material m on m.id = s."Material_id"
 	                inner join mat_grp mg on mg.id = m."MaterialGroup_id"
 	                left join routing r on m."Routing_id" = r.id
 	                left join unit u on m."Unit_id" = u.id
+	                left join factory f on m."Factory_id" = f.id
 	                where 1 = 1 and mg."MaterialType"!='sangpum'
 	                and s.spjangcd = :spjangcd
 	                and s.confirm = '1'
@@ -68,6 +71,10 @@ public class ProdOrderEditService {
         } else {
             sql += " and s.\"DueDate\" between :start and :end ";
         }
+
+		if (cboFactory != null) {
+			sql += " and m.\"Factory_id\" = :cboFactory ";
+		}
         
         if (mat_group != null) {
         	sql += " and mg.id = :mat_group ";
@@ -115,6 +122,7 @@ public class ProdOrderEditService {
 	            , s.description
 	            , s."StateName", s."State"
 	            , s.routing_nm
+	            , s.fac_name
 	            from s 
 	            left join q on q.suju_id = s.id
 	            where 1 = 1

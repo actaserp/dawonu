@@ -200,9 +200,10 @@ public class WorkcenterController {
 	@GetMapping("/of-process")
 	public AjaxResult getWorkcenterOfProcess(
 			@RequestParam Integer process_id,
+			@RequestParam Integer factory_id,
 			@RequestParam Integer routing_id) {
 		AjaxResult result = new AjaxResult();
-        result.data= workcenterService.findByRoutingAndProcess(routing_id, process_id);
+        result.data= workcenterService.findByRoutingAndProcess(routing_id, process_id, factory_id);
 		return result; // { id, name }
 	}
 

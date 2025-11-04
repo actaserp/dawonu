@@ -63,6 +63,7 @@ public class HomeController {
 		String userid = user.getUsername();
 		Integer groupid = user.getUserProfile().getUserGroup().getId();
 		String groupname = user.getUserProfile().getUserGroup().getName();
+		Integer factory_id = user.getUserProfile().getFactoryId();
 		String spjangcd = user.getSpjangcd();
                 
         SystemOption sysOpt= this.systemOptionRepository.getByCode("LOGO_TITLE");
@@ -82,11 +83,14 @@ public class HomeController {
 		mv.addObject("username", username);
 		mv.addObject("userid", userid);
 		mv.addObject("groupname", groupname);
+		session.setAttribute("userid", userid);
+		session.setAttribute("factory_id", factory_id);
 		session.setAttribute("spjangcd", spjangcd);
 		mv.addObject("userinfo", user);
 		mv.addObject("system_title", logoTitle);
 		mv.addObject("default_menu_code", "wm_dashboard_summary");
-		
+		System.out.println("factory_id = " + factory_id);
+		System.out.println("userid = " + userid);
 		
 		String mqtt_host = settings.getProperty("mqtt_host");
 		String mqtt_web_port = settings.getProperty("mqtt_web_port");

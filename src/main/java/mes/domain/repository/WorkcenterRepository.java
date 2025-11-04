@@ -19,4 +19,6 @@ public interface WorkcenterRepository extends JpaRepository<Workcenter, Integer>
 
 	Workcenter findByProcessId(Integer processId);
 
+	Workcenter findByProcessIdAndFactoryId(Integer processId, Integer factoryId);
+
 }

@@ -232,13 +232,14 @@ public class ProductionResultService {
 		this.sqlRunner.execute(sql, dicParam);
 	}
 
-	public List<Map<String, Object>> getProdResult(String dateFrom, String dateTo, String isIncludeComp, String spjangcd, String choMat) {
+	public List<Map<String, Object>> getProdResult(String dateFrom, String dateTo, String isIncludeComp, String spjangcd, String choMat, Integer cboFactory) {
 
 		MapSqlParameterSource dicParam = new MapSqlParameterSource();
 		dicParam.addValue("dateFrom", dateFrom);
 		dicParam.addValue("dateTo", dateTo);
 		dicParam.addValue("isIncludeComp", isIncludeComp);
 		dicParam.addValue("spjangcd", spjangcd);
+		dicParam.addValue("cboFactory", cboFactory);
 		String pattern = (choMat == null || choMat.isBlank()) ? "%" : "%" + choMat + "%";
 		dicParam.addValue("choMat", pattern);
 
@@ -317,7 +318,9 @@ public class ProductionResultService {
 			   , TO_CHAR(B."ProductionDate" + M."ValidDays", 'yyyy-mm-dd') AS "ValidDays"
 			   , M."Routing_id"                               AS routing_id
 			   , COALESCE(su."Standard", M."Standard1") as standard
-			   ,su."CompanyName" as company_name
+			   , su."CompanyName" as company_name
+			   , M."Factory_id" AS "Factory_id"
+			   , fa."Name" as fac_name
 			  FROM S
 			  JOIN job_res       C  ON C.id = S.child_id              -- child = 대표행
 			  JOIN job_res       B  ON B.id = S.base_id               -- base = 부모
@@ -329,6 +332,7 @@ public class ProductionResultService {
 			  LEFT JOIN mat_grp       MG ON MG.id = M."MaterialGroup_id"
 			  LEFT JOIN unit          U  ON U.id = M."Unit_id"
 			  left join suju su on su.id = B."SourceDataPk" and B."SourceTableName" = 'suju'
+			  left join factory fa on M."Factory_id" = fa.id
 			  WHERE S.rn = 1
 			)
 			SELECT *
@@ -340,6 +344,10 @@ public class ProductionResultService {
 		if ("false".equalsIgnoreCase(isIncludeComp)) {
 			// ★ 파생 상태(state) 기준으로 완료 제외
 			sql += " and F.state != 'finished' ";
+		}
+
+		if (cboFactory != null) {
+			sql += " and F.\"Factory_id\" = :cboFactory ";
 		}
 
 		sql += " ORDER BY F.prod_date, F.order_num, F.id ";
@@ -395,6 +403,7 @@ public class ProductionResultService {
 				fn_code_name('job_state', c."State")            AS job_state,
 				child_wc.id                                     AS workcenter_id,
 				child_wc."Name"                                 AS workcenter_name,
+				child_wc."Factory_id"                           AS wcfactory_id,
 				e.id                                            AS equipment_id,
 				e."Name"                                        AS equipment_name,
 				child_p.id                                      AS process_id,
@@ -417,6 +426,46 @@ public class ProductionResultService {
 			""";
 
 		return this.sqlRunner.getRow(sql, p);
+	}
+
+	public Map<String, Object> getProdResultMatDetail(Integer jrPk) {
+		MapSqlParameterSource p = new MapSqlParameterSource().addValue("jrPk", jrPk);
+
+		String sql = """
+			select jr.id
+			, m."Code" as mat_code
+			, m."Name" as mat_name
+			, ROUND(jr."OrderQty"::numeric, 2) as "OrderQty"
+			, sju."Standard" as standard
+			, sju.id as suju_id
+			from job_res jr 
+			inner join material m on m.id = jr."Material_id" 
+			LEFT JOIN suju sju ON sju.id = jr."SourceDataPk"
+			where jr.id = :jrPk
+			and jr."SourceTableName" ='suju'
+			""";
+
+		Map<String, Object> job = this.sqlRunner.getRow(sql, p);
+		if (job == null) return null;
+
+		// ② 하위 품목 리스트(suju_detail)
+		MapSqlParameterSource p2 = new MapSqlParameterSource().addValue("suju_id", job.get("suju_id"));
+		String sql_suju_detail = """
+			SELECT
+				sd.id,
+				sd."suju_id",
+				sd."Standard",
+				sd."Qty"
+			FROM suju_detail sd
+			WHERE sd."suju_id" = :suju_id
+			ORDER BY sd.id
+		""";
+		List<Map<String, Object>> suju_detail = this.sqlRunner.getRows(sql_suju_detail, p2);
+
+		// ③ items 키로 리스트 추가 (print_report 에서 {%= o.items %})
+		job.put("items", suju_detail);
+
+		return job;
 	}
 
 	public Map<String, Object> getProdResultPrintDetail(Integer jrPk) {

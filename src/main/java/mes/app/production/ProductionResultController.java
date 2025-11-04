@@ -117,10 +117,11 @@ public class ProductionResultController {
             @RequestParam(value = "date_from", required = false) String dateFrom,
             @RequestParam(value = "date_to", required = false) String dateTo,
             @RequestParam(value = "is_include_comp", required = false) String isIncludeComp,
+            @RequestParam(value="factory", required=false) Integer cboFactory,
             @RequestParam(value = "choMat", required = false) String choMat,
             @RequestParam("spjangcd") String spjangcd) {
 
-        List<Map<String, Object>> items = this.productionResultService.getProdResult(dateFrom, dateTo, isIncludeComp, spjangcd, choMat);
+        List<Map<String, Object>> items = this.productionResultService.getProdResult(dateFrom, dateTo, isIncludeComp, spjangcd, choMat, cboFactory);
 
         AjaxResult result = new AjaxResult();
         result.data = items;
@@ -133,6 +134,18 @@ public class ProductionResultController {
             @RequestParam(value = "jr_pk", required = false) Integer jrPk) {
 
         Map<String, Object> items = this.productionResultService.getProdResultDetail(jrPk);
+
+        AjaxResult result = new AjaxResult();
+        result.data = items;
+
+        return result;
+    }
+
+    @GetMapping("/mat_detail")
+    public AjaxResult getProdResultMatDetail(
+            @RequestParam(value = "jr_pk", required = false) Integer jrPk) {
+
+        Map<String, Object> items = this.productionResultService.getProdResultMatDetail(jrPk);
 
         AjaxResult result = new AjaxResult();
         result.data = items;
@@ -255,7 +268,6 @@ public class ProductionResultController {
 
         AjaxResult result = new AjaxResult();
         result.data = items;
-        System.out.println(items);
         return result;
     }
 

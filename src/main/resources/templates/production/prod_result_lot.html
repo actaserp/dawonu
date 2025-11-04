@@ -261,6 +261,7 @@
                 <a title="북마크" class="bookmark toggle">
                     내 메뉴
                 </a>
+                <select style="width: 100px;" type="text" id="Factory_id" name="Factory_id" > </select>
             </div>
             <ul class="page-navi">
                 <li><img src="/images/icon/ico-nav-home.svg" alt="홈아이콘"></li>
@@ -270,7 +271,7 @@
         </div>
         <div style="display: flex; gap: 5px;">
             <section class="section" style="flex: 1;">
-                <div class="section-top">
+                <div class="section-top" style="justify-content: left; gap: 15px;">
                     <div class="search-wrap">
                         <dl>
                             <dt>
@@ -302,12 +303,9 @@
                             </dd>
                         </dl>
 
+                    </div>
+                    <div class="search-wrap">
                         <dl>
-                            <dt>
-                                <label for="chxCompYn">
-
-                                </label>
-                            </dt>
                             <dd>
                                 <div class="srch-box">
                                     <input type="checkbox" id="chxCompYn" name="chxCompYn" checked/>
@@ -317,7 +315,7 @@
                         </dl>
 
                         <dl>
-                            <dt>&nbsp;</dt>
+
                             <dd>
                                 <li>
                                     <a class="btn btn-search" title="검색" id="btnMainSearch">
@@ -393,6 +391,7 @@
                                     <input type="hidden" id="id" name="id"/>
                                     <input type="hidden" id="parent_jr_pk" name="parent_jr_pk"/>
                                     <input type="hidden" id="routing_id" name="routing_id"/>
+                                    <input type="hidden" id="wcfactory_id" name="wcfactory_id"/>
                                     <input type="hidden" id="mp_id" name="mp_id"/>
                                     <input type="hidden" id="mat_pk" name="mat_pk"/>
                                     <input type="hidden" id="prod_mat_id" name="prod_mat_id"/>
@@ -530,9 +529,16 @@
                                     </li>
                                 </ul>
                             </div>
-                            <div class="container-fluid">
-                                <div id="chasu-grid"></div>
+                            <div class="content-wrap">
+                                <div>
+                                    <div id="chasu-grid" style="height: 130px;"></div>
+                                </div>
+                                <div style="flex: 1; display: flex; flex-direction: column; margin-top: 10px;">
+                                    <span>지시 상세 내역</span>
+                                    <div id="detail-grid" style="flex: 1; min-height: 0;"></div>
+                                </div>
                             </div>
+
                         </div>
                     </section>
 
@@ -971,12 +977,18 @@
 <th:block layout:fragment="scripts">
     <script type="text/javascript" src="/resource/jsBarcode/JsBarcode.all.min.js"></script>
     <th:block th:replace="/common/print_report :: print_report"></th:block>
+    <script th:inline="javascript">
+        const factory_id = [[${session.factory_id}]];
+        const userid = [[${session.userid}]];
+
+    </script>
     <script type="text/javascript">
 
         class ProdResultPage {
             constructor() {
                 this.grid = null;
                 this.chasuGrid = null;
+                this.detailGrid = null;
                 this.defectGrid = null;
                 this.inputLotGrid = null;
                 this.consumedGrid = null;
@@ -996,6 +1008,9 @@
 
             init() {
                 let _this = this;
+
+                const $factory  = $('#Factory_id');
+                AjaxUtil.fillSelectOptions($factory,  'factory', 'all', false);
 
                 this.grid = new wijmo.grid.FlexGrid('#prod-result-grid', {
                     autoGenerateColumns: false,
@@ -1067,34 +1082,45 @@
                         }
                     },
                     selectionChanged: function (e) {
-                        let selectedRow = _this.grid.selection.row;
-
-                        let dataSource = _this.grid.itemsSource instanceof wijmo.collections.CollectionView
+                        const selectedRow = _this.grid.selection.row;
+                        const dataSource = _this.grid.itemsSource instanceof wijmo.collections.CollectionView
                             ? _this.grid.itemsSource.sourceCollection
                             : _this.grid.itemsSource;
 
-                        if (!dataSource || !Array.isArray(dataSource) || dataSource.length === 0) {
-                            return;
-                        }
+                        if (!dataSource || !Array.isArray(dataSource) || dataSource.length === 0) return;
+                        if (selectedRow >= 0) _this.selectedIndex = selectedRow;
 
-                        if (selectedRow >= 0) { // 선택된 행이 있을 때만 저장
-                            _this.selectedIndex = selectedRow;
-                        }
-                        let item = _this.grid.rows[selectedRow]?.dataItem; // 선택된 데이터 가져오기
-                        if (item) {
-                            _this._currentJrPk = item.id;
+                        const item = _this.grid.rows[selectedRow]?.dataItem;
+                        if (!item || _this._currentJrPk === item.id) return;
 
-                            _this.jobres = item;
-                            _this.showBasicInfo(item.id);
-                            _this.showDefectList('total');
+                        _this._currentJrPk = item.id;
+                        _this.jobres = item;
 
-                            const jr_pk = $('#tabBasic').find('#id').val();
-                            _this.showChasuList(jr_pk);
-                            // _this.showConsumedList(item.id);
-                        }
+                        // 1) 로딩바 표시
+                        AjaxUtil.showLoading();
 
+                        // 1-1) 강제 리플로우로 즉시 페인트 준비
+                        try {
+                            const loader = window.parent?.document?.getElementById('loader2')
+                                || document.getElementById('loader2');
+                            if (loader) { void loader.offsetHeight; }
+                        } catch (e) {}
 
+                        // 2) 더블 rAF로 "로딩바가 실제로 그려진 뒤"에 무거운 작업 시작
+                        requestAnimationFrame(() => {
+                            requestAnimationFrame(() => {
+                                try {
+                                    _this.showBasicInfo(item.id, { skipProcessChange: false });
+                                    _this.showDefectList('total');
+                                } catch (err) {
+                                    console.error('selectionChanged error:', err);
+                                } finally {
+                                    setTimeout(() => AjaxUtil.hideLoading(), 200);
+                                }
+                            });
+                        });
                     }
+
                 });
                 new FlexGridContextMenu(this.grid);
                 this.grid.downloadFileName = '생산 내역';
@@ -1224,6 +1250,48 @@
                 // Context Menu 추가
                 new FlexGridContextMenu(this.chasuGrid);
                 this.chasuGrid.downloadFileName = '차수별 생산 내역';
+
+                this.detailGrid = new wijmo.grid.FlexGrid('#detail-grid', {
+                    autoGenerateColumns: false,
+                    headersVisibility: wijmo.grid.HeadersVisibility.Column,
+
+                    formatItem: function (s, e) {
+                        if (e.panel.cellType === wijmo.grid.CellType.ColumnHeader) {
+                            e.cell.style.textAlign = 'center';
+                        }
+                        if (e.panel.cellType === wijmo.grid.CellType.Cell) {
+                            const item = s.rows[e.row].dataItem;
+                            const col = s.columns[e.col];
+
+                            // 자식행: 배경 투명, 규격/지시량만 표시
+                            if (item && !item.isParent) {
+                                e.cell.style.backgroundColor = 'transparent';
+
+                                if (col.binding === 'standard') {
+                                    e.cell.textContent = item.Standard;
+                                    e.cell.style.textAlign = 'center';
+                                } else if (col.binding === 'OrderQty') {
+                                    e.cell.textContent = item.Qty;
+                                    e.cell.style.textAlign = 'right';
+                                } else {
+                                    e.cell.textContent = '';
+                                }
+                            }
+                        }
+                    },
+                    columns: [
+                        {binding: 'mat_name', header: '품목', width: 200, align: 'left', isReadOnly: true},
+                        {binding: 'standard', header: '규격', width: 100, align: 'center', isReadOnly: true},
+                        {binding: 'OrderQty', header: '지시량', width: 100, align: 'right', isReadOnly: true},
+
+                    ],
+                    itemsSource: new wijmo.collections.CollectionView([]),
+
+                });
+
+                // Context Menu 추가
+                new FlexGridContextMenu(this.detailGrid);
+                this.detailGrid.downloadFileName = '제품 상세 내역';
 
 
                 this.defectGrid = new wijmo.grid.FlexGrid('#defect-grid', {
@@ -1742,10 +1810,12 @@
             searchMainData() {
                 let _this = this;
 
+
                 let param = {
                     'date_from': $('#date_from').val(),
                     'date_to': $('#date_to').val(),
                     'choMat': $('#choMat').val(),
+                    'factory': $('#Factory_id').val(),
                     'is_include_comp': $('#chxCompYn').is(':checked')
                 };
 
@@ -1777,7 +1847,7 @@
             }
 
             // 생산정보 조회
-            showBasicInfo(jr_pk) {
+            showBasicInfo(jr_pk, { skipProcessChange = false } = {}) {
                 const res = AjaxUtil.getSyncData(this.baseUrl + '/detail', { jr_pk });
                 this._suppressProcessChange = true;
 
@@ -1815,13 +1885,14 @@
                 AjaxUtil.fillSelectOptions($('#equipment_id'), 'equipment_code', 'choose', equipment_id, workcenter_id);
 
                 $('#ordqty').text((result.order_qty ?? 0).toLocaleString());
-                $('#chasuLotSize').val(result.lot_size);
+
+                $('#chasuLotSize').val(result.order_qty ?? '');
 
                 this._hasRouting = (routing_id != null && String(routing_id).trim() !== '');
 
-                if (this._hasRouting) {
+                if (this._hasRouting && !skipProcessChange) {
                     AjaxUtil.fillSelectOptions($('#process_id'), 'routing_mat', '', process_id, routing_id);
-                    $('#tabBasic #prod_mat_id, #tabBasic #prod_mat_nm, #tabBasic #need_pro_mat_qty, #tabBasic #parent_jr_pk, #tabBasic #consumed_mode').prop('disabled', false);
+                    $('#tabBasic #prod_mat_id, #tabBasic #prod_mat_nm, #tabBasic #need_pro_mat_qty, #tabBasic #parent_jr_pk, #tabBasic #consumed_mode, #tabBasic #wcfactory_id').prop('disabled', false);
 
                     if (!this._procCascadeBound) {
                         this.initProcessCascade();
@@ -1863,6 +1934,7 @@
                 if (!this._hasRouting) return;
 
                 const processId = $('#tabBasic #process_id').val();
+                const wcfactory_id = $('#tabBasic #wcfactory_id').val();
                 const routingId = this.jobres?.routing_id || $('#routing_id').val();
                 const materialId = $('#tabBasic #mat_pk').val();
                 const orderQty  = parseFloat($('#tabBasic #order_qty').val()) || 1;
@@ -1883,7 +1955,7 @@
 
                 // 1) 공정→워크센터
                 const wc = AjaxUtil.getSyncData('/api/definition/workcenter/of-process', {
-                    process_id: processId, routing_id: routingId
+                    process_id: processId, routing_id: routingId, factory_id: wcfactory_id
                 })?.data || {};
                 $('#tabBasic #workcenter_id').val(wc.workcenter_id || '');
                 $('#tabBasic #workcenter_name').val(wc.workcenter_nm || '');
@@ -2321,6 +2393,37 @@
                     _this.chasuGrid.itemsSource = new wijmo.collections.CollectionView(result.data); // 데이터 바인딩
                     _this.updateFooter(); // 하단 합계 업데이트
                 }
+
+                let resultDetail = AjaxUtil.getSyncData(this.baseUrl + '/mat_detail', param);
+                console.log('resultDetail', resultDetail);
+
+                if (resultDetail.data) {
+                    const parent = {
+                        id: resultDetail.data.id,
+                        mat_name: resultDetail.data.mat_name,
+                        standard: resultDetail.data.standard,
+                        OrderQty: resultDetail.data.OrderQty,
+                        isParent: true
+                    };
+
+                    const children = (resultDetail.data.items || []).map(item => ({
+                        ...item,
+                        suju_id: item.suju_id,
+                        Standard: item.Standard,
+                        Qty: item.Qty,
+                        parentId: resultDetail.data.id,
+                        isParent: false
+                    }));
+
+                    // 부모 + 자식 합침
+                    const mergedList = [parent, ...children];
+
+                    this.detailGrid.itemsSource = new wijmo.collections.CollectionView(mergedList);
+                } else {
+                    // ✅ 데이터 없을 때는 비우기
+                    this.detailGrid.itemsSource = new wijmo.collections.CollectionView([]);
+                }
+
             }
 
             // 차수추가
@@ -2520,6 +2623,11 @@
                 let url = this.baseUrl + '/print_detail';
                 let param = { jr_pk: jr_pk };
 
+                if (!select_chasu.length) {
+                    Alert.alert('', '생산품이 없습니다.');
+                    return;
+                }
+
                 AjaxUtil.getAsyncData(url, param, function (res) {
                     if (res.success && res.data) {
                         _this.printBarcodeReport(select_chasu, res.data);
@@ -2531,7 +2639,7 @@
 
             printBarcodeReport(select_chasu, detail) {
                 const prod_mat_nm = ($('#tabBasic').find('#prod_mat_nm').val() || '').trim();
-                console.log('detail', detail);
+
                 const date = detail.prod_date || '';
                 const [y, m, d] = (date.includes('-') ? date.split('-') : ['', '', '']);
 
@@ -3721,14 +3829,39 @@
                 }
             });
 
-            page.searchMainData();
-
             $('#choMat').on('keydown', function (e) {
                 if (e.key === 'Enter' || e.keyCode === 13) {
                     e.preventDefault(); // form submit 방지
                     page.searchMainData();
                 }
             });
+
+            const $factory = $('#Factory_id');
+            const restrictedUsers = ['kio01', 'kio02', 'kio03'];
+
+            // ✅ 공장 셀렉트 변경 시 자동 검색
+            $factory.on('change', function () {
+                page.searchMainData();
+            });
+
+            // ✅ 사용자 구분 처리
+            if (restrictedUsers.includes(userid)) {
+                // ▶ kio01~kio03 : factory_id 고정 + 셀렉트 비활성화
+                setTimeout(() => {
+                    $factory.val(factory_id).trigger('change');
+                }, 300);
+
+                $factory.prop('disabled', true).css({
+                    'background-color': '#e0e0e0',
+                    'color': '#555',
+                    'cursor': 'not-allowed'
+                });
+            } else {
+                // ▶ 그 외 사용자 : 전체 선택
+                setTimeout(() => {
+                    $factory.val('').trigger('change'); // ''은 "전체" 옵션
+                }, 300);
+            }
 
         });
     </script>
