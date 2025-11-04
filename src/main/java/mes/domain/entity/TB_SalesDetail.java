@@ -7,6 +7,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import javax.persistence.*;
+import java.math.BigDecimal;
 
 @Entity
 @Getter
@@ -23,7 +24,8 @@ public class TB_SalesDetail {
     private String itemnm;
     private String spec;
 
-    private Integer qty;
+    @Column(name = "qty", precision = 12, scale = 2)
+    private BigDecimal qty;
     private Integer unitcost;
     private Integer supplycost;
     private Integer taxtotal;

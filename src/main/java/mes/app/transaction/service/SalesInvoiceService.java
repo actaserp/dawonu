@@ -469,7 +469,7 @@ public class SalesInvoiceService {
             detail.setMisdate(misdate);
             detail.setSpec((String) form.get(prefix + ".Spec"));
             BigDecimal qty = parseMoney(form.get(prefix + ".Qty"));
-            if (qty != null) detail.setQty(qty.intValue());
+            if (qty != null) detail.setQty(qty);
 
             BigDecimal unitCost = parseMoney(form.get(prefix + ".UnitCost"));
             if (unitCost != null) detail.setUnitcost(unitCost.intValue());
@@ -662,7 +662,43 @@ public class SalesInvoiceService {
                 sql += """
                 ORDER BY sh."ShipDate" DESC
                 """;
+
         List<Map<String, Object>> items = this.sqlRunner.getRows(sql, paramMap);
+
+        for (Map<String, Object> head : items) {
+            Integer headId = (Integer) head.get("id");
+
+            MapSqlParameterSource childParam = new MapSqlParameterSource("headId", headId);
+
+            String childSql = """
+                WITH suju_summary AS (
+                    SELECT
+                        s.id AS shipment_id,
+                        s."ShipmentHead_id",
+                        STRING_AGG(s."SourceDataPk"::text, ',' ORDER BY s."SourceDataPk") AS suju_ids
+                    FROM shipment s
+                    WHERE s."SourceTableName" = 'rela_data'
+                    GROUP BY s.id, s."ShipmentHead_id"
+                )
+                SELECT
+                    s.id,
+                    s."Qty" AS qty,
+                    s."Price" AS price,
+                    s."Vat" AS vat,
+                    (s."Price" + s."Vat") AS amount,
+                    s."Description" AS description,
+                    ss.suju_ids
+                FROM shipment s
+                LEFT JOIN suju_summary ss
+                  ON ss.shipment_id = s.id
+                WHERE s."ShipmentHead_id" = :headId
+                ORDER BY s.id
+                """;
+
+            List<Map<String, Object>> details = this.sqlRunner.getRows(childSql, childParam);
+
+            head.put("shipments", details);
+        }
 
         return items;
     }
@@ -677,9 +713,11 @@ public class SalesInvoiceService {
 			, s."Standard" as standard
 			, m."Name" as material_name
 			, s."UnitPrice" as unit_price
+			, u."Name" as unit_name
 			from suju s
 			inner join material m on m.id = s."Material_id" 
 			inner join mat_grp mg on mg.id = m."MaterialGroup_id" 
+			LEFT JOIN unit      u  ON u.id  = m."Unit_id"
 			where s.id=:suju_id
 			and mg."MaterialType" in ('product')
 			order by s.id
@@ -692,7 +730,12 @@ public class SalesInvoiceService {
 				sd.id,
 				sd."suju_id",
 				sd."Standard",
-				sd."Qty"
+				sd."UnitName",
+				sd."Qty",
+				sd."UnitPrice",
+				sd."Price",
+				sd."Vat",
+				sd."TotalAmount"
 			FROM suju_detail sd
 			WHERE sd."suju_id" = :suju_id
 			ORDER BY sd.id
@@ -1754,7 +1797,7 @@ public class SalesInvoiceService {
                 detail.setMisdate(savedCopy.getMisdate());
                 detail.setSpec((String) form.get(prefix + ".Spec"));
                 BigDecimal qty = parseMoney(form.get(prefix + ".Qty"));
-                if (qty != null) detail.setQty(qty.intValue());
+                if (qty != null) detail.setQty(qty);
 
                 BigDecimal unitCost = parseMoney(form.get(prefix + ".UnitCost"));
                 if (unitCost != null) detail.setUnitcost(unitCost.intValue() * -1);
@@ -2024,7 +2067,8 @@ public class SalesInvoiceService {
                     detail.setItemnm(itemnm);
                     String datePart = getString(row.getCell(i));
                     detail.setPurchasedt(year + datePart);
-                    detail.setQty(parseInt(row.getCell(i + 3)));
+                    BigDecimal qty = new BigDecimal(row.getCell(i + 3).toString());
+                    detail.setQty(qty);
                     detail.setUnitcost(parseInt(row.getCell(i + 4)));
                     detail.setSupplycost(parseInt(row.getCell(i + 5)));
                     detail.setTaxtotal(parseInt(row.getCell(i + 6)));
@@ -2099,7 +2143,9 @@ public class SalesInvoiceService {
                 	m.iveraddr,
                 	m.iverbiztype,
                 	m.iverbizclass,
-                	m.supplycost
+                	m.supplycost,
+                	m.taxtotal,
+                	m.totalamt
                 FROM tb_salesment m
                 WHERE m.misnum = :misnum
                 """;
@@ -2134,6 +2180,7 @@ public class SalesInvoiceService {
                 d.itemnm as name,
                 d.qty,
                 d.unitcost,
+                d.spec,
                 d.supplycost,
                 d.taxtotal as tax,
                 d.remark,
@@ -2141,7 +2188,7 @@ public class SalesInvoiceService {
                 SUBSTRING(d.misdate FROM 7 FOR 2) AS day
             FROM tb_salesdetail d
             WHERE d.misnum = :misnum
-            ORDER BY d.misseq
+            ORDER BY CAST(d.misseq AS INT)
             """;
 
         Map<String, Object> master = this.sqlRunner.getRow(sql, paramMap);
