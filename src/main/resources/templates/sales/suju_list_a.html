@@ -1100,7 +1100,7 @@
 
         function isMeter(unit) {
           const v = (unit || '').trim();
-          return v === 'M(미터)' || v === 'M' || v.includes('미터');
+          return v === 'm' || v === 'm(미터)' || v === 'meter' || v.includes('미터');
         }
 
         function isLocked($row) {
@@ -2172,13 +2172,17 @@
           return $row;
         };
         function isMeter(unit) {
-          const v = (unit || '').trim();
-          return v === 'M(미터)' || v === 'M' || v.includes('미터');
+          const v = (unit ?? '').toString().trim().toLowerCase();
+          if (!v) return false;
+          // m, M(미터), 미터, meter 모두 허용
+          return v === 'm' || v === 'm(미터)' || v === 'meter' || v.includes('미터');
         }
 
         function isUnitMeter(unit) {
-          const v = (unit || '').toString().trim();
-          return v === 'M(미터)' || v === 'M' || v.includes('미터');
+          const v = (unit ?? '').toString().trim().toLowerCase();
+          if (!v) return false;
+          // m, M(미터), 미터, meter 모두 허용
+          return v === 'm' || v === 'm(미터)' || v === 'meter' || v.includes('미터');
         }
 
         function num(v) {
@@ -2395,24 +2399,58 @@
           });
 
           // (선택) 계산 자동화: qty/단가 변경 시 공급가액/부가세 갱신
-          $root.off('input.stdCalc').on('input.stdCalc',
+          // $root.off('input.stdCalc').on('input.stdCalc',
+          //   '.item-Standard-table tr.std-row input[name="qty"], ' +
+          //   '.item-Standard-table tr.std-row input[name="sd_UnitPrice"]',
+          //   function () {
+          //     const $r = $(this).closest('tr.std-row');
+          //     const qty  = parseFloat(($r.find('input[name="qty"]').val() || '').toString().replace(/,/g,'')) || 0;
+          //     const unit = parseFloat(($r.find('input[name="sd_UnitPrice"]').val() || '').toString().replace(/,/g,'')) || 0;
+          //     const price = Math.round(qty * unit);  // 공급가액
+          //     const vat   = Math.round(price * 0.1); // 부가세(10%)
+          //     const total = price + vat;
+          //     $r.find('input[name="sd_price"]').val(price.toLocaleString());
+          //     $r.find('input[name="sd_vat"]').val(vat.toLocaleString());
+          //     $r.find('input[name="TotalAmount"]').val(total.toLocaleString());
+          //
+          //     // 행 계산 후 합계 갱신
+          //     updateTotals($root);
+          //   }
+          // );
+          // (선택) 계산 자동화: qty/단가/규격/단위 변경 시 공급가액/부가세 갱신
+          $root.off('input.stdCalc').on(
+            'input.stdCalc',
             '.item-Standard-table tr.std-row input[name="qty"], ' +
-            '.item-Standard-table tr.std-row input[name="sd_UnitPrice"]',
+            '.item-Standard-table tr.std-row input[name="sd_UnitPrice"], ' +
+            '.item-Standard-table tr.std-row input[name="standard"], ' +
+            '.item-Standard-table tr.std-row input[name="UnitName"]',
             function () {
               const $r = $(this).closest('tr.std-row');
+
               const qty  = parseFloat(($r.find('input[name="qty"]').val() || '').toString().replace(/,/g,'')) || 0;
               const unit = parseFloat(($r.find('input[name="sd_UnitPrice"]').val() || '').toString().replace(/,/g,'')) || 0;
-              const price = Math.round(qty * unit);  // 공급가액
-              const vat   = Math.round(price * 0.1); // 부가세(10%)
-              const total = price + vat;
-              $r.find('input[name="sd_price"]').val(price.toLocaleString());
-              $r.find('input[name="sd_vat"]').val(vat.toLocaleString());
-              $r.find('input[name="TotalAmount"]').val(total.toLocaleString());
 
-              // 행 계산 후 합계 갱신
+              // 미터 단위면 (규격 × 수량) = 실수량
+              const unitName = ($r.find('input[name="UnitName"]').val() || '').toString().trim();
+              const isMeter  = isUnitMeter(unitName);
+
+              const stdRaw = ($r.find('input[name="standard"]').val() || '').toString().replace(/,/g,'').trim();
+              const stdNum = /^\d+(\.\d+)?$/.test(stdRaw) ? parseFloat(stdRaw) : 0;
+
+              const effectiveQty = isMeter && stdNum > 0 ? (stdNum * qty) : qty;
+
+              const price = Math.round(effectiveQty * unit);  // 공급가액
+              const vat   = Math.round(price * 0.1);          // 부가세(10%)
+              const total = price + vat;
+
+              $r.find('input[name="sd_price"]').val(price ? price.toLocaleString() : '');
+              $r.find('input[name="sd_vat"]').val(vat ? vat.toLocaleString() : '');
+              $r.find('input[name="TotalAmount"]').val(total ? total.toLocaleString() : '');
+
               updateTotals($root);
             }
           );
+
 
           // 별도 포맷 핸들러
           $root
