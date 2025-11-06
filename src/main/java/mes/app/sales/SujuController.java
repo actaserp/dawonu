@@ -1115,6 +1115,7 @@ public class SujuController {
                                  @RequestParam("Thickness") Float Thickness,
                                  @RequestParam("Width") Float Width,
                                  @RequestParam("Color") String Color,
+                                 @RequestParam("WorkCenter_id") Integer WorkCenter_id,
                                  @RequestParam("spjangcd") String spjangcd,
                                  Authentication auth
   ) {
@@ -1151,12 +1152,13 @@ public class SujuController {
       material.setWidth(Width);
       material.setColor(Color);
       material.setUseyn("0");
-      material.setWorkCenterId(45);  // 컷팅워크센터를 기본으로
-      if (Standard != null && !Standard.trim().isEmpty()) {
-        material.setRoutingId(11);
-      } else {
-        material.setRoutingId(10);
-      }
+      material.setWorkCenterId(WorkCenter_id);
+//      if (Standard != null && !Standard.trim().isEmpty()) {
+//        material.setRoutingId(11);
+//      } else {
+//        material.setRoutingId(10);
+//      }
+      material.setRoutingId(11);
       material.setStoreHouseId(3);  // 자재창고가 기본으로
       material.setMatUserCode(cboMaterialMid);
       material.set_audit(user);
@@ -1301,6 +1303,17 @@ public class SujuController {
 
     AjaxResult result = new AjaxResult();
     result.data = item;
+
+    return result;
+  }
+
+  @GetMapping("/workcenter_list")
+  public AjaxResult getWorkcenterList( @RequestParam("factoryId") int Factory_id){
+
+    List<Map<String, Object>> items = this.sujuService.getWorkcenterList(Factory_id);
+
+    AjaxResult result = new AjaxResult();
+    result.data = items;
 
     return result;
   }

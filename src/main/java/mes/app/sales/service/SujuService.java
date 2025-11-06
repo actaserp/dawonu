@@ -607,4 +607,21 @@ public class SujuService {
 		return out;
 	}
 
+	public List<Map<String, Object>> getWorkcenterList(int Factory_id) {
+		MapSqlParameterSource params = new MapSqlParameterSource()
+				.addValue("Factory_id", Factory_id);
+
+		String sql = """
+        select id as value, "Name" as text
+        from work_center
+        where "Factory_id" = cast(:Factory_id as int)
+        order by "Name"
+        """;
+
+//		log.info("WorkCenterList SQL: {}", sql);
+//		log.info("SQL Parameters: {}", params.getValues());
+
+		return sqlRunner.getRows(sql, params); // ← getRow() 말고 getRows()
+	}
+
 }
