@@ -1793,12 +1793,14 @@ public class ProductionResultController {
                     });
 
             // 부모 상태만 canceled 로 업데이트 (이력 보존)
-            jr.setState("canceled");
-            jr.set_audit(user);
-            jobResRepository.save(jr);
+//            jr.setState("canceled");
+//            jr.set_audit(user);
+//            jobResRepository.save(jr);
+
+            jobResRepository.deleteById(jobresId);
 
             result.success = true;
-            result.message = "작업지시가 취소되었습니다.";
+            result.message = "작업지시가 삭제되었습니다.";
             return result;
         }
     }

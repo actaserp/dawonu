@@ -276,6 +276,7 @@ public class ProductionResultService {
 				 S.child_id                                  AS id                         -- 대표행 id
 			   , C."WorkOrderNumber"                         AS order_num
 			   , TO_CHAR(B."ProductionDate",'yyyy-mm-dd')    AS prod_date                  -- 기본정보는 base(부모)
+			   , TO_CHAR(su."DueDate",'yyyy-mm-dd')    AS due_date
 			   , C."LotNumber"                               AS lot_num
 			   , TO_CHAR(B."StartTime",'hh24:mi')            AS start_time
 			   , TO_CHAR(B."EndTime",'hh24:mi')              AS end_time

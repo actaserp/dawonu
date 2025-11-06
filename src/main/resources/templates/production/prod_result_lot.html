@@ -1024,16 +1024,17 @@
                     isReadOnly: true,
                     showMarquee: true,
                     columns: [
-                        {binding: 'order_num', header: '작지번호', width: 130, align: 'center'},
-                        {binding: 'company_name', header: '판매처', width: 120, align: 'left', isReadOnly: true},
+                        {binding: 'order_num', header: '작지번호', width: 128, align: 'center'},
+                        {binding: 'company_name', header: '판매처', width: 110, align: 'left', isReadOnly: true},
                         {binding: 'prod_date', header: '생산일', width: 100, align: 'center'},
-                        {binding: 'mat_code', header: '품목코드', width: 90, align: 'center'},
+                        {binding: 'job_state', header: '상태', width: 70, align: 'center'},
                         {binding: 'mat_name', header: '품목', width: 180, align: 'left'},
-                        {binding: 'standard', header: '규격', width: 80, align: 'center'},
+                        {binding: 'standard', header: '규격', width: 60, align: 'center'},
+                        {binding: 'due_date', header: '납기예정일', width: 100, align: 'center'},
                         {binding: 'order_qty', header: '지시량', width: 80, format: 'n2', align: 'right'},
                         {binding: 'good_qty', header: '양품량', width: 80, format: 'n2', align: 'right'},
                         {binding: 'defect_qty', header: '부적합량', width: 80, format: 'n2', align: 'right'},
-                        {binding: 'job_state', header: '상태', width: 100, align: 'center'},
+                        {binding: 'mat_code', header: '품목코드', width: 90, align: 'center'},
                         {binding: 'mat_type', header: '품목구분', width: 100, align: 'center'},
                         {binding: 'unit', header: '단위', width: 80, align: 'center'},
                         {binding: 'workcenter', header: '워크센터', width: 100, align: 'center'},
@@ -2101,21 +2102,21 @@
 
                 const fnSuccess = function (res) {
                     if (res.success) {
-                        Notify.success('취소되었습니다.');
+                        Notify.success('삭제되었습니다.');
                         _this.searchMainData();
                         setTimeout(() => _this.grid.select(previousIndex, 0), 100);
                     } else {
-                        Alert.alert('작업지시 취소', res.message || '취소에 실패했습니다.');
+                        Alert.alert('작업지시 삭제', res.message || '삭제에 실패했습니다.');
                     }
                 };
 
                 // 완료 상태/수량 존재 시 막기 (자식/부모 공통 가드)
                 if (data.state === 'finished') {
-                    Alert.alert('', '완료된 작업은 취소할 수 없습니다.');
+                    Alert.alert('', '완료된 작업은 삭제할 수 없습니다.');
                     return;
                 }
                 if ((parseFloat(data.good_qty) || 0) + (parseFloat(data.defect_qty) || 0)) {
-                    Alert.alert('', '생산 수량이 존재하는 작업은 취소할 수 없습니다.');
+                    Alert.alert('', '생산 수량이 존재하는 작업은 삭제할 수 없습니다.');
                     return;
                 }
 
