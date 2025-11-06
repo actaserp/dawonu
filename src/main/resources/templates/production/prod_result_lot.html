@@ -2252,14 +2252,12 @@
                     const HH = pad2(now.getHours());
                     const MI = pad2(now.getMinutes());
 
-                    if (!d.end_date || d.end_date.trim() === '') {
-                        d.end_date = `${yyyy}-${mm}-${dd}`;
-                        $('#end_date').val(d.end_date);  // 폼에도 반영
-                    }
-                    if (!d.end_time || d.end_time.trim() === '') {
-                        d.end_time = `${HH}:${MI}`;
-                        $('#end_time').val(d.end_time);  // 폼에도 반영
-                    }
+                    // ✅ 항상 오늘 날짜와 현재시간으로 갱신
+                    d.end_date = `${yyyy}-${mm}-${dd}`;
+                    $('#end_date').val(d.end_date);
+
+                    d.end_time = `${HH}:${MI}`;
+                    $('#end_time').val(d.end_time);
                 })(data);
 
                 // 1) 필수입력 (finish에서는 start_time 강제 요구 X: DB 저장값을 신뢰)
