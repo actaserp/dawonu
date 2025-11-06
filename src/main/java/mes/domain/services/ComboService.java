@@ -852,7 +852,7 @@ public class ComboService {
 			sql +="and \"Process_id\" in (select unnest(string_to_array(:cond1,','))::int)";
 		}
 		if (StringUtils.hasText(cond2)) {
-			sql +="and \"Area_id\" = :cond2 ";
+			sql +="and \"Factory_id\" in (select unnest(string_to_array(:cond2,','))::int) ";
 		}
 		if (StringUtils.hasText(cond3) && cond3.trim().matches("^[0-9]+(,[0-9]+)*$")) {
 			sql += " AND id IN (SELECT unnest(string_to_array(:cond3, ','))::int)";
