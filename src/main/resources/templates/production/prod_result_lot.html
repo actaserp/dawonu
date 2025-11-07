@@ -1082,50 +1082,43 @@
                             }
                         }
                     },
-                    selectionChanged: function (e) {
-                        const selectedRow = _this.grid.selection.row;
-                        const dataSource = _this.grid.itemsSource instanceof wijmo.collections.CollectionView
-                            ? _this.grid.itemsSource.sourceCollection
-                            : _this.grid.itemsSource;
 
-                        if (!dataSource || !Array.isArray(dataSource) || dataSource.length === 0) return;
-                        if (selectedRow >= 0) _this.selectedIndex = selectedRow;
+                });
 
-                        const item = _this.grid.rows[selectedRow]?.dataItem;
-                        if (!item || _this._currentJrPk === item.id) return;
+                this.grid.hostElement.addEventListener('click', function (e) {
+                    const ht = _this.grid.hitTest(e);
+                    if (ht.cellType !== wijmo.grid.CellType.Cell) return;
 
-                        _this._currentJrPk = item.id;
-                        _this.jobres = item;
+                    const selectedRow = ht.row;
+                    const dataSource = _this.grid.itemsSource instanceof wijmo.collections.CollectionView
+                        ? _this.grid.itemsSource.sourceCollection
+                        : _this.grid.itemsSource;
 
-                        // 1) 로딩바 표시
-                        AjaxUtil.showLoading();
+                    if (!dataSource || !Array.isArray(dataSource) || dataSource.length === 0) return;
 
-                        // 1-1) 강제 리플로우로 즉시 페인트 준비
-                        try {
-                            const loader = window.parent?.document?.getElementById('loader2')
-                                || document.getElementById('loader2');
-                            if (loader) { void loader.offsetHeight; }
-                        } catch (e) {}
+                    const item = _this.grid.rows[selectedRow]?.dataItem;
+                    if (!item || _this._currentJrPk === item.id) return;
 
-                        // 2) 더블 rAF로 "로딩바가 실제로 그려진 뒤"에 무거운 작업 시작
+                    _this._currentJrPk = item.id;
+                    _this.jobres = item;
+
+                    AjaxUtil.showLoading();
+
+                    requestAnimationFrame(() => {
                         requestAnimationFrame(() => {
-                            requestAnimationFrame(() => {
-                                try {
-                                    _this.showBasicInfo(item.id, { skipProcessChange: false });
-                                    _this.showDefectList('total');
-                                } catch (err) {
-                                    console.error('selectionChanged error:', err);
-                                } finally {
-                                    setTimeout(() => AjaxUtil.hideLoading(), 200);
-                                }
-                            });
+                            try {
+                                _this.showBasicInfo(item.id, { skipProcessChange: false });
+                                _this.showDefectList('total');
+                            } catch (err) {
+                                console.error('click error:', err);
+                            } finally {
+                                setTimeout(() => AjaxUtil.hideLoading(), 200);
+                            }
                         });
-                    }
-
+                    });
                 });
                 new FlexGridContextMenu(this.grid);
                 this.grid.downloadFileName = '생산 내역';
-
 
                 this.chasuGrid = new wijmo.grid.FlexGrid('#chasu-grid', {
                     autoGenerateColumns: false,
@@ -1811,6 +1804,8 @@
             searchMainData() {
                 let _this = this;
 
+                // 🔹 현재 선택된 작업지시 ID 저장
+                const prevJobId = _this.jobres?.id || null;
 
                 let param = {
                     'date_from': $('#date_from').val(),
@@ -1822,30 +1817,34 @@
 
                 let result = AjaxUtil.getSyncData(this.baseUrl + '/read', param);
                 if (result.data && _this.grid.itemsSource) {
-                    // 기존 sourceCollection 업데이트 (선택 유지됨)
-
                     let view = _this.grid.itemsSource;
                     view.sourceCollection.splice(0, view.sourceCollection.length, ...result.data);
-                    view.refresh(); // 필터, 정렬, 페이징 적용
-                }
-                // if (result.data != null) {
-                //     _this.grid.itemsSource = result.data;
-                // }
+                    view.refresh();
 
-
-                $('#basicForm')[0].reset();
-
-
-                $('#basicForm').find('input, select, textarea').each(function () {
-                    if (!$(this).is(':disabled')) {
-                        $(this).attr('disabled', 'disabled');
+                    // ✅ 새 데이터에 이전 jobres id가 존재하면 자동 재선택
+                    if (prevJobId) {
+                        const foundIndex = result.data.findIndex(d => d.id === prevJobId);
+                        if (foundIndex >= 0) {
+                            _this.grid.select(foundIndex, 0);
+                            _this._currentJrPk = prevJobId;
+                            _this.jobres = result.data[foundIndex];
+                        } else {
+                            // 기존 선택된 작업이 사라졌다면 초기화
+                            _this.jobres = null;
+                            _this._currentJrPk = null;
+                            $('#basicForm')[0].reset();
+                            $('#basicForm').find('input, select, textarea').each(function () {
+                                if (!$(this).is(':disabled')) {
+                                    $(this).attr('disabled', 'disabled');
+                                }
+                            });
+                            this.setButtonState();
+                            $('#svgBarcode').empty();
+                        }
                     }
-                });
-
-                this.setButtonState();
-
-                $('#svgBarcode').empty();
+                }
             }
+
 
             // 생산정보 조회
             showBasicInfo(jr_pk, { skipProcessChange = false } = {}) {
@@ -2104,7 +2103,6 @@
                     if (res.success) {
                         Notify.success('삭제되었습니다.');
                         _this.searchMainData();
-                        setTimeout(() => _this.grid.select(previousIndex, 0), 100);
                     } else {
                         Alert.alert('작업지시 삭제', res.message || '삭제에 실패했습니다.');
                     }
@@ -3646,7 +3644,8 @@
         let page = null;
 
         $(document).ready(function (e) {
-            page = new ProdResultPage();
+            window.page = new ProdResultPage();
+            page = window.page;
 
             let date_from = CommonUtil.getYYYYMMDD();
             let today = CommonUtil.getYYYYMMDD();
@@ -3674,7 +3673,6 @@
 
             // 검색 버튼1
             $('#btnMainSearch').click(function (e) {
-                page.jobres = null;
                 page.searchMainData();
             });
 
@@ -3709,8 +3707,18 @@
 
             // 생산정보 삭제
             $('#btnDel').click(function (e) {
-                page.delBasicInfo();
+                Alert.confirm(
+                    '삭제 확인',
+                    '정말 삭제하시겠습니까?',
+                    function () { // ✅ 확인(yes)
+                        page.delBasicInfo();
+                    },
+                    function () { // ❌ 취소(no)
+                        console.log('삭제가 취소되었습니다.');
+                    }
+                );
             });
+
 
             // 작업시작
             $('#btnWorkStart').click(function (e) {
@@ -3861,6 +3869,10 @@
                     $factory.val('').trigger('change'); // ''은 "전체" 옵션
                 }, 300);
             }
+
+
+
+            window.__pageReady = true;
 
         });
     </script>

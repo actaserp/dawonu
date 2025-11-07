@@ -1149,7 +1149,7 @@ let AjaxUtil = {
             url: url,
             data: param_data,
             success: function (res) {
-                console.log('asdas');
+                // console.log('asdas');
 
                 fn_success(res);
 
@@ -1168,7 +1168,7 @@ let AjaxUtil = {
                 AjaxUtil.hideLoading();
             },
             finally: function() {
-                console.log('asdasaaa');
+
                 AjaxUtil.hideLoading();
             }
         });

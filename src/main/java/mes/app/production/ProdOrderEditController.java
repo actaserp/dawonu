@@ -8,6 +8,7 @@ import java.util.Map;
 import javax.servlet.http.HttpServletRequest;
 import javax.transaction.Transactional;
 
+import mes.app.common.NotificationController;
 import mes.domain.entity.*;
 import mes.domain.repository.*;
 import mes.domain.services.CommonUtil;
@@ -49,6 +50,9 @@ public class ProdOrderEditController {
 
 	@Autowired
 	BomRepository bomRepository;
+
+	@Autowired
+	NotificationController notificationController;
 	
 	// 수주 목록 조회
 	@GetMapping("/suju_list")
@@ -206,6 +210,14 @@ public class ProdOrderEditController {
 		header.setShiftCode(cboShiftCode);
 
 		header = jobResRepository.save(header); // 트리거가 헤더 번호 생성
+
+		notificationController.sendJobOrderNotification(
+				"작업지시가 생성되었습니다.",
+				header.getId(),
+				m.getName(),
+				txtOrderQty,
+				m.getFactory_id()
+		);
 
 //		// ===== 자식(전 공정들) 생성: 마지막 공정 제외 =====
 //		for (int i = 0; i < steps.size() - 1; i++) {

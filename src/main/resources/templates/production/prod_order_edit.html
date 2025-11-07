@@ -471,16 +471,16 @@
                 this.grid.downloadFileName = '작업 지시 목록';
 
                 // FlexGrid 이벤트 설정
-                this.grid.selectionChanged.addHandler((s, e) => {
-                    let selectedRow = s.selection.row;
-                    if (selectedRow < 0) return;
+                this.grid.hostElement.addEventListener('click', function (e) {
+                    let ht = _this.grid.hitTest(e);
+                    if (ht.cellType === wijmo.grid.CellType.Cell) {
+                        let item = _this.grid.rows[ht.row]?.dataItem;
+                        if (!item) return;
 
-                    let item = s.rows[selectedRow]?.dataItem;
-
-                    // 항상 현재 선택된 데이터 로딩
-                    _this.loadJobResList(item);
-                    _this.loadSemiJobResList(item);
-                    _this.semiJobRes();
+                        _this.loadJobResList(item);
+                        _this.loadSemiJobResList(item);
+                        _this.semiJobRes();
+                    }
                 });
 
 

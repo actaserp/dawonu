@@ -192,7 +192,7 @@ public class AccountController {
 					Cookie autoLoginCookie = new Cookie("AUTO_LOGIN_ID", username);
 					autoLoginCookie.setHttpOnly(true);
 					autoLoginCookie.setPath("/");
-					autoLoginCookie.setMaxAge(60 * 60 * 24 * 30); // 30일 유지
+					autoLoginCookie.setMaxAge(60 * 60 * 24 * 365); // ✅ 1년 유지
 					response.addCookie(autoLoginCookie);
 				}
 			}

@@ -82,15 +82,16 @@ public class HomeController {
 		session.setAttribute("spjangList", spjangList);
 		mv.addObject("username", username);
 		mv.addObject("userid", userid);
+		mv.addObject("groupid", groupid);
 		mv.addObject("groupname", groupname);
+		mv.addObject("factory_id", factory_id);
 		session.setAttribute("userid", userid);
+		session.setAttribute("groupid", groupid);
 		session.setAttribute("factory_id", factory_id);
 		session.setAttribute("spjangcd", spjangcd);
 		mv.addObject("userinfo", user);
 		mv.addObject("system_title", logoTitle);
 		mv.addObject("default_menu_code", "wm_dashboard_summary");
-		System.out.println("factory_id = " + factory_id);
-		System.out.println("userid = " + userid);
 		
 		String mqtt_host = settings.getProperty("mqtt_host");
 		String mqtt_web_port = settings.getProperty("mqtt_web_port");
