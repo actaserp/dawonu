@@ -133,146 +133,149 @@
   </div>
   <script type="text/x-tmpl" id="sujuTemplate">
     <style>
-        /* 아이템 테이블 전체 설정 */
-        .item-table {
-            width: 100%;
-            border-collapse: collapse;
-            table-layout: fixed;
-            margin-top: 10px;
-        }
+      .write-table th {
+        width: auto;
+      }
+      /* 아이템 테이블 전체 설정 */
+      .item-table {
+          width: 100%;
+          border-collapse: collapse;
+          table-layout: fixed;
+          margin-top: 10px;
+      }
 
-        /* 헤더 셀 스타일 */
-        .item-table th {
-            background-color: #EDEFF5;
-            text-align: center;
-            font-weight: bold;
-            padding: 8px;
-            border: 1px solid #ccc;
-        }
+      /* 헤더 셀 스타일 */
+      .item-table th {
+          background-color: #EDEFF5;
+          text-align: center;
+          font-weight: bold;
+          padding: 8px;
+          border: 1px solid #ccc;
+      }
 
-        /* 바디 셀 스타일 */
-        .item-table td {
-            padding: 6px;
-            text-align: center;
-            border: 1px solid #ccc;
-        }
+      /* 바디 셀 스타일 */
+      .item-table td {
+          padding: 6px;
+          text-align: center;
+          border: 1px solid #ccc;
+      }
 
-        /* 입력 필드 기본 스타일 */
-        .item-table input {
-            width: 100%;
-            box-sizing: border-box;
-            padding: 4px;
-        }
+      /* 입력 필드 기본 스타일 */
+      .item-table input {
+          width: 100%;
+          box-sizing: border-box;
+          padding: 4px;
+      }
 
-        /* 품목 & 비고 왼쪽 정렬 */
-        .item-table td:first-child,
-        .item-table td:nth-child(6) {
-            text-align: left;
-        }
+      /* 품목 & 비고 왼쪽 정렬 */
+      .item-table td:first-child,
+      .item-table td:nth-child(6) {
+          text-align: left;
+      }
 
-        /* 공통 버튼 스타일 */
-        .item-table .btn.in_btn {
-            display: inline-flex;
-            justify-content: center;
-            align-items: center;
-            width: 32px;
-            height: 32px;
-            border-radius: 4px;
-            padding: 0;
-            border: 1px solid #B3B3B3;
-            background-color: #fff;
-            cursor: pointer;
-            transition: background-color 0.2s;
-            line-height: 0;
-        }
+      /* 공통 버튼 스타일 */
+      .item-table .btn.in_btn {
+          display: inline-flex;
+          justify-content: center;
+          align-items: center;
+          width: 32px;
+          height: 32px;
+          border-radius: 4px;
+          padding: 0;
+          border: 1px solid #B3B3B3;
+          background-color: #fff;
+          cursor: pointer;
+          transition: background-color 0.2s;
+          line-height: 0;
+      }
 
-        /* + 버튼 전용 스타일 */
-        .item-table .btn.in_btn.plus img {
-            width: 10px;
-            height: 10px;
-            display: block;
-        }
+      /* + 버튼 전용 스타일 */
+      .item-table .btn.in_btn.plus img {
+          width: 10px;
+          height: 10px;
+          display: block;
+      }
 
-        /* 공통 아이콘 버튼 이미지 (삭제, 검색 포함) */
-        .item-table .btn.in_btn img {
-            width: 12px;
-            height: 12px;
-            display: block;
-            margin-right: 5px;
-        }
+      /* 공통 아이콘 버튼 이미지 (삭제, 검색 포함) */
+      .item-table .btn.in_btn img {
+          width: 12px;
+          height: 12px;
+          display: block;
+          margin-right: 5px;
+      }
 
-        .input-with-button {
-            display: flex;
-            gap: 4px; /* 버튼과 input 사이 여백 */
-            align-items: center;
-        }
+      .input-with-button {
+          display: flex;
+          gap: 4px; /* 버튼과 input 사이 여백 */
+          align-items: center;
+      }
 
-        .input-with-button input {
-            flex: 1; /* 나머지 영역 차지 */
-            min-width: 0;
-            padding: 4px;
-        }
+      .input-with-button input {
+          flex: 1; /* 나머지 영역 차지 */
+          min-width: 0;
+          padding: 4px;
+      }
 
-        .input-with-button .btn.in_btn {
-            flex-shrink: 0;
-        }
+      .input-with-button .btn.in_btn {
+          flex-shrink: 0;
+      }
 
-        .content_wrap.popup {
-            display: flex;
-            flex-direction: column;
-            height: 100%;
-        }
+      .content_wrap.popup {
+          display: flex;
+          flex-direction: column;
+          height: 100%;
+      }
 
-        .table-wrap {
-            flex: 1;
-            overflow-y: auto;
-            padding-right: 5px;
-        }
+      .table-wrap {
+          flex: 1;
+          overflow-y: auto;
+          padding-right: 5px;
+      }
 
-        .popup-button {
-            flex-shrink: 0;
-            padding: 10px;
-            background: #fff;
-            border-top: 1px solid #ddd;
-        }
+      .popup-button {
+          flex-shrink: 0;
+          padding: 10px;
+          background: #fff;
+          border-top: 1px solid #ddd;
+      }
 
-        .input-with-checkbox {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
+      .input-with-checkbox {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+      }
 
-        .input-with-checkbox input[type="number"] {
-            flex: 1;
-            min-width: 0;
-            padding: 4px;
-        }
+      .input-with-checkbox input[type="number"] {
+          flex: 1;
+          min-width: 0;
+          padding: 4px;
+      }
 
-        .input-with-checkbox input[type="checkbox"] {
-            flex-shrink: 0;
-            width: 18px;
-            height: 18px;
-        }
-        #plusCompany{
-            display: inline-flex;
-            justify-content: center;
-            align-items: center;
-            width: 32px;
-            height: 32px;
-            border-radius: 4px;
-            padding: 0;
-            border: 1px solid #B3B3B3;
-            background-color: #fff;
-            cursor: pointer;
-            transition: background-color 0.2s;
-            line-height: 0;
-        }
-        #plusCompany > img{
-           width: 12px;
-           height: 12px;
-           display: block;
-           margin-right: 5px;
-        }
+      .input-with-checkbox input[type="checkbox"] {
+          flex-shrink: 0;
+          width: 18px;
+          height: 18px;
+      }
+      #plusCompany{
+          display: inline-flex;
+          justify-content: center;
+          align-items: center;
+          width: 32px;
+          height: 32px;
+          border-radius: 4px;
+          padding: 0;
+          border: 1px solid #B3B3B3;
+          background-color: #fff;
+          cursor: pointer;
+          transition: background-color 0.2s;
+          line-height: 0;
+      }
+      #plusCompany > img{
+         width: 12px;
+         height: 12px;
+         display: block;
+         margin-right: 5px;
+      }
     </style>
     <div class="content_wrap popup" id="div_excel_upload">
         <div class="table-wrap">
@@ -344,15 +347,14 @@
                         <th style="text-align: center">
                             <label for="Description">비고</label>
                         </th>
-                        <td colspan="3">
+                        <td >
                             <textarea id="Description" name="Description" style="height:80px;"></textarea>
                         </td>
-                    </tr>
-                    <tr>
+
                         <th style="text-align: center">
                             <label for="EstimateMemo">견적 메모</label>
                         </th>
-                        <td colspan="3">
+                        <td>
                             <textarea id="EstimateMemo" name="EstimateMemo" style="height:80px;"></textarea>
                         </td>
                     </tr>
@@ -1107,16 +1109,21 @@
           const raw = (($row.find('input[name^="standard_locked_"], input[name="standard_locked"]').val() || '') + '')
             .trim()
             .toUpperCase();
-          return raw === 'Y' || raw === 'TRUE' || raw === '1' || raw === 'ON';
+          return raw === 'N' ;
         }
 
         function refreshStdBtn($row) {
+          const locked = isLocked($row);
+          $row.find(STD_BTN_SEL).css('display', locked ? 'inline-flex' : 'none');
+        }
+
+        /*function refreshStdBtn($row) {
           const unit = getUnitVal($row);
           const showByUnit = isMeter(unit);
           const locked = isLocked($row);
           // console.log('unit=', unit, ' -> showByUnit=', showByUnit, ' locked=', locked);
           $row.find(STD_BTN_SEL).css('display', showByUnit && !locked ? 'inline-flex' : 'none');
-        }
+        }*/
 
         // 초기 렌더된 '버튼 있는' 행만 반영
         $root.on(
@@ -1986,7 +1993,7 @@
             if (item.Spec && item.Spec.trim() !== '') {
               $standard_locked.val('Y').trigger('change');
             } else {
-              $standard_locked.val('').trigger('change');
+              $standard_locked.val('N').trigger('change');
             }
 
             tryShowPrice($row);
