@@ -1112,9 +1112,9 @@ public class SujuController {
                                  @RequestParam("Unit_id") Integer Unit_id,
                                  @RequestParam(value = "Standard", required = false) String Standard,
                                  @RequestParam("Factory_id") Integer Factory_id,
-                                 @RequestParam("Thickness") Float Thickness,
-                                 @RequestParam("Width") Float Width,
-                                 @RequestParam("Color") String Color,
+                                 @RequestParam(value = "Thickness",required = false) Float Thickness,
+                                 @RequestParam(value = "Width",  required = false) Float Width,
+                                 @RequestParam(value = "Color",  required = false) String Color,
                                  @RequestParam("WorkCenter_id") Integer WorkCenter_id,
                                  @RequestParam("spjangcd") String spjangcd,
                                  Authentication auth
@@ -1148,7 +1148,7 @@ public class SujuController {
       material.setUnitId(Unit_id);
       material.setStandard1(Standard);
       material.setSpjangcd(spjangcd);
-      material.setThickness(Thickness);
+      material.setThickness(Thickness); //폭
       material.setWidth(Width);
       material.setColor(Color);
       material.setUseyn("0");
