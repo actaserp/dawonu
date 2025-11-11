@@ -246,6 +246,7 @@
 
                 showProcessList(selectedItem.id);
                 setButtonState();
+                $('#btnDelProcess').prop('disabled', false);
             });
 
             theGrid.rowHeaders.columns.splice(0, 1);

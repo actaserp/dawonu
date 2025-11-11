@@ -197,9 +197,9 @@ public class RoutingController {
 	// 라우팅에서 공정정보 삭제
 	@PostMapping("/delete_process")
 	public AjaxResult deleteProcess(
-			@RequestParam("id") int id,
-			@RequestParam("routing_id") int routing_id,
-			@RequestParam("process_id") int process_id
+			@RequestParam("id") int id
+//			@RequestParam("routing_id") int routing_id,
+//			@RequestParam("process_id") int process_id
 	) {
 
 		this.routingProcRepository.deleteById(id);

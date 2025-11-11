@@ -1158,9 +1158,13 @@ public class SujuController {
 //      } else {
 //        material.setRoutingId(10);
 //      }
-      material.setRoutingId(11);
+      if (Objects.equals(WorkCenter_id, 46)) {
+        material.setRoutingId(11);
+      }
       material.setStoreHouseId(3);  // 자재창고가 기본으로
       material.setMatUserCode(cboMaterialMid);
+      material.setPurchaseOrderStandard("mrp");
+      material.setValidDays(1);
       material.set_audit(user);
 
       // 저장
