@@ -229,4 +229,121 @@ public class UtilClass {
         }
     }
 
+    /**
+     * 은행명에 따라 계좌번호 하이픈(-) 자동 포맷팅
+     * @param accnum  복호화된 계좌번호 (숫자 문자열)
+     * @param banknm  은행명 (예: 국민은행, 신한은행 등)
+     * @return 포맷팅된 계좌번호 (예: 123-456-789012)
+     */
+    public static String bankFormat(String accnum, String banknm) {
+        if (accnum == null || accnum.isEmpty()) return "";
+        if (banknm == null) banknm = "";
+
+        // 숫자만 추출
+        accnum = accnum.replaceAll("\\D", "");
+
+        switch (banknm.trim()) {
+
+            // ✅ 국민은행: 14자리 (6-2-6)
+            case "국민은행":
+                if (accnum.length() == 14)
+                    return accnum.replaceFirst("(\\d{6})(\\d{2})(\\d{6})", "$1-$2-$3");
+                break;
+
+            // ✅ 신한은행: 12자리 (3-3-6)
+            case "신한은행":
+                if (accnum.length() == 12)
+                    return accnum.replaceFirst("(\\d{3})(\\d{3})(\\d{6})", "$1-$2-$3");
+                break;
+
+            // ✅ 농협: 14자리 (3-4-6-1)
+            case "농협":
+            case "농협은행":
+                if (accnum.length() == 13)
+                    return accnum.replaceFirst("(\\d{3})(\\d{4})(\\d{4})(\\d{2})", "$1-$2-$3-$4");
+                else if (accnum.length() == 14)
+                    return accnum.replaceFirst("(\\d{3})(\\d{4})(\\d{6})(\\d{1})", "$1-$2-$3-$4");
+                else if (accnum.length() == 12)
+                    return accnum.replaceFirst("(\\d{3})(\\d{3})(\\d{6})", "$1-$2-$3");
+                break;
+
+            // ✅ 우리은행: 13자리 (8-5)
+            case "우리은행":
+                if (accnum.length() == 13)
+                    return accnum.replaceFirst("(\\d{8})(\\d{5})", "$1-$2");
+                break;
+
+            // ✅ 하나은행: 12자리 (3-6-3)
+            case "하나은행":
+                if (accnum.length() == 12)
+                    return accnum.replaceFirst("(\\d{3})(\\d{6})(\\d{3})", "$1-$2-$3");
+                break;
+
+            // ✅ 기업은행: 13자리 (3-6-4)
+            case "기업은행":
+                if (accnum.length() == 13)
+                    return accnum.replaceFirst("(\\d{3})(\\d{6})(\\d{4})", "$1-$2-$3");
+                else if (accnum.length() == 14)
+                    return accnum.replaceFirst("(\\d{3})(\\d{6})(\\d{2})(\\d{3})", "$1-$2-$3-$4");
+                break;
+
+            // ✅ SC제일은행: 11~12자리 (3-2-6 or 3-3-6)
+            case "SC제일은행":
+                if (accnum.length() == 11)
+                    return accnum.replaceFirst("(\\d{3})(\\d{2})(\\d{6})", "$1-$2-$3");
+                else if (accnum.length() == 12)
+                    return accnum.replaceFirst("(\\d{3})(\\d{3})(\\d{6})", "$1-$2-$3");
+                break;
+
+            // ✅ 씨티은행: 10~12자리 (3-6-3)
+            case "씨티은행":
+                if (accnum.length() == 12)
+                    return accnum.replaceFirst("(\\d{3})(\\d{6})(\\d{3})", "$1-$2-$3");
+                break;
+
+            // ✅ 산업은행: 12자리 (3-3-6)
+            case "산업은행":
+                if (accnum.length() == 12)
+                    return accnum.replaceFirst("(\\d{3})(\\d{3})(\\d{6})", "$1-$2-$3");
+                break;
+
+            // ✅ 카카오뱅크: 11자리 (333-12-345678)
+            case "카카오뱅크":
+                if (accnum.length() == 11)
+                    return accnum.replaceFirst("(\\d{3})(\\d{2})(\\d{6})", "$1-$2-$3");
+                break;
+
+            // ✅ 토스뱅크: 12자리 (100-1234-567890)
+            case "토스뱅크":
+                if (accnum.length() == 12)
+                    return accnum.replaceFirst("(\\d{3})(\\d{4})(\\d{5})", "$1-$2-$3");
+                break;
+
+            // ✅ 새마을금고: 13자리 (9-4)
+            case "새마을금고":
+                if (accnum.length() == 13)
+                    return accnum.replaceFirst("(\\d{9})(\\d{4})", "$1-$2");
+                break;
+
+            // ✅ 신협: 12~13자리 (4-4-4 or 4-5-4)
+            case "신협":
+                if (accnum.length() == 12)
+                    return accnum.replaceFirst("(\\d{4})(\\d{4})(\\d{4})", "$1-$2-$3");
+                else if (accnum.length() == 13)
+                    return accnum.replaceFirst("(\\d{4})(\\d{5})(\\d{4})", "$1-$2-$3");
+                break;
+
+            // ✅ 우체국: 13자리 (6-2-5)
+            case "우체국":
+                if (accnum.length() == 13)
+                    return accnum.replaceFirst("(\\d{6})(\\d{2})(\\d{5})", "$1-$2-$3");
+                break;
+
+            default:
+                return accnum; // 은행명 매칭 안 되면 원본 그대로
+        }
+
+        return accnum;
+    }
+
 }

@@ -764,13 +764,13 @@
                                                 <th class="splitline noborder_t" colspan="50"></th>
                                             </tr>
                                             <tr>
-                                                <th class="al_c noborder_l" colspan="11"><span class="bold">비고1</span></th>
-                                                <td class="al_l pdl_3 gray_border_l" colspan="85"><input class="in_txt kr" maxlength="150" type="text" id="Remark1" name="Remark1" ></td>
-                                                <td class="al_c item_l_border gray_border_l" colspan="4">
-                                                    <a class="btn in_btn plus" title="추가" id="addRemark">
-                                                        <img src="/images/icon/ico-plus.svg" alt="등록 아이콘">
-                                                    </a>
-                                                </td>
+                                                <th class="al_c noborder_l" colspan="11"><span class="bold">비고</span></th>
+                                                <td class="al_l pdl_3 gray_border_l" colspan="89"><textarea style="height:60px;" class="in_txt kr" maxlength="150" type="text" id="Remark1" name="Remark1" ></textarea></td>
+<!--                                                <td class="al_c item_l_border gray_border_l" colspan="4">-->
+<!--                                                    <a class="btn in_btn plus" title="추가" id="addRemark">-->
+<!--                                                        <img src="/images/icon/ico-plus.svg" alt="등록 아이콘">-->
+<!--                                                    </a>-->
+<!--                                                </td>-->
                                             </tr>
                                             <tr id="remark2" class="none">
                                                 <th class="al_c noborder_l gray_border_t" colspan="11"><span class="bold">비고2</span></th>
@@ -1784,6 +1784,10 @@
         // 포커스 자동 이동: Enter + 방향키(←→↑↓)
         $(document).on('keydown', 'input, textarea', function (e) {
             const key = e.key;
+
+            if ($(this).is('textarea') && key === 'Enter') {
+                return; // 기본 줄바꿈 동작 허용
+            }
 
             if (!['Enter', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(key)) return;
             e.preventDefault();

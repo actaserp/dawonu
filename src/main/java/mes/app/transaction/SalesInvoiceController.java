@@ -549,9 +549,10 @@ public class SalesInvoiceController {
 	@GetMapping("/invoice_print")
 	public AjaxResult getInvoicePrint(
 			@RequestParam("misnum") Integer misnum,
+			@RequestParam("spjangcd") String spjangcd,
 			HttpServletResponse response) throws IOException {
 
-		Map<String, Object> item = this.salesInvoiceService.getInvoicePrint(misnum);
+		Map<String, Object> item = this.salesInvoiceService.getInvoicePrint(misnum, spjangcd);
 
 		AjaxResult result = new AjaxResult();
 		result.data = item;

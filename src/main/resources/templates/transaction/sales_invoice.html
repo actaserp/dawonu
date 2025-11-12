@@ -686,20 +686,35 @@
 
             <!-- 제목 -->
             <tr>
-              <td colspan="100" style="text-align:center; font-weight:bold; height:35px;">
-                <span style="font-size:16px;">거래 명세서</span>
-                <span style="font-size:12px;">(공급받는자용)</span>
-              </td>
-            </tr>
+                <!-- 기존 제목 영역 -->
+                <td colspan="50" rowspan="2" style="text-align:center; font-weight:bold; height:35px; border:1px solid #000;">
+                  <span style="font-size:16px;">거래 명세서</span>
+                  <span style="font-size:12px;">(공급받는자용)</span>
+                </td>
+
+                <!-- 새로 추가될 오른쪽 영역 (일자행의 제목 / 데이터) -->
+                <th colspan="15">일자</th>
+                <td colspan="35">${misdate}</td>
+              </tr>
+
+              <tr>
+                <!-- 아래쪽 To + 연락처 정보 행 -->
+                <td colspan="50" style="padding-left:5px; font-size:12px; border:1px solid #000;">
+                  To. ${sales_manager}님
+                  <span style="margin-left:5px;">☎ ${sales_manager_phone}, </span>
+                  <span style="margin-left:5px;">${tel_number}</span>
+                  <span style="margin-left:5px;">Fax. ${fax_number}</span>
+                </td>
+              </tr>
 
             <!-- 행 1: 등록번호 (rowspan 포함) -->
             <!-- 기준 10열: [4|9|18|7|12 | 4|9|18|7|12]
                  C1=4, C2=9, C3-5=18+7+12=37, C6=4, C7=9, C8-10=37 -->
             <tr>
-              <th rowspan="4" colspan="4" class="vertical-text">공<br/>급<br/>자</th>                       <!-- 4 -->
+              <th rowspan="3" colspan="4" class="vertical-text">공<br/>급<br/>자</th>                       <!-- 4 -->
               <th colspan="9">등록번호</th>                                                                <!-- 9 -->
               <td colspan="37">${icercorpnum}</td>                                                         <!-- 18+7+12 -->
-              <th rowspan="4" colspan="4" class="vertical-text">공<br/>급<br/>받<br/>는<br/>자</th>        <!-- 4 -->
+              <th rowspan="3" colspan="4" class="vertical-text">공<br/>급<br/>받<br/>는<br/>자</th>        <!-- 4 -->
               <th colspan="9">등록번호</th>                                                                <!-- 9 -->
               <td colspan="37">${ivercorpnum}</td>                                                         <!-- 18+7+12 -->
             </tr>
@@ -745,13 +760,13 @@
 
             <!-- 행 4: 업태 / 종목 -->
             <!-- 좌측: 9,18,7,12 / 우측: 9,18,7,12 -->
-            <tr>
-              <th colspan="9">업태</th><td colspan="18" class="text-left">${icerbiztype}</td>
-              <th colspan="7">종목</th><td colspan="12" class="text-left">${icerbizclass}</td>
+<!--            <tr>-->
+<!--              <th colspan="9">업태</th><td colspan="18" class="text-left">${icerbiztype}</td>-->
+<!--              <th colspan="7">종목</th><td colspan="12" class="text-left">${icerbizclass}</td>-->
 
-              <th colspan="9">업태</th><td colspan="18" class="text-left">${iverbiztype}</td>
-              <th colspan="7">종목</th><td colspan="12" class="text-left">${iverbizclass}</td>
-            </tr>
+<!--              <th colspan="9">업태</th><td colspan="18" class="text-left">${iverbiztype}</td>-->
+<!--              <th colspan="7">종목</th><td colspan="12" class="text-left">${iverbizclass}</td>-->
+<!--            </tr>-->
           </table>
 
           <!-- 하단 내용 테이블 : 100열 -->
@@ -791,8 +806,19 @@
                 <td colspan="80" class="text-right">${supplycost}</td>
                 <td colspan="10"></td>
               </tr>
+              <tr>
+                <td colspan="10" style="text-align:center;">메모</td>
+                <td colspan="90" class="text-left">${accountList}</td>
+              </tr>
             </tfoot>
           </table>
+          <div style="margin-top:5px; margin-left: 5px;">
+            ${invo_des}
+            From.
+            ☎ ${tel1},
+            Fax. ${fax}
+            email. ${emailadres}
+          </div>
 
         </div>
     </script>
@@ -1159,6 +1185,7 @@
                     for (const item of items) {
                         const result = await getInvoiceData(item.misnum);
                         const htmlBase = renderInvoiceHtml(result.data);
+                        console.log('print result.data', result.data);
 
                         // 상단: 공급받는자용
                         const htmlForBuyer = htmlBase.replace('(공급받는자용)', '(공급받는자용)');
@@ -1186,7 +1213,7 @@
                     printWindow.onload = function () {
                         printWindow.focus();
                         printWindow.print();
-                        setTimeout(() => printWindow.close(), 300);
+                        // setTimeout(() => printWindow.close(), 300);
                     };
                 });
 
@@ -1223,9 +1250,20 @@
                     if (tbody && Array.isArray(data.detailList)) {
                         const list = data.detailList;
                         const minRows = 10;
+                        const trList = [];
+
+                        let emptyStartIndex = null;
 
                         for (let i = 0; i < Math.max(list.length, minRows); i++) {
                             const item = list[i] || {};
+                            const isEmptyRow =
+                                !item.name && !item.qty && !item.supplycost && !item.tax;
+
+                            // 첫 번째 빈행 인덱스 기록
+                            if (isEmptyRow && emptyStartIndex === null) {
+                                emptyStartIndex = i;
+                            }
+
                             const tr = document.createElement('tr');
                             tr.innerHTML = `
                               <td colspan="5">${i + 1}</td>
@@ -1239,7 +1277,31 @@
                               <td colspan="11" class="text-right">${formatNumber(item.tax)}</td>
                               <td colspan="16" class="text-left">${item.remark || ''}</td>
                             `;
-                            tbody.appendChild(tr);
+                            trList.push(tr);
+                        }
+
+                        // tbody 초기화 후 다시 추가
+                        tbody.innerHTML = '';
+
+                        // 빈칸 병합 처리
+                        if (data.remark1 && emptyStartIndex != null) {
+                            // 실제 데이터행까지만 추가
+                            for (let i = 0; i < emptyStartIndex; i++) {
+                                tbody.appendChild(trList[i]);
+                            }
+
+                            // 빈칸 영역 대신 Remark1 한 줄로 병합
+                            const remarkTr = document.createElement('tr');
+                            remarkTr.innerHTML = `
+                            <td colspan="100"
+                                style="text-align:left; font-size:12px; white-space:pre-line;">
+                                ${((data.remark1 || '').replace(/^\s*\r?\n/, '')).trimEnd()}
+                            </td>
+                                    `;
+                            tbody.appendChild(remarkTr);
+                        } else {
+                            // 병합할 게 없으면 전체 그대로 추가
+                            trList.forEach(tr => tbody.appendChild(tr));
                         }
                     }
 
@@ -2068,7 +2130,6 @@
 
             // 등록 팝업
             showInvoiceForm(data) {
-
                 let _this = this;
                 let content = tmpl('popup_invoiceTemplate', data);
                 let $content = $(content);
@@ -2327,12 +2388,12 @@
 
                 }
                 const popInvoice = new PopInvoiceComponent();
-                let modalHeight = 600;
+                let modalHeight = 630;
 
                 if (ntscfnum || orgntscfnum) {
-                    modalHeight = 630;
+                    modalHeight = 660;
                     if (ntscodeDes) {
-                        modalHeight = 660;
+                        modalHeight = 690;
                     }
                 }
 
@@ -2884,12 +2945,12 @@
                         return;
                     }
 
-                    if (!data.InvoiceeCEOName?.trim()) {
-                        Alert.alert('', '성명을 입력해주세요.', () => {
-                            $taxForm.find('#InvoiceeCEOName').focus();
-                        });
-                        return;
-                    }
+                    // if (!data.InvoiceeCEOName?.trim()) {
+                    //     Alert.alert('', '성명을 입력해주세요.', () => {
+                    //         $taxForm.find('#InvoiceeCEOName').focus();
+                    //     });
+                    //     return;
+                    // }
                     if (!data.TotalAmount || data.TotalAmount === '0') {
 
                         Alert.alert('', '금액이 없습니다.');

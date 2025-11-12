@@ -810,6 +810,7 @@ public class SalesInvoiceService {
                  	sc5."Name" AS "att_depart",
                  	m.issuediv AS "issue_div",
                  	sc2."Description" AS ntscode_des,
+                 	
                     CASE
                       WHEN m.ntscfnum IS NULL OR m.ntscfnum = '' OR LENGTH(m.ntscfnum) < 5 THEN NULL
                       ELSE SUBSTR(m.ntscfnum, 1, 8) || '-' ||
@@ -873,12 +874,43 @@ public class SalesInvoiceService {
                  ORDER BY d.misseq::int asc
                 """;
 
+        String accountSql = """ 
+                select a.accnum, a.accname, b.banknm
+                from tb_account a
+                left join tb_xbank b on b.bankid = a.bankid 
+                order by a.bankid;
+                """;
+
+        String memoSql = """ 
+                select "Description" as invo_des from sys_code where "CodeType" = 'invo_des';
+                """;
+
         Map<String, Object> master = this.sqlRunner.getRow(sql, paramMap);
         List<Map<String, Object>> detailList = this.sqlRunner.getRows(detailSql, paramMap);
+        List<Map<String, Object>> accountList = this.sqlRunner.getRows(accountSql, paramMap);
+        Map<String, Object> invo_des = this.sqlRunner.getRow(memoSql, paramMap);
 
         UtilClass.decryptItem(master, "InvoiceeCorpNum", 0);
 
+
+        for (Map<String, Object> account : accountList) {
+            UtilClass.decryptItem(account, "accnum", 0);
+
+            Object accnumObj = account.get("accnum");
+            Object banknmObj = account.get("banknm");
+
+            if (accnumObj != null && banknmObj != null) {
+                String accnum = accnumObj.toString().replaceAll("\\D", "");
+                String banknm = banknmObj.toString();
+
+                String formattedAccnum = UtilClass.bankFormat(accnum, banknm);
+                account.put("accnumFormatted", formattedAccnum);
+            }
+        }
+
         master.put("detailList", detailList);
+        master.put("accountList", accountList);
+        master.put("invo_des", invo_des);
         return master;
     }
 
@@ -2125,9 +2157,10 @@ public class SalesInvoiceService {
         return true;
     }
 
-    public Map<String, Object> getInvoicePrint(Integer misnum) throws IOException {
+    public Map<String, Object> getInvoicePrint(Integer misnum, String spjangcd) throws IOException {
         MapSqlParameterSource paramMap = new MapSqlParameterSource();
         paramMap.addValue("misnum", misnum);
+        paramMap.addValue("spjangcd", spjangcd);
 
         String sql = """ 
                 SELECT
@@ -2145,8 +2178,17 @@ public class SalesInvoiceService {
                 	m.iverbizclass,
                 	m.supplycost,
                 	m.taxtotal,
-                	m.totalamt
+                	m.totalamt,
+                	m.remark1,
+                	TO_CHAR(TO_DATE(m.misdate, 'YYYYMMDD'), 'YYYY-MM-DD') AS misdate,
+                	sc6."SalesManager" as sales_manager,
+                 	sc6."SalesManagerPhone" as sales_manager_phone,
+                 	sc6."TelNumber" as tel_number,
+                 	sc6."FaxNumber" as fax_number,
+                 	x.tel1, x.fax, x.emailadres
                 FROM tb_salesment m
+                left join company sc6 on sc6.id = m.cltcd
+                left join tb_xa012 x on x.spjangcd = :spjangcd
                 WHERE m.misnum = :misnum
                 """;
 
@@ -2191,15 +2233,65 @@ public class SalesInvoiceService {
             ORDER BY CAST(d.misseq AS INT)
             """;
 
+        String accountSql = """ 
+                select a.accnum, a.accname, b.banknm
+                from tb_account a
+                left join tb_xbank b on b.bankid = a.bankid 
+                order by a.bankid;
+                """;
+
+        String memoSql = """ 
+                select "Description" as invo_des from sys_code where "CodeType" = 'invo_des';
+                """;
+
         Map<String, Object> master = this.sqlRunner.getRow(sql, paramMap);
         List<Map<String, Object>> detailList = this.sqlRunner.getRows(fallbackDetailSql, paramMap);
+        List<Map<String, Object>> accountList = this.sqlRunner.getRows(accountSql, paramMap);
+        Map<String, Object> invo_des = this.sqlRunner.getRow(memoSql, paramMap);
 
+        StringBuilder accountSummary = new StringBuilder();
+
+        for (int i = 0; i < accountList.size(); i++) {
+            Map<String, Object> account = accountList.get(i);
+            UtilClass.decryptItem(account, "accnum", 0);
+
+            Object accnumObj = account.get("accnum");
+            Object banknmObj = account.get("banknm");
+            Object accnameObj = account.get("accname");
+
+            if (accnumObj != null && banknmObj != null) {
+                String accnum = accnumObj.toString().replaceAll("\\D", "");
+                String banknm = banknmObj.toString();
+                String accname = accnameObj != null ? accnameObj.toString() : "";
+
+                String formattedAccnum = UtilClass.bankFormat(accnum, banknm);
+
+                // "은행명 계좌번호" 형태로 추가
+                accountSummary.append(banknm)
+                        .append(" ")
+                        .append(formattedAccnum);
+
+                // 마지막 계좌 아니면 구분자 추가
+                if (i < accountList.size() - 1) {
+                    accountSummary.append(" / ");
+                } else {
+                    // 마지막 계좌면 회사명 붙이기
+                    if (!accname.isEmpty()) {
+                        accountSummary.append(" ").append(accname);
+                    }
+                }
+            }
+        }
 
         UtilClass.decryptItem(master, "ivercorpnum", 0);
 
         master.put("icercorpnum", formatIdentifier((String) master.get("icercorpnum")));
         master.put("ivercorpnum", formatIdentifier((String) master.get("ivercorpnum")));
         master.put("detailList", detailList);
+        master.put("accountList", accountSummary.toString());
+        if (invo_des != null) {
+            master.put("invo_des", invo_des.get("invo_des")); // 문자열만 저장
+        }
         return master;
     }
 
