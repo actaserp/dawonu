@@ -314,15 +314,11 @@
         return false;
       }
       else if (!data.Name) {
-        Alert.alert('', '부서명을 입력해주세요.');
+        Alert.alert('', '공장명을 입력해주세요.');
         $('#basicForm #Name').focus();
         return false;
       }
-      else if (!data.Type) {
-        Alert.alert('', '유형을 입력해주세요.');
-        $('#basicForm #Type').focus();
-        return false;
-      }
+
       data.spjangcd = sessionStorage.getItem('spjangcd');
 
       let fnSuccess = function (result) {
