@@ -1414,16 +1414,19 @@
                                         text = '공\n급\n받\n는\n자';
                                     }
 
-                                    if (startRow === 1 && text.includes('거래명세서')) {
-                                        text += ' (공급자용)';
+                                    // 제목 셀 여부 플래그
+                                    let isTitleCell = false;
+
+                                    if (startRow === 1 && text.includes('거래 명세서')) {
+                                        isTitleCell = true;     // ← 이 셀만 제목 스타일
                                     }
                                     excelCell.value = text;
 
                                     // 셀 스타일
                                     excelCell.font = {
                                         name: '맑은 고딕',
-                                        size: startRow === 1 ? 16 : 9,
-                                        bold: startRow === 1 || cell.tagName === 'TH'
+                                        size: isTitleCell ? 16 : 9,                 // ← 제목 셀만 16
+                                        bold: isTitleCell || cell.tagName === 'TH'  // ← 제목/TH만 bold
                                     };
                                     excelCell.alignment = {
                                         vertical: 'middle',
@@ -1464,6 +1467,25 @@
                                 excelRow.height = startRow === 1 ? 30 : 16.5;
                                 startRow++;
                             }
+                        }
+
+                        const footerSeller = tempDivSeller.querySelector('table + div');
+                        if (footerSeller) {
+
+                            // 모든 텍스트를 한 줄 문자열로 변환 (줄바꿈 제거)
+                            let footerText = footerSeller.innerText.replace(/\s*\n\s*/g, ' ').trim();
+
+                            const row = sheet.getRow(startRow);
+                            row.getCell(1).value = footerText;
+
+                            // 1번 컬럼부터 100번 컬럼까지 병합
+                            sheet.mergeCells(startRow, 1, startRow, 100);
+
+                            row.font = { name: '맑은 고딕', size: 10 };
+                            row.alignment = { vertical: 'middle', horizontal: 'left', wrapText: false };
+                            row.height = 16.5;
+
+                            startRow++;
                         }
 
                         // 절취선 추가
@@ -1513,15 +1535,20 @@
                                         text = '공\n급\n받\n는\n자';
                                     }
 
-                                    if (startRow === divider.number + 1 && text.includes('거래명세서')) {
-                                        text += ' (공급받는자용)';
+                                    let isBuyerTitle = false;
+
+                                    // 제목 셀 판별
+                                    if (text.includes('거래 명세서')) {
+                                        isBuyerTitle = true;
                                     }
+
                                     excelCell.value = text;
 
+                                    // 제목 셀만 크게/굵게
                                     excelCell.font = {
                                         name: '맑은 고딕',
-                                        size: startRow === divider.number + 2 ? 16 : 9,
-                                        bold: startRow === divider.number + 2 || cell.tagName === 'TH'
+                                        size: isBuyerTitle ? 16 : 9,
+                                        bold: isBuyerTitle || cell.tagName === 'TH'
                                     };
                                     excelCell.alignment = {
                                         vertical: 'middle',
@@ -1563,6 +1590,24 @@
                                 startRow++;
                             }
                         }
+
+                        const footerBuyer = tempDivBuyer.querySelector('table + div');
+                        if (footerBuyer) {
+
+                            let footerText = footerBuyer.innerText.replace(/\s*\n\s*/g, ' ').trim();
+
+                            const row = sheet.getRow(startRow);
+                            row.getCell(1).value = footerText;
+
+                            sheet.mergeCells(startRow, 1, startRow, 100);
+
+                            row.font = { name: '맑은 고딕', size: 10 };
+                            row.alignment = { vertical: 'middle', horizontal: 'left', wrapText: false };
+                            row.height = 16.5;
+
+                            startRow++;
+                        }
+
 
                         sheet.properties.defaultColWidth = 1.1;
                         sheet.columns = Array.from({ length: 100 }, () => ({ width: 1 }));
