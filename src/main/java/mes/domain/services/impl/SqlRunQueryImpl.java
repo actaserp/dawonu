@@ -16,6 +16,8 @@ import org.springframework.stereotype.Repository;
 import mes.domain.services.LogWriter;
 import mes.domain.services.SqlRunner;
 
+import javax.annotation.PostConstruct;
+
 
 @Repository
 public class SqlRunQueryImpl implements SqlRunner {
@@ -41,27 +43,26 @@ public class SqlRunQueryImpl implements SqlRunner {
     	catch (Exception e) {
 			// TODO: handle exception
 			logWriter.addDbLog("error", "SqlRunQueryImpl.getRows", e);
+			throw e;
 		}
     	return rows;
     }
-    
-    public Map<String, Object> getRow(String sql, MapSqlParameterSource dicParam){    	
 
-    	Map<String, Object> row = null;
-    	
-    	try {
-    		row = this.jdbcTemplate.queryForMap(sql, dicParam);
-		} 
-    	catch(DataAccessException de) {
-    		
-    	
-    	}
-    	catch (Exception e) {
-			// TODO: handle exception
+	public Map<String, Object> getRow(String sql, MapSqlParameterSource dicParam) {
+		try {
+			List<Map<String, Object>> list = jdbcTemplate.queryForList(sql, dicParam);
+			return list.isEmpty() ? null : list.get(0);
+		} catch (Exception e) {
 			logWriter.addDbLog("error", "SqlRunQueryImpl.getRow", e);
+			throw e;
 		}
-    	return row;
-    }
+	}
+
+	@PostConstruct
+	public void debugLoaded() {
+		System.out.println("### SqlRunQueryImpl loaded from: ");
+		System.out.println("### -> " + this.getClass().getProtectionDomain().getCodeSource().getLocation());
+	}
     
     public int execute(String sql, MapSqlParameterSource dicParam) {
     	

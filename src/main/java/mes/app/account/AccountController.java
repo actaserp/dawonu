@@ -73,33 +73,28 @@ public class AccountController {
 			Cookie[] cookies = request.getCookies();
 			if (cookies != null) {
 				for (Cookie cookie : cookies) {
-					if ("AUTO_LOGIN_ID".equals(cookie.getName())) {
+					if ("SHIN_AUTO_LOGIN".equals(cookie.getName())) {
 						String username = cookie.getValue();
 
-						// ✅ 자동로그인 허용 사용자만 체크
-						if (List.of("kio01", "kio02", "kio03").contains(username)) {
-							// ✅ DB에서 사용자 정보 로드
-							User user = userRepository.findByUsername(username).orElse(null);
+						User user = userRepository.findByUsername(username).orElse(null);
 
-							if (user != null && user.getActive()) {
-								// ✅ SecurityContext 복원
-								UsernamePasswordAuthenticationToken token =
-										new UsernamePasswordAuthenticationToken(user, null, Collections.emptyList());
+						if (user != null && user.getActive()) {
+							UsernamePasswordAuthenticationToken token =
+									new UsernamePasswordAuthenticationToken(
+											user, null, Collections.emptyList());
 
-								SecurityContextHolder.getContext().setAuthentication(token);
-								session.setAttribute("SPRING_SECURITY_CONTEXT", SecurityContextHolder.getContext());
+							SecurityContextHolder.getContext().setAuthentication(token);
+							session.setAttribute("SPRING_SECURITY_CONTEXT", SecurityContextHolder.getContext());
 
-								// ✅ 자동로그인 성공 시 바로 메인으로 리다이렉트
-								return new ModelAndView("redirect:/");
-							} else {
-								// 비활성 사용자면 쿠키 삭제
-								Cookie clearCookie = new Cookie("AUTO_LOGIN_ID", null);
-								clearCookie.setMaxAge(0);
-								clearCookie.setPath("/");
-								response.addCookie(clearCookie);
-							}
+							return new ModelAndView("redirect:/");
+						} else {
+							Cookie clearCookie = new Cookie("SHIN_AUTO_LOGIN", null);
+							clearCookie.setMaxAge(0);
+							clearCookie.setPath("/");
+							response.addCookie(clearCookie);
 						}
 					}
+
 				}
 			}
 		}
@@ -140,7 +135,7 @@ public class AccountController {
 		handler.logout(request, response, auth);
 
 		// ✅ 자동로그인 쿠키 제거
-		Cookie clearCookie = new Cookie("AUTO_LOGIN_ID", null);
+		Cookie clearCookie = new Cookie("SHIN_AUTO_LOGIN", null);
 		clearCookie.setMaxAge(0);     // 즉시 만료
 		clearCookie.setPath("/");     // 전체 경로 적용
 		response.addCookie(clearCookie);
@@ -154,6 +149,7 @@ public class AccountController {
 	public AjaxResult postLogin(
 			@RequestParam("username") final String username,
 			@RequestParam("password") final String password,
+			@RequestParam(value = "autoLogin", required = false) String autoLogin,
 			HttpServletRequest request,
 			HttpServletResponse response) {
 
@@ -186,13 +182,12 @@ public class AccountController {
 				} catch (UnknownHostException e) {
 					e.printStackTrace();
 				}
-
-				// ✅ 특정 사용자만 자동로그인 쿠키 발급
-				if (List.of("kio01", "kio02", "kio03").contains(username)) {
-					Cookie autoLoginCookie = new Cookie("AUTO_LOGIN_ID", username);
+				// 자동 로그인
+				if ("on".equals(autoLogin)) {
+					Cookie autoLoginCookie = new Cookie("SHIN_AUTO_LOGIN", username);
 					autoLoginCookie.setHttpOnly(true);
 					autoLoginCookie.setPath("/");
-					autoLoginCookie.setMaxAge(60 * 60 * 24 * 365); // ✅ 1년 유지
+					autoLoginCookie.setMaxAge(60 * 60 * 24 * 365); // 30일 자동 로그인
 					response.addCookie(autoLoginCookie);
 				}
 			}
@@ -209,6 +204,7 @@ public class AccountController {
 
 		return result;
 	}
+
 
 
 	/**
