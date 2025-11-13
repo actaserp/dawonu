@@ -398,6 +398,8 @@ public class ProductionResultService {
 				sh."Name"                                       AS shift_name,
 				base_m."ValidDays",
 				base_m."Routing_id"                             AS routing_id,
+				base_m."Temperature" as mat_temp,
+				base_m."Pressure" as mat_rpm,
 		
 				-- 공정/워크센터/설비/상태는 child 기준(=현재 공정)
 				c."State"                                       AS state,

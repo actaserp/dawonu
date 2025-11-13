@@ -445,9 +445,41 @@
                                         </tr>
                                         <tr>
                                             <th><label for="equ_temp">온도</label></th>
-                                            <td><input type="text" id="equ_temp" name="equ_temp" readonly/></td>
-                                            <th><label for="equ_pres">압력</label></th>
-                                            <td><input type="text" id="equ_pres" name="equ_pres" readonly/></td>
+                                            <td>
+                                                <input
+                                                        type="text"
+                                                        id="equ_temp"
+                                                        name="equ_temp"
+                                                        readonly
+                                                        style="
+                                                            width:160px;
+                                                            padding-right:10px;
+                                                            text-align:right;
+                                                            font-weight:bold;
+                                                            background-repeat:no-repeat;
+                                                            background-position:left center;
+                                                            background-size:auto 100%;
+                                                        "
+                                                >
+                                            </td>
+                                            <th><label for="equ_rpm">RPM</label></th>
+                                            <td>
+                                                <input
+                                                        type="text"
+                                                        id="equ_rpm"
+                                                        name="equ_rpm"
+                                                        readonly
+                                                        style="
+                                                            width:160px;
+                                                            padding-right:10px;
+                                                            text-align:right;
+                                                            font-weight:bold;
+                                                            background-repeat:no-repeat;
+                                                            background-position:left center;
+                                                            background-size:auto 100%;
+                                                        "
+                                                >
+                                            </td>
                                         </tr>
                                         <tr>
                                             <th><label for="prod_date">생산 시작시간</label></th>
@@ -1845,6 +1877,39 @@
                 }
             }
 
+            setDualValue(id, baseVal, curVal) {
+                const el = document.getElementById(id);
+
+                // 실제 input 스타일 가져오기
+                const style = window.getComputedStyle(el);
+                const fontFamily = style.fontFamily;
+                const fontSize = style.fontSize;
+                const fontWeight = style.fontWeight;
+
+                // SVG를 문자열로 생성
+                const rawSvg =
+                    "<svg xmlns='http://www.w3.org/2000/svg' width='300' height='36'>" +
+                    "<text x='2' y='24' " +
+                    "font-family='" + fontFamily + "' " +
+                    "font-size='" + fontSize + "' " +
+                    "font-weight='" + fontWeight + "' " +
+                    ">기준:" + (baseVal ?? '') + "</text>" +
+                    "</svg>";
+
+                // 🔥 반드시 인코딩해야 함 (중요)
+                const encodedSvg = encodeURIComponent(rawSvg);
+
+                el.style.backgroundImage = "url(\"data:image/svg+xml;utf8," + encodedSvg + "\")";
+                el.style.backgroundRepeat = "no-repeat";
+                el.style.backgroundPosition = "10px center";
+                el.style.backgroundSize = "auto 100%";
+
+                el.style.textAlign = "right";
+                el.style.paddingRight = "10px";
+
+                el.value = curVal ?? '';
+            }
+
 
             // 생산정보 조회
             showBasicInfo(jr_pk, { skipProcessChange = false } = {}) {
@@ -1855,6 +1920,9 @@
                 if (!result) return;
 
                 FormUtil.BindDataForm(result, $('#basicForm'));
+
+                this.setDualValue("equ_temp", result.mat_temp, result.equ_temp);
+                this.setDualValue("equ_rpm", result.mat_rpm, result.equ_rpm);
 
                 // ★ 이번 레코드의 '베이스 id' 계산
                 const baseOfThis = (result.parent_jr_pk ) || '';
