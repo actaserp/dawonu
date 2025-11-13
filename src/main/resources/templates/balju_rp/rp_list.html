@@ -2927,8 +2927,13 @@
         $(document).ready(function (e) {
             page = new materialStorehouse();
 
-            $('#searchForm').find('#srchStartDt').val(CommonUtil.getYYYYMMDD(-7));
-            $('#searchForm').find('#srchEndDt').val(CommonUtil.getYYYYMMDD());
+            const now  = new Date();
+            const jan1 = new Date(now.getFullYear(), 0, 1);           // 올해 1월 1일
+            const nextMonthLast = new Date(now.getFullYear(), now.getMonth() + 2, 0); // 다음달 마지막날
+
+            const $form = $('#searchForm');
+            $form.find('#srchStartDt').val(CommonUtil.formatYYYYMMDD(jan1));
+            $form.find('#srchEndDt').val(CommonUtil.formatYYYYMMDD(nextMonthLast));
 
             AjaxUtil.fillSelectOptions($('#searchForm').find('#cboHouse'), 'store_house', 'all');
             AjaxUtil.fillSelectOptions($('#cboMatType'), 'system_code', 'all', false, 'mat_type');

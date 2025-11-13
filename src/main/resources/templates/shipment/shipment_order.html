@@ -897,9 +897,12 @@
                 AjaxUtil.postJsonData('/api/sales/suju/force-complete', {sujuPkList}, fnSuccess);
 
             });
+            const now  = new Date();
+            const jan1 = new Date(now.getFullYear(), 0, 1);
+            const nextMonthLast = new Date(now.getFullYear(), now.getMonth() + 2, 0);
 
-            $('#srchStartDt').val(CommonUtil.getYYYYMMDD(-7));
-            $('#srchEndDt').val(CommonUtil.getYYYYMMDD());
+            $('#srchStartDt').val(CommonUtil.formatYYYYMMDD(jan1));
+            $('#srchEndDt').val(CommonUtil.formatYYYYMMDD(nextMonthLast));
 
             $('#shipdate').val(CommonUtil.getYYYYMMDD());
 

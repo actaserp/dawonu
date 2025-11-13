@@ -627,7 +627,8 @@
 
 <th:block layout:fragment="scripts">
   <th:block th:replace="/common/multiform_material :: multiform_material"></th:block>
-  <th:block th:replace="/common/popup_company :: popup_company"></th:block>
+<!--  <th:block th:replace="/common/popup_company :: popup_company"></th:block>-->
+  <th:block th:replace="/sales/popup_suju_company :: popup_suju_company"></th:block>
   <th:block th:replace="/sales/popup_company_new_save :: popup_company_new_save"></th:block>
   <th:block th:replace="/sales/popup_material_save :: popup_material_new_save"></th:block>
   <th:block th:replace="/sales/print_estimate :: print_estimate"></th:block>
@@ -1191,7 +1192,7 @@
 
 
         $content.find('#btnCompanySearch').click(function () {
-          let poppage = new PopCompComponent();
+          let poppage = new PopCompSuJuComponent();
           let $poppage = $(poppage);
           let searchcallback = function (items) {
             $content.find('#cboCompany').val(items.id);
@@ -1206,7 +1207,7 @@
         });
 
         $content.find('#btnOrderSearch').click(function () {
-          let poppage = new PopCompComponent();
+          let poppage = new PopCompSuJuComponent();
           let $poppage = $(poppage);
           let searchcallback = function (items) {
             $content.find('#SuJuOrderId').val(items.id);
@@ -2908,8 +2909,12 @@
       page = new SujuUploadPage();
 
 
-      $('#srchStartDt').val(CommonUtil.getYYYYMMDD(-7));
-      $('#srchEndDt').val(CommonUtil.getYYYYMMDD());
+     const now  = new Date();
+     const jan1 = new Date(now.getFullYear(), 0, 1);
+     const nextMonthLast = new Date(now.getFullYear(), now.getMonth() + 2, 0);
+
+     $('#srchStartDt').val(CommonUtil.formatYYYYMMDD(jan1));
+     $('#srchEndDt').val(CommonUtil.formatYYYYMMDD(nextMonthLast));
 
       page.searchMainData();
 

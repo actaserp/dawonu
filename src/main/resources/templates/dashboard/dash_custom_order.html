@@ -1053,9 +1053,14 @@
 
         $(document).ready(function (e) {
             page = new DashCustomPage();
+            const now  = new Date();
+            const jan1 = new Date(now.getFullYear(), 0, 1);
+            const nextMonthLast = new Date(now.getFullYear(), now.getMonth() + 2, 0);
 
-            let date_from = CommonUtil.getYYYYMMDD(-7);
-            let today = CommonUtil.getYYYYMMDD();
+            let date_from = CommonUtil.formatYYYYMMDD(jan1);
+            let today = CommonUtil.formatYYYYMMDD(nextMonthLast);
+
+
             page.today = today;
 
             $('#date_from').val(date_from);
