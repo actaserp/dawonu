@@ -1047,6 +1047,10 @@ public class SujuController {
       @RequestParam("business_number") String businessNumber,
       @RequestParam("business_type") String businessType,
       @RequestParam("business_item") String businessItem,
+      @RequestParam("address") String address,
+      @RequestParam("fax_number") String fax_number,
+      @RequestParam("sales_manager") String sales_manager,
+      @RequestParam("email") String email,
       @RequestParam("spjangcd") String spjangcd,
       Authentication auth
   ) {
@@ -1081,6 +1085,10 @@ public class SujuController {
       company.setBusinessType(businessType);
       company.setBusinessItem(businessItem);
       company.setRelyn("0");
+      company.setAddress(address);
+      company.setFaxNumber(fax_number);
+      company.setSalesManager(sales_manager);
+      company.setEmail(email);
       company.setSpjangcd(spjangcd);
       company.set_audit(user);
 

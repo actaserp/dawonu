@@ -1560,16 +1560,33 @@
             const unitPriceRaw = String($row.find('input[name^="unitPrice_"]').val() || '').replace(/,/g, '');
             const hasUnitPrice = unitPriceRaw !== '' && !isNaN(Number(unitPriceRaw));
 
-            const $standard = $row.find('input[type="text"][name^="standard_"]');
-            const standardRaw    = (($standard.val() ?? '') + '').trim();
-            const standardNumStr = standardRaw.replace(/,/g, '');
-            const isStandardNumeric = standardNumStr !== '' && /^\d+(\.\d+)?$/.test(standardNumStr);
-            const standardNum = isStandardNumeric ? parseFloat(standardNumStr) : 0;
+           const $standard = $row.find('input[type="text"][name^="standard_"]');
+           const standardRaw    = (($standard.val() ?? '') + '').trim();
+           const standardNumStr = standardRaw.replace(/,/g, '');
+           const isStandardNumeric = standardNumStr !== '' && /^\d+(\.\d+)?$/.test(standardNumStr);
+           const standardNum = isStandardNumeric ? parseFloat(standardNumStr) : 0;
 
-            const baseQty    = Number.isFinite(quantity) ? quantity : 0;
-            const qtyForCalc = isStandardNumeric ? (standardNum * baseQty) : baseQty;
+           const baseQty = Number.isFinite(quantity) ? quantity : 0;
 
-            const isVatIncluded = $row.find('input[name^="VatIncluded_"]').is(':checked');
+// 🔹 단위 읽기
+           const unitVal = String(
+            $row.find('input[name^="unit_"], input[name="unit"]').val() || ''
+           ).trim();
+
+// 🔹 단위 + 규격에 따른 실제 계산 수량
+           let qtyForCalc = baseQty;
+
+           if (isStandardNumeric) {
+            if (isMeter(unitVal)) {
+             // M인 경우만 규격 × 수량
+             qtyForCalc = standardNum * baseQty;
+            } else {
+             // M이 아닌 단위(EA, SET 등)는 규격 무시
+             qtyForCalc = baseQty;
+            }
+           }
+
+           const isVatIncluded = $row.find('input[name^="VatIncluded_"]').is(':checked');
             const isVatExempt   = false;
 
             let supplyAmount     = getNumericValue($row.find('input[name^="supplyAmount_"]'), 0);
@@ -2183,14 +2200,14 @@
           const v = (unit ?? '').toString().trim().toLowerCase();
           if (!v) return false;
           // m, M(미터), 미터, meter 모두 허용
-          return v === 'm' || v === 'm(미터)' || v === 'meter' || v.includes('미터');
+          return v === 'm' || v === 'm(미터)' || v === 'meter'|| v === 'M' || v.includes('미터');
         }
 
         function isUnitMeter(unit) {
           const v = (unit ?? '').toString().trim().toLowerCase();
           if (!v) return false;
           // m, M(미터), 미터, meter 모두 허용
-          return v === 'm' || v === 'm(미터)' || v === 'meter' || v.includes('미터');
+          return v === 'm' || v === 'm(미터)' || v === 'meter'|| v === 'M' || v.includes('미터');
         }
 
         function num(v) {

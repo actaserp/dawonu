@@ -93,10 +93,16 @@ public class SujuService {
 			   
 			  -- 대표 제품명 + 외 N개
 			  CASE
-				WHEN COUNT(DISTINCT s."Material_id") = 1 THEN MAX(m."Name")
-				ELSE CONCAT(MAX(m."Name"), ' 외 ', COUNT(DISTINCT s."Material_id") - 1, '개')
-			  END AS product_name,
-			   
+				 WHEN COUNT(DISTINCT s."Material_id") = 1 THEN
+				       (array_agg(m."Name" ORDER BY s.id))[1]  
+				     ELSE
+				       CONCAT(
+				         (array_agg(m."Name" ORDER BY s.id))[1], 
+				         ' 외 ',
+				         COUNT(DISTINCT s."Material_id") - 1,
+				         '개'
+				       )
+				   END AS product_name,
 			  sss.summary_state AS "State",
 			  sc_ship."Value" AS "ShipmentStateName"
 			   

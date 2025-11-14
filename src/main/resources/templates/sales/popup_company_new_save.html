@@ -56,6 +56,42 @@
                        <input type="text" id="business_item" name="business_item" >
                    </td>
                </tr>
+               <tr>
+                   <th style="text-align: center">
+                       <label for="address">주소</label>
+                   </th>
+                   <td colspan="5">
+                       <input id="address" name="address" style="width: 100%;">
+                   </td>
+               </tr>
+               <tr>
+                   <th style="text-align: center">
+                       <label for="fax_number">팩스</label>
+                   </th>
+                   <td>
+                       <input id="fax_number" name="fax_number">
+                   </td>
+                   <th style="text-align: center">
+                       <label for="sales_manager">영업담당자</label>
+                   </th>
+                   <td>
+                       <input type="text" id="sales_manager" name="sales_manager" >
+                   </td>
+               </tr>
+               <tr>
+                  <th style="text-align: center">
+                    <label for="email">이메일</label>
+                  </th>
+                  <td>
+                     <input id="email" name="email">
+                 </td>
+                 <th style="text-align: center">
+
+                  </th>
+                  <td>
+
+                 </td>
+               </tr>
              </tbody>
            </table>
          </form>
@@ -87,7 +123,7 @@
         this.focusAfterClose = focusAfterClose || document.activeElement;
 
         const $content = $(tmpl('popup_compSaveTemplate', {}));
-        this.modalContainer.open({ width: 900, height: 300, $content });
+        this.modalContainer.open({ width: 900, height: 400, $content });
 
         const $form = $content.find('#CompSaveForm');
 
