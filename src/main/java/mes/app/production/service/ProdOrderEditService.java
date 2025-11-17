@@ -200,7 +200,6 @@ public class ProdOrderEditService {
 			LEFT JOIN suju sju ON sju.id = jr."SourceDataPk"
 			where jr."SourceDataPk"=:suju_id
 			and jr."SourceTableName" ='suju'
-			and mg."MaterialType" in ('product')
 			order by jr."WorkOrderNumber" desc, jr.id
 			""";
 
