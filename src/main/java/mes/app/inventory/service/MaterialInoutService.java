@@ -566,6 +566,7 @@ public class MaterialInoutService {
           , m."Code" as product_code
           , m."Name" as product_name
           , u."Name" as unit
+          , b."Standard" as standard
           , b."SujuQty" as "SujuQty"
           , to_char(b."JumunDate", 'yyyy-mm-dd') as "JumunDate"
           , to_char(b."DueDate", 'yyyy-mm-dd') as "DueDate"

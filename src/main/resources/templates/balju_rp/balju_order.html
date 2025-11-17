@@ -340,11 +340,11 @@
                   </a>
                 </div>
               </td>
-              <td><input type="text" name="Standard" placeholder="규격" /></td>
-              <td><input type="text" name="quantity" placeholder="수량" /></td>
+              <td><input type="text" name="Standard" placeholder="규격" autocomplete="off"/></td>
+              <td><input type="text" name="quantity" placeholder="수량" autocomplete="off"/></td>
               <td>
                 <div class="input-with-checkbox">
-                  <input type="text" name="BaljuUnitPrice" min="0" placeholder="단가" />
+                  <input type="text" name="BaljuUnitPrice" min="0" placeholder="단가" autocomplete="off"/>
                   <input type="hidden" name="originalUnitPrice" value="" />
                   <input type="checkbox" id="VatIncluded" name="VatIncluded" />
                 </div>
@@ -567,6 +567,22 @@
         const $next = $row.find('input[name^="quantity_"]');
         const $standard = $row.find('input[name^="Standard_"]');
 
+        function applyItemTo3Rows(item) {
+          const $tbody = $content.find('.item-table tbody');
+          const $rows = $tbody.find('tr:visible').not('.item-template-row');
+
+          const startIndex = $rows.index($row); // 현재 행 인덱스
+          const count = 3; // 몇 줄 채울지 (3줄)
+
+          for (let i = 0; i < count; i++) {
+           const idx = startIndex + i;
+           if (idx >= 0 && idx < $rows.length) {
+            const $targetRow = $rows.eq(idx);
+            fillProductRow({ $row: $targetRow, item, tryShowBaljuPrice });
+           }
+          }
+        }
+
         $input.on('input', function () {
           const value = $(this).val().trim();
 
@@ -577,7 +593,12 @@
           }
         });
 
-        function set(item) {
+       function set(item) {
+        // fillProductRow({ $row, item, tryShowBaljuPrice });
+        applyItemTo3Rows(item);
+       }
+
+        /*function set(item) {
           $input.val(item.Name);
           $id.val(item.id);
           $code.val(item.Code);
@@ -588,7 +609,7 @@
           setTimeout(() => {
             $next.focus().select();
           }, 10);
-        }
+        }*/
 
         $input.off('keydown').on('keydown', function (e) {
           if (e.key === 'Enter') {
@@ -1122,6 +1143,7 @@
 
           let itemRows = [];
           let priceSaveList = []; // 변경된 단가만 저장
+          const priceKeySet = new Set(); // ✅ 중복 체크용
           let isValid = true;
 
           $content.find('.item-table tbody tr:not(.item-template-row)').each(function () {
@@ -1138,7 +1160,27 @@
             const now = new Date();
             const applyStartDate = `${formData.JumunDate}T${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
 
+           if (unitPrice !== '' && !isNaN(parseFloat(unitPrice))) {
             // 단가 변경 여부 체크
+            if (!originalPrice || parseFloat(originalPrice) !== parseFloat(unitPrice)) {
+             // ✅ Material + Company + UnitPrice 조합으로 중복 방지
+             const key = `${materialId}|${formData.Company_id}|${unitPrice}`;
+
+             if (!priceKeySet.has(key)) {
+              priceKeySet.add(key);
+              priceSaveList.push({
+               Material_id: materialId,
+               Company_id: formData.Company_id,
+               UnitPrice: unitPrice,
+               ApplyStartDate: applyStartDate,
+               type: '01',
+               ChangerName: userinfo.username,
+               spjangcd: formData.spjangcd
+              });
+             }
+            }
+           }
+           /*// 단가 변경 여부 체크
             if (!originalPrice || parseFloat(originalPrice) !== parseFloat(unitPrice)) {
               priceSaveList.push({
                 Material_id: materialId,
@@ -1149,7 +1191,7 @@
                 ChangerName: userinfo.username,
                 spjangcd: formData.spjangcd
               });
-            }
+            }*/
 
             const item = {
               bh_id: bh_id,
@@ -1332,7 +1374,50 @@
         }
 
         // 행 추가
-        $content.find('#addRemark').click(function () {
+       $content.find('#addRemark').click(function () {
+        const $tbody    = $content.find('.item-table tbody');
+        const $template = $tbody.find('.item-template-row');
+
+        // 🔍 현재까지 존재하는 실제 행들
+        const $rows    = $tbody.find('tr:visible').not('.item-template-row');
+        const $lastRow = $rows.last();
+
+        // 🔁 마지막 행의 품목 정보 추출
+        let lastItem = null;
+        if ($lastRow.length) {
+         lastItem = {
+          Name:       $lastRow.find('input[name^="txtProductName_"]').val(),
+          id:         $lastRow.find('input[name^="Material_id_"]').val(),
+          Code:       $lastRow.find('input[name^="product_code_"]').val(),
+          group_name: $lastRow.find('input[name^="MaterialGroupName_"]').val(),
+          //Spec:       $lastRow.find('input[name^="Standard_"]').val()
+         };
+        }
+
+        for (let i = 0; i < 3; i++) {
+         const $newRow = $template.clone().removeClass('item-template-row').show();
+
+         // name 인덱스 부여
+         $newRow.find('input').each(function () {
+          const baseName = $(this).attr('name');
+          if (baseName) {
+           $(this).attr('name', `${baseName}_${itemIndex}`);
+          }
+         });
+
+         $tbody.append($newRow);
+         ProductInputHandler.bind({ rowSelector: $newRow, $content, tryShowBaljuPrice });
+
+         // ✅ 마지막 행에 품목이 있으면 그대로 복사해서 채워 넣기
+         if (lastItem && lastItem.id) {
+          fillProductRow({ $row: $newRow, item: lastItem, tryShowBaljuPrice });
+         }
+
+         itemIndex++;
+        }
+       });
+
+       /*$content.find('#addRemark').click(function () {
           const $tbody = $content.find('.item-table tbody');
           const $template = $tbody.find('.item-template-row');
 
@@ -1351,10 +1436,10 @@
 
             itemIndex++;
           }
-        });
+        });*/
 
         // 품목 검색 버튼 클릭 시 팝업
-        $content.on('click', 'a[title="품목 검색"]', function () {
+        /*$content.on('click', 'a[title="품목 검색"]', function () {
           const $row = $(this).closest('tr');
 
           const $productInput = $row.find('input[name^="txtProductName_"]');
@@ -1376,9 +1461,33 @@
             // ✅ 제품 선택 후 단가 자동 조회
             tryShowBaljuPrice($row);
           });
-        });
+        });*/
+       // 품목 검색 버튼 클릭 시 팝업
+       $content.on('click', 'a[title="품목 검색"]', function () {
+        const $row = $(this).closest('tr');
+        const $tbody = $content.find('.item-table tbody');
+        const $rows = $tbody.find('tr:visible').not('.item-template-row');
 
-        // 포커스 자동 이동: Enter + 방향키(←→↑↓)
+        const pop = new PopMatComponent();
+        pop.material_type = 'product,sangpum';
+
+        pop.show(function (item) {
+         // ✅ 현재 클릭한 행의 인덱스 기준으로 "연속 3행"에 같은 품목 채우기
+         const startIndex = $rows.index($row);
+         const count = 3; // 원하면 여기 숫자를 바꿔서 2행, 5행 등으로 변경 가능
+
+         for (let i = 0; i < count; i++) {
+          const idx = startIndex + i;
+          if (idx >= 0 && idx < $rows.length) {
+           const $targetRow = $rows.eq(idx);
+           fillProductRow({ $row: $targetRow, item, tryShowBaljuPrice });
+          }
+         }
+        });
+       });
+
+
+       // 포커스 자동 이동: Enter + 방향키(←→↑↓)
         $content.on('keydown', 'input', function (e) {
           const key = e.key;
 
@@ -1540,6 +1649,33 @@
         };
         AjaxUtil.getAsyncData(url, data, fnsuccess);
       }
+    }
+
+    // ✅ 공통: 한 행에 품목 정보 채우기
+    function fillProductRow({ $row, item, tryShowBaljuPrice }) {
+     const $productInput  = $row.find('input[name^="txtProductName_"]');
+     const $productId     = $row.find('input[name^="Material_id_"]');
+     const $productCode   = $row.find('input[name^="product_code_"]');
+     const $materialGroup = $row.find('input[name^="MaterialGroupName_"]');
+     const $standard      = $row.find('input[name^="Standard_"]');
+     const $next          = $row.find('input[name^="quantity_"]');
+
+     // 기존 set()에서 하던 동작 그대로
+     $productInput.val(item.Name);
+     $productId.val(item.id);
+     $productCode.val(item.Code);
+     $materialGroup.val(item.group_name);
+     //$standard.val(item.Spec);
+
+     if (typeof tryShowBaljuPrice === 'function') {
+      tryShowBaljuPrice($row);
+     }
+
+     setTimeout(() => {
+      if ($next.length) {
+       $next.focus().select();
+      }
+     }, 10);
     }
 
     //행 삭제 함수
