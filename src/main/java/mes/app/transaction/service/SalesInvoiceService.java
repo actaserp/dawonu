@@ -719,7 +719,6 @@ public class SalesInvoiceService {
 			inner join mat_grp mg on mg.id = m."MaterialGroup_id" 
 			LEFT JOIN unit      u  ON u.id  = m."Unit_id"
 			where s.id=:suju_id
-			and mg."MaterialType" in ('product')
 			order by s.id
 			""";
 
@@ -742,6 +741,9 @@ public class SalesInvoiceService {
 		""";
 
         List<Map<String, Object>> suju_detail = this.sqlRunner.getRows(sql_suju_detail, dicParam);
+        if (suju_detail == null) {
+            suju_detail = new ArrayList<>();
+        }
         suju.put("details", suju_detail);
 
         return suju;
