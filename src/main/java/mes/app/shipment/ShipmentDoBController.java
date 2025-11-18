@@ -272,7 +272,7 @@ public class ShipmentDoBController {
 		return result;
 	}
 
-	// 출하 처리
+	// 출고 처리
 	@PostMapping("/shipment_status_complete")
 	public AjaxResult shipmentStatusComplete(
 			@RequestParam(value = "sh_id", required = false) Integer sh_id,

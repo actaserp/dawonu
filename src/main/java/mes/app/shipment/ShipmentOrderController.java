@@ -210,15 +210,21 @@ public class ShipmentOrderController {
 			if(summary != null){
 				double totalQty = summary.totalQty; // 출하하려는 재고
 				Float currentStock = material.getCurrentStock();
-				if (currentStock == null) {
-					result.success = false;
-					result.message = "품목 [" + material.getName() + "]의 재고 현황이 존재하지 않습니다.";
-					return result;
-				}
-				if (Math.round(totalQty * 1000) / 1000.0 > Math.round(currentStock * 1000) / 1000.0) {
-					result.success = false;
-					result.message = "품목 [" + material.getName() + "]의 출하 수량이 현재고를 초과합니다.";
-					return result;
+				String mtyn = material.getMtyn(); // 재고관리 여부 컬럼 (1/0)
+				// 품목정보의 재고관리 false('0')일 경우 재고 신경쓰지 않고 출하 가능하도록
+				if (!"0".equalsIgnoreCase(mtyn)) {
+					// 재고관리 'Y'인 경우에만 재고 확인
+					if (currentStock == null) {
+						result.success = false;
+						result.message = "품목 [" + material.getName() + "]의 재고 현황이 존재하지 않습니다.";
+						return result;
+					}
+
+					if (Math.round(totalQty * 1000) / 1000.0 > Math.round(currentStock * 1000) / 1000.0) {
+						result.success = false;
+						result.message = "품목 [" + material.getName() + "]의 출하 수량이 현재고를 초과합니다.";
+						return result;
+					}
 				}
 			}
 		}

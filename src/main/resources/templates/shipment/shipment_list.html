@@ -94,11 +94,18 @@
                         </div>
                     </div>
                 </form>
-
-                <div class="grid_box" id="divList">
-                    <div class="title_box">
-                        <span class="right_align rpt" data-labelCd="출고 내역">출고 내역</span>
+                <div class="title_box" style="margin-bottom: 5px;">
+                    <div class="left_align">
+                        <!--                    <label class="switch">-->
+                        <!--                        <input type="checkbox" checked id="btnListCollapse"><span class="slider round"></span>-->
+                        <!--                    </label>-->
+                        <!--                    수주/제품 보기/감추기-->
+                        <a class="btn btn-delete" title="출고취소" id="btnCancelDel">
+                            출고취소
+                        </a>
                     </div>
+                </div>
+                <div class="grid_box" id="divList">
                     <div id="theGrid" ></div>
                 </div>
             </section>
@@ -124,6 +131,7 @@
         let $content;
         let modalContainer;
         let deleteData = [];
+        let SelectItem = [];
 
         class ShipmentPage {
             constructor() {
@@ -152,10 +160,10 @@
                     selectionMode: wijmo.grid.SelectionMode.Row, // 행 단위 선택
                     isReadOnly: true,
                     columns: [
-                        {binding: 'id', header: '출고지시번호', width: 110, align: 'center'},  // width: 40
-                        {binding: 'company_name', header: '판매처', width: 280, align: 'left'},
+                        {binding: 'id', header: '출고지시번호', width: 100, align: 'center'},  // width: 40
+                        {binding: 'company_name', header: '판매처', width: 180, align: 'left'},
                         //{ key: 'address', label: '<span style="color:orange">주소</span>', width: 0, align: 'left' },  // width: 400
-                        {binding: 'ship_date', header: '출고일', width: 200, align: 'center'},
+                        {binding: 'ship_date', header: '출고일', width: 150, align: 'center'},
                         {binding: 'total_qty', header: '총수량', width: 80, align: 'right'},
                         //{ key: 'product_cnt', label: '제품수', width: 80, align: 'right'},
                         {binding: 'description', header: '비고', width: '*', align: 'left'},
@@ -168,8 +176,11 @@
                     },
 
                 });
-                //맨 앞에 헤더부분 없애기
-                this.grid1.rowHeaders.columns.splice(0, 1);
+                let selector = new wijmo.grid.selector.Selector(this.grid1, {
+                    itemChecked: (e, ctx) => {
+                        SelectItem = this.grid1.rows.filter(r => r.isSelected);
+                    }
+                })
                 // 데이터 로드 후 초기 선택 상태 해제
                 this.grid1.loadedRows.addHandler(() => {
                     setTimeout(() => {
@@ -368,6 +379,38 @@
 
             page.searchMainData();
         })
+
+        $('#btnCancelDel').on('click', function () {
+            let _this = page; // ✅ page는 ShipmentPage 인스턴스 (grid1 접근 가능)
+
+            // Get selected shipment IDs
+            let selectedRows = _this.grid1.rows.filter(r => r.isSelected);
+            if (selectedRows.length === 0) {
+                Alert.alert('', '선택된 출고가 없습니다.');
+                return;
+            }
+
+            // Confirm cancellation
+            Alert.confirm('출고취소', '선택된 출고를 취소하시겠습니까?', function () {
+                let cancelList = selectedRows.map(r => r.dataItem.id);
+                let data = { cancel_ids: cancelList };
+
+                AjaxUtil.postAsyncData(gUrl + '/shipment_status_cancel', data, function (result) {
+                    if (result.success) {
+                        Notify.success('출고 취소 완료.');
+                        _this.searchMainData(); // ✅ 메서드명 수정 (정확한 이름 사용)
+                    } else {
+                        if (result.message) {
+                            Alert.alert('', result.message);
+                        } else {
+                            Notify.error('출고 취소 실패.');
+                        }
+                    }
+                });
+            });
+        });
+
+
     </script>
 
 </th:block>
