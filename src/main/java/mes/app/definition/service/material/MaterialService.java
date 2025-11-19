@@ -172,7 +172,7 @@ public class MaterialService {
 			, m."Temperature"
 			, m."Pressure"
             from material m
-            inner join mat_grp mg on m."MaterialGroup_id" = mg.id
+            left join mat_grp mg on m."MaterialGroup_id" = mg.id
             left join unit u on u.id = m."Unit_id"
             where m.id = :mat_pk
             AND m.spjangcd = :spjangcd
