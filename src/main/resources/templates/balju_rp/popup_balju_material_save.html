@@ -1,0 +1,313 @@
+<th:block th:fragment="popup_balju_material_new_save">
+  <script type="text/x-tmpl" id="popup_BaljuMatSaveTemplate">
+    <style>
+    .CompSave input,
+    .CompSave select {
+      width: 350px;
+      box-sizing: border-box;
+    }
+    </style>
+    <div class="content_wrap popup" id="div_excel_upload">
+       <div class="table-wrap">
+         <form id="MaterialSaveForm">
+           <table class="write-table">
+             <caption>거래처 등록 테이블</caption>
+             <tbody class="CompSave">
+               <tr>
+                 <th>
+                    <label for="MaterialGroup_id"><span class="eq">*</span>품목그룹</label>
+                 </th>
+                 <td>
+                    <select id="MaterialGroup_id" name="MaterialGroup_id" required>
+                    </select>
+                 </td>
+                 <th>
+                  <label for="cboMaterialMid"><span class="eq">*</span>품목중분류</label>
+                 </th>
+                  <td>
+                  <select id="cboMaterialMid" name="cboMaterialMid">
+                  </select>
+                  </td>
+               </tr>
+               <tr>
+                 <th>
+                     <label for="Name"><span class="eq">*</span>품목명</label>
+                 </th>
+                 <td >
+                     <input type="text"  id="Name" name="Name" required>
+                 </td>
+                 <th>
+                     <label for="Unit_id"><span class="eq">*</span>단위<br></label>
+                 </th>
+                 <td>
+                     <select  id="Unit_id" name="Unit_id" required>
+                     </select>
+                 </td>
+               </tr>
+               <tr>
+                 <th>
+                     <label for="Standard">규격</label>
+                 </th>
+                 <td>
+                     <input type="text" id="Standard" name="Standard"/>
+                 </td>
+                 <th>
+                     <label for="Factory_id"><span class="eq">*</span>공장</label>
+                  </th>
+                  <td>
+                    <select type="text" id="Factory_id" name="Factory_id" > </select>
+                  </td>
+               </tr>
+               <tr>
+                <th>
+                   <label for="WorkCenter_id"><span class="eq">*</span>워크센터</label>
+                </th>
+                <td>
+                    <select type="text" id="WorkCenter_id" name="WorkCenter_id" > </select>
+                </td>
+                <th>
+                   <label for="Thickness">폭</label>
+               </th>
+               <td>
+                   <input type="text" id="Thickness" name="Thickness"/>
+               </td>
+               </tr>
+               <tr>
+                 <th>
+                     <label for="Width">두께(mm)</label>
+                  </th>
+                  <td>
+                     <input type="text" id="Width" name="Width"/>
+                  </td>
+
+                  <th>
+                     <label for="Color">색상</label>
+                  </th>
+                  <td>
+                     <input type="text" id="Color" name="Color"/>
+                  </td>
+               </tr>
+
+             </tbody>
+           </table>
+         </form>
+       </div>
+       <div class="popup-button">
+         <button type="button" class="btn-popup y_write_auth" id="btnPopMatSave">저장</button>
+         <button type="button" class="btn-popup" id="modal-close-button">닫기</button>
+       </div>
+     </div>
+  </script>
+  <script type="text/javascript">
+    class PopBalJuMatSaveComponent {
+      static currentInstance = null;
+
+      constructor({ saveUrl = '/api/balju/balju_order/save_material' } = {}) {
+        if (PopBalJuMatSaveComponent.currentInstance) {
+          PopBalJuMatSaveComponent.currentInstance.close();
+        }
+        PopBalJuMatSaveComponent.currentInstance = this;
+
+        this.saveUrl = saveUrl;
+        this.modalContainer = new PopupDraggable('품목 등록');
+        this._escHandler = null;
+        this.focusAfterClose = null;
+      }
+
+      show({ onSaved = null, focusAfterClose = null } = {}) {
+        this.onSaved = onSaved;
+        this.focusAfterClose = focusAfterClose || document.activeElement;
+
+        const $content = $(tmpl('popup_BaljuMatSaveTemplate', {}));
+        this.modalContainer.open({ width: 1000, height: 370, $content });
+
+        const $form = $content.find('#MaterialSaveForm');
+        const $matGroup = $content.find('#MaterialGroup_id');
+        const $unitSel  = $content.find('#Unit_id');
+        const $factory  = $content.find('#Factory_id');
+        const $midSel   = $content.find('#cboMaterialMid');
+        const $workcenter   = $content.find('#WorkCenter_id');
+
+        AjaxUtil.fillSelectOptions($matGroup, 'material_group', '', false);
+        AjaxUtil.fillSelectOptions($unitSel,  'unit','', false);
+        AjaxUtil.fillSelectOptions($factory,  'factory','', false);
+
+        function loadMaterialMids(parentId, { $target = $midSel, selectedId = '' } = {}) {
+          // 초기화 및 로딩 상태
+          $target.prop('disabled', true)
+            .empty()
+            //.append('<option value="">로딩중...</option>');
+
+          if (!parentId) {
+            $target.empty()
+              .append('<option value="">선택</option>')
+              .prop('disabled', false);
+            return;
+          }
+
+          $.ajax({
+            url: '/api/definition/material/children',
+            type: 'GET',
+            data: { parentId },
+          })
+            .done((res) => {
+              $target.empty().append('<option value="">선택</option>');
+              if (res && res.success && Array.isArray(res.data)) {
+                res.data.forEach(item => {
+                  // item: { id, value } 가정
+                  const opt = $('<option/>', { value: item.id, text: item.value });
+                  $target.append(opt);
+                });
+                if (selectedId) $target.val(String(selectedId));
+              }
+            })
+            .fail((err) => {
+              console.error('중분류 로딩 오류', err);
+              Notify.error('중분류 데이터를 불러오지 못했습니다.');
+              $target.empty().append('<option value="">선택</option>');
+            })
+            .always(() => {
+              $target.prop('disabled', false);
+            });
+        }
+
+        // 품목그룹 변경 시 중분류 갱신
+        $matGroup.on('change', function () {
+          const groupId = $(this).val();
+          loadMaterialMids(groupId);
+        });
+
+        // (선택) 최초 진입 시, 기본 그룹 선택값이 있으면 중분류 선로딩
+        const initialGroupId = $matGroup.val();
+        if (initialGroupId) {
+          loadMaterialMids(initialGroupId /* , { selectedId: '초기선택값' } */);
+        } else {
+          $midSel.empty().append('<option value="">선택</option>');
+        }
+
+        // 닫기
+        const doClose = () => this.close();
+        $content.find('#modal-close-button').on('click', doClose);
+
+        // 워크센터 로딩 (공장 선택값에 따라)
+        function loadWorkCenters(factoryId, {
+          $target = $workcenter,
+          selectedId = '',
+        } = {}) {
+          // 초기화 및 로딩 상태
+          $target.prop('disabled', true).empty();
+
+          if (!factoryId) {
+            $target.append('<option value="">선택</option>').prop('disabled', false);
+            return;
+          }
+
+          // 서버에 보낼 파라미터 구성
+          const params = { factoryId };
+
+          $.ajax({
+            url: '/api/sales/suju/workcenter_list',
+            type: 'GET',
+            dataType: 'json',
+            data: { factoryId }
+          })
+          .done((res) => {
+            $target.empty().append('<option value="">선택</option>');
+            if (res && res.success && Array.isArray(res.data)) {
+              res.data.forEach(item => {
+                const id   = item.id   ?? item.value;
+                const text = item.text ?? item.value ?? item.Name ?? id;
+                $target.append($('<option/>', { value: id, text }));
+              });
+              if (selectedId) $target.val(String(selectedId));
+            }
+          })
+          .fail((err) => {
+              console.error('워크센터 로딩 오류', err);
+              Notify.error('워크센터 데이터를 불러오지 못했습니다.');
+              $target.empty().append('<option value="">선택</option>');
+            })
+            .always(() => {
+              $target.prop('disabled', false);
+            });
+        }
+        // 공장 변경 → 워크센터 갱신
+        $factory.on('change', function () {
+          const factoryId = $(this).val();
+          loadWorkCenters(factoryId);
+        });
+
+        const initialFactoryId = $factory.val();
+        if (initialFactoryId) {
+          loadWorkCenters(initialFactoryId /*, { selectedId: presetWorkCenterId }*/);
+        } else {
+          $workcenter.empty().append('<option value="">선택</option>');
+        }
+
+
+        // 저장
+        $content.find('#btnPopMatSave').on('click', () => {
+          let $MaterialSaveForm = $content.find('#MaterialSaveForm');
+          let data = FormUtil.extractForm($MaterialSaveForm);
+          // FormData 직렬화 (프로젝트 공통 유틸이 없을 경우 대비)
+          $form.serializeArray().forEach(({ name, value }) => {
+            data[name] = (value ?? '').trim();
+          });
+          data.spjangcd = (sessionStorage.getItem('spjangcd') || '').trim();
+          // 필수값 검사
+          const required = [
+            ['#MaterialGroup_id', '품목그룹'],
+            ['#Name', '품목명'],
+            ['#Unit_id', '단위'],
+            ['#Factory_id', '공장'],
+            ['#WorkCenter_id', '워크센터']
+          ];
+          for (const [sel, label] of required) {
+            const $el = $content.find(sel);
+            if (!$el.val()) {
+              Alert.alert('', `${label}을(를) 입력해 주세요.`);
+              $el.focus();
+              return;
+            }
+          }
+
+          AjaxUtil.postAsyncData(this.saveUrl, data, (res) => {
+            if (res && res.success) {
+              Notify.success('저장되었습니다.');
+              if (typeof this.onSaved === 'function') this.onSaved(res.data);
+              doClose();
+            } else {
+              Alert.alert('', (res && res.message) ? res.message : '저장에 실패했습니다.');
+            }
+          });
+        });
+
+        // ESC 닫기
+        this._escHandler = (e) => {
+          if (e.key === 'Escape' || e.keyCode === 27) doClose();
+        };
+        $(document).on('keydown.popupesc', this._escHandler);
+
+        // 닫힘 후 포커스 복원 & 이벤트 해제
+        this.modalContainer.onClose = () => {
+          $(document).off('keydown.popupesc', this._escHandler);
+          if (this.focusAfterClose && document.body.contains(this.focusAfterClose)) {
+            setTimeout(() => this.focusAfterClose.focus(), 50);
+          }
+        };
+      }
+
+      close() {
+        this.modalContainer.close();
+        if (this.modalContainer.$content) {
+          this.modalContainer.$content.remove();
+          this.modalContainer.$content = null;
+        }
+        $(document).off('keydown.popupesc', this._escHandler);
+        if (PopBalJuMatSaveComponent.currentInstance === this) {
+          PopBalJuMatSaveComponent.currentInstance = null;
+        }
+      }
+    }
+  </script>
+</th:block>

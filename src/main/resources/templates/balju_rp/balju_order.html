@@ -335,9 +335,12 @@
                   <input type="hidden" name="Material_id" />
                   <input type="hidden" name="product_code" />
                   <input type="hidden" name="balju_id" />
-                  <a class="btn in_btn" title="품목 검색" id="btnProductSearch" >
+                 <!-- <a class="btn in_btn" title="품목 검색" id="btnProductSearch" >
                     <img src="/images/icon/btn-srch-black.svg" alt="검색 아이콘" />
-                  </a>
+                  </a>-->
+                  <a class="btn in_btn" title="품목 신규등록" id="btnProductSave">
+                                <img src="/images/icon/ico-plus.svg" alt="등록 아이콘" />
+                            </a>
                 </div>
               </td>
               <td><input type="text" name="Standard" placeholder="규격" autocomplete="off"/></td>
@@ -496,6 +499,7 @@
   <th:block th:replace="/common/multiform_material :: multiform_material"></th:block>
 <!--  <th:block th:replace="/sales/popup_suju_company :: popup_suju_company"></th:block>-->
   <th:block th:replace="/common/popup_company_purchase :: popup_company_Purchase"></th:block>
+  <th:block th:replace="/balju_rp/popup_balju_material_save :: popup_balju_material_new_save"></th:block>
   <script type="text/javascript">
     const ProductInputHandler = {
       bind: function ({rowSelector, $content, tryShowBaljuPrice}) {
@@ -1417,75 +1421,69 @@
         }
        });
 
-       /*$content.find('#addRemark').click(function () {
-          const $tbody = $content.find('.item-table tbody');
-          const $template = $tbody.find('.item-template-row');
-
-          for (let i = 0; i < 3; i++) {
-            const $newRow = $template.clone().removeClass('item-template-row').show();
-
-            $newRow.find('input').each(function () {
-              const baseName = $(this).attr('name');
-              if (baseName) {
-                $(this).attr('name', `${baseName}_${itemIndex}`);
-              }
-            });
-
-            $tbody.append($newRow);
-            ProductInputHandler.bind({ rowSelector: $newRow, $content: $content, tryShowBaljuPrice });
-
-            itemIndex++;
-          }
-        });*/
-
-        // 품목 검색 버튼 클릭 시 팝업
-        /*$content.on('click', 'a[title="품목 검색"]', function () {
-          const $row = $(this).closest('tr');
-
-          const $productInput = $row.find('input[name^="txtProductName_"]');
-          const $productId = $row.find('input[name^="Material_id_"]');
-          const $productCode = $row.find('input[name^="product_code_"]');
-          const $materialGroup = $row.find('input[name^="MaterialGroupName_"]');
-          const $standard = $row.find('input[name^="Standard_"]')
-
-          const pop = new PopMatComponent();
-          pop.material_type = 'product,sangpum';
-
-          pop.show(function (item) {
-            $productInput.val(item.Name);
-            $productId.val(item.id);
-            $productCode.val(item.Code);
-            $materialGroup.val(item.group_name);
-            $standard.val(item.Spec);
-
-            // ✅ 제품 선택 후 단가 자동 조회
-            tryShowBaljuPrice($row);
-          });
-        });*/
-       // 품목 검색 버튼 클릭 시 팝업
-       $content.on('click', 'a[title="품목 검색"]', function () {
+       // 품목 신규등록 버튼 클릭
+       $content.on('click', 'a[title="품목 신규등록"]', function () {
+        // 현재 클릭한 버튼이 속한 행
         const $row = $(this).closest('tr');
-        const $tbody = $content.find('.item-table tbody');
-        const $rows = $tbody.find('tr:visible').not('.item-template-row');
 
-        const pop = new PopMatComponent();
-        pop.material_type = 'product,sangpum';
+        const pop = new PopBalJuMatSaveComponent();
+        pop.show({
+         onSaved: (saved) => {
+          if (typeof window.searchMatList === 'function') searchMatList();
+          if (!saved) return;
 
-        pop.show(function (item) {
-         // ✅ 현재 클릭한 행의 인덱스 기준으로 "연속 3행"에 같은 품목 채우기
-         const startIndex = $rows.index($row);
-         const count = 3; // 원하면 여기 숫자를 바꿔서 2행, 5행 등으로 변경 가능
+          // ✅ 이 행에서 사용할 input들 캐싱
+          const $productInput    = $row.find('input[name^="txtProductName_"]');     // 품목명
+          const $productId       = $row.find('input[name^="Material_id_"]');        // 품목 ID (hidden)
+          const $productCode     = $row.find('input[name^="product_code_"]');       // 품목 코드 (text/hidden 모두)
+          const $materialGroup   = $row.find('input[name^="MaterialGroupName_"]');  // 품목 그룹명
+          const $standard        = $row.find('input[name^="Standard_"]');           // 규격
+          const $unit            = $row.find('input[name^="unit_"]');               // 단위(있으면)
 
-         for (let i = 0; i < count; i++) {
-          const idx = startIndex + i;
-          if (idx >= 0 && idx < $rows.length) {
-           const $targetRow = $rows.eq(idx);
-           fillProductRow({ $row: $targetRow, item, tryShowBaljuPrice });
+          // 값 세팅 (+ 이벤트 트리거)
+          if ($productInput.length) {
+           $productInput.val(saved.name ?? '')
+           .trigger('input').trigger('change');
           }
-         }
+
+          if ($productId.length) {
+           $productId.val(saved.id ?? '')
+           .trigger('input').trigger('change');
+          }
+
+          if ($productCode.length) {
+           // text + hidden 둘 다 name^="product_code_" 이면 전부 세팅됨
+           $productCode.val(saved.Code ?? '')
+           .trigger('input').trigger('change');
+          }
+
+          if ($materialGroup.length) {
+           // saved.group_name 또는 saved.MaterialGroupName 중 실제 사용 필드에 맞게
+           $materialGroup.val(saved.group_name ?? saved.MaterialGroupName ?? '')
+           .trigger('input').trigger('change');
+          }
+
+          if ($standard.length) {
+           $standard.val(saved.standard ?? '')
+           .trigger('input').trigger('change');
+          }
+
+          if ($unit.length) {
+           $unit.val(saved.unit_name ?? '')
+           .trigger('input').trigger('change');
+          }
+
+          // 규격이 있으면 규격 읽기전용
+          const hasStd = !!(saved.standard && String(saved.standard).trim().length);
+          if ($standard.length) {
+           $standard.prop('readonly', hasStd);
+          }
+         },
+
+         // 포커스 복귀
+         focusAfterClose: this
         });
        });
-
 
        // 포커스 자동 이동: Enter + 방향키(←→↑↓)
         $content.on('keydown', 'input', function (e) {

@@ -31,7 +31,8 @@ public class PopupService {
             , "Name" as item2
             from company
             WHERE ("CompanyType" = 'sale'
-            OR "CompanyType" = 'sale-purchase')
+            OR "CompanyType" = 'sale-purchase'
+            OR "CompanyType" = 'purchase')
             and "relyn" = '0'
             and spjangcd = :spjangcd
             union all

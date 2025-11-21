@@ -728,4 +728,19 @@ public class BaljuOrderService {
     return this.sqlRunner.queryForObject(sql, param, (rs, rowNum) -> rs.getString("Email"));
   }
 
+  public String getNextMatCode() {
+    MapSqlParameterSource params = new MapSqlParameterSource();
+    String sql = """
+       SELECT COALESCE(MAX(
+								CASE WHEN btrim("Code") ~ '^[0-9]+$'
+										 THEN btrim("Code")::bigint
+								END
+							), 0) + 1 AS next_code
+			 FROM material;
+    """;
+
+    Map<String, Object> row = sqlRunner.getRow(sql, params);
+    Object v = (row == null) ? null : row.get("next_code");
+    return (v == null) ? "1" : v.toString();   // "1"부터 시작
+  }
 }

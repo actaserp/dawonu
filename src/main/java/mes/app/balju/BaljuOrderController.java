@@ -3,12 +3,13 @@ package mes.app.balju;
 import lombok.extern.slf4j.Slf4j;
 import mes.app.MailService;
 import mes.app.balju.service.BaljuOrderService;
-import mes.domain.entity.Balju;
-import mes.domain.entity.BaljuHead;
-import mes.domain.entity.User;
+import mes.app.definition.service.BomService;
+import mes.domain.entity.*;
 import mes.domain.model.AjaxResult;
 import mes.domain.repository.BalJuHeadRepository;
 import mes.domain.repository.BujuRepository;
+import mes.domain.repository.MaterialRepository;
+import mes.domain.repository.UnitRepository;
 import mes.domain.services.CommonUtil;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.ss.util.CellRangeAddress;
@@ -51,6 +52,15 @@ public class BaljuOrderController {
 
   @Autowired
   MailService mailService;
+
+  @Autowired
+  MaterialRepository materialRepository;
+
+  @Autowired
+  BomService bomService;
+
+  @Autowired
+  UnitRepository unitRepository;
 
   // 발주 목록 조회
   @GetMapping("/read")
@@ -611,5 +621,153 @@ public class BaljuOrderController {
     sheet.addMergedRegion(newRegion);
   }
 
+
+  @PostMapping("/save_material")
+  public AjaxResult SaveMaterial(@RequestParam(value = "id", required = false) Integer id,
+                                 @RequestParam("MaterialGroup_id") Integer MaterialGroup_id,
+                                 @RequestParam("cboMaterialMid") Integer cboMaterialMid,
+                                 @RequestParam("Name") String Name,
+                                 @RequestParam("Unit_id") Integer Unit_id,
+                                 @RequestParam(value = "Standard", required = false) String Standard,
+                                 @RequestParam("Factory_id") Integer Factory_id,
+                                 @RequestParam(value = "Thickness",required = false) Float Thickness,
+                                 @RequestParam(value = "Width",  required = false) Float Width,
+                                 @RequestParam(value = "Color",  required = false) String Color,
+                                 @RequestParam("WorkCenter_id") Integer WorkCenter_id,
+                                 @RequestParam("spjangcd") String spjangcd,
+                                 Authentication auth
+  ) {
+    AjaxResult result = new AjaxResult();
+    User user = (User) auth.getPrincipal();
+    try {
+
+      Material material;
+
+      if (id == null) {
+        material = new Material();
+        // 코드가 비어있으면 신규 코드 부여
+        String matCode = baljuOrderService.getNextMatCode();
+        material.setCode(matCode);
+      } else {
+        material = this.materialRepository.getMaterialById(id);
+        if (material == null) {
+          result.success = false;
+          result.message = "대상 품목이 존재하지 않습니다.";
+          return result;
+        }
+        if (material.getCode() == null || material.getCode().isEmpty()) {
+          material.setCode(baljuOrderService.getNextMatCode());
+        }
+      }
+
+      material.setFactory_id(Factory_id);
+      material.setName(Name);
+      material.setMaterialGroupId(MaterialGroup_id);
+      material.setUnitId(Unit_id);
+      material.setStandard1(Standard);
+      material.setSpjangcd(spjangcd);
+      material.setThickness(Thickness); //폭
+      material.setWidth(Width);
+      material.setColor(Color);
+      material.setUseyn("0");
+      material.setWorkCenterId(WorkCenter_id);
+//      if (Standard != null && !Standard.trim().isEmpty()) {
+//        material.setRoutingId(11);
+//      } else {
+//        material.setRoutingId(10);
+//      }
+      if (Objects.equals(WorkCenter_id, 46)) {
+        material.setRoutingId(11);
+      }
+      material.setStoreHouseId(3);  // 자재창고가 기본으로
+      material.setMatUserCode(cboMaterialMid);
+      material.setPurchaseOrderStandard("mrp");
+      material.setValidDays(1);
+      material.set_audit(user);
+
+      // 저장
+      Material saved = materialRepository.save(material);
+
+     // createOrReuseDefaultBom(saved, spjangcd, user);
+
+//      String unitName = unitRepository.findById(Unit_id)
+//                          .map(Unit::getName)
+//                          .orElse(null);
+
+      // 프론트에서 바로 바인딩할 최소 데이터 제공
+      Map<String, Object> data = new HashMap<>();
+      data.put("id", saved.getId());
+      data.put("Code", saved.getCode());
+      data.put("name", saved.getName());
+      data.put("standard", saved.getStandard1());
+//      data.put("unit_name", unitName);
+      data.put("GroupId", saved.getMaterialGroupId());
+
+      result.success = true;
+      result.message = "저장되었습니다.";
+      result.data = data;
+      return result;
+
+    } catch (Exception e) {
+      result.success = false;
+      result.message = "저장 실패: " + e.getMessage();
+      return result;
+    }
+  }
+  private void createOrReuseDefaultBom(Material saved, String spjangcd, User user) {
+    final String bomType = "manufacturing";
+    final String version = "1.0";
+
+    // 기간
+    String startDateStr = java.time.LocalDate.now().toString() + " 00:00:00";
+    String endDateStr = "2100-12-31 00:00:00";
+    java.sql.Timestamp startTs = java.sql.Timestamp.valueOf(startDateStr);
+    java.sql.Timestamp endTs = java.sql.Timestamp.valueOf(endDateStr);
+
+    Integer bomId = null;
+
+    // 1) 같은 Version 존재 여부
+    boolean sameVer = bomService.checkSameVersion(null, saved.getId(), bomType, version);
+    if (sameVer) {
+      // 이미 있으면 끝 (필요 시 가져와서 사용)
+      return;
+    }
+
+    // 2) 기간 중복 여부
+    boolean dupPeriod = bomService.checkDuplicatePeriod(null, saved.getId(), bomType, startDateStr, endDateStr);
+    if (dupPeriod) {
+      // 기간 겹치면 StartDate만 'now'로 좁혀서 재시도
+      startTs = new java.sql.Timestamp(System.currentTimeMillis());
+    }
+
+    // 3) 생성
+    Bom bom = new Bom();
+    bom.setName(saved.getName()); // 표시용(선택)
+    bom.setMaterialId(saved.getId());
+    bom.setOutputAmount(1F);
+    bom.setBomType(bomType);
+    bom.setVersion(version);
+    bom.setStartDate(startTs);
+    bom.setEndDate(endTs);
+    bom.setSpjangcd(spjangcd);
+    bom.set_audit(user);
+
+    Bom savedBom = bomService.saveBom(bom);
+    bomId = savedBom.getId();
+    // 중복 검사
+    boolean exists = bomService.checkDuplicateBomComponent(bomId, saved.getId());
+    if (exists) return;
+
+    BomComponent bc = new BomComponent();
+    bc.setBomId(bomId);
+    bc.setMaterialId(10853);
+    bc.setAmount(1); // 필수
+    bc.set_order(1);
+    bc.setDescription(null);
+    bc.setSpjangcd(spjangcd);
+    bc.set_audit(user);
+
+    bomService.saveBomComponent(bc);
+  }
 
 }
