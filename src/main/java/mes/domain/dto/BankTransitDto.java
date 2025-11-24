@@ -66,7 +66,7 @@ public class BankTransitDto {
     private String accountCode; // 계정 코드
 
     @NotBlank(message = "금액은 필수입니다.")
-    @Pattern(regexp = "^[\\d,]+$", message = "숫자와 쉼표만 입력가능합니다.")
+    @Pattern(regexp = "^[\\d,]+$", message = "숫자와 쉼표만 입력가능합니다.(money)")
     private String money;
 
     private String projectNumber; //프로젝트이름
@@ -77,10 +77,10 @@ public class BankTransitDto {
     private String clientName;
     private String paymentnum;
 
-    @Pattern(regexp = "^[\\d,]+$", message = "숫자와 쉼표만 입력가능합니다.")
+    @Pattern(regexp = "^[\\d,]*$", message = "숫자와 쉼표만 입력가능합니다.")
     private String tax;
 
-    @Pattern(regexp = "^[\\d,]+$", message = "숫자와 쉼표만 입력가능합니다.")
+    @Pattern(regexp = "^[\\d,]*$", message = "숫자와 쉼표만 입력가능합니다.")
     private String supplyamt;
 
     public static TB_BANKTRANSIT toEntity(BankTransitDto dto, TB_BANKTRANSIT banktransit){
