@@ -964,6 +964,10 @@
                                 @media print {
                                     .print-page { page-break-after: always; }
                                 }
+                                /* ✅ 프린트 시 색상 유지 */
+                                @media print {
+                                    * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                                }
                             </style>
                         </head>
                         <body>
@@ -978,7 +982,10 @@
                             CompanyName: item.CompanyName,
                             ProductionDate: date,
                             WorkcenterName: item.WorkcenterName,
-                            mat_name: item.mat_name,
+
+                            // ✅ 변경 1: mat_name에 인라인 스타일로 색 지정
+                            mat_name: `<span style="color:red; font-weight:bold;">${item.mat_name}</span>`,
+
                             standard: item.standard,
                             unit_name: item.unit_name,
                             OrderQty: item.OrderQty,
@@ -988,7 +995,17 @@
                             items: item.items || [],
                             totalMeter: (item.items || []).reduce((sum, v) => sum + parseFloat(v.Standard || 0), 0)
                         };
-                        const html = tmpl('print_report', data);
+
+                        // 기존 tmpl 호출
+                        let html = tmpl('print_report', data);
+
+                        // ✅ 변경 2: tmpl이 <span>을 이스케이프했을 경우 복원
+                        html = html
+                            .replace(/&lt;/g, '<')
+                            .replace(/&gt;/g, '>')
+                            .replace(/&quot;/g, '"')
+                            .replace(/&#39;/g, "'")
+                            .replace(/&amp;/g, '&');
 
                         allHtml += `<div class="print-page">${html}</div>`;
                     }
@@ -1001,12 +1018,12 @@
                     printWindow.document.close();
 
                     printWindow.onload = function () {
+                        // ✅ 프린트 전 스타일 적용 보장
                         printWindow.focus();
                         printWindow.print();
                         setTimeout(() => printWindow.close(), 300);
                     };
                 });
-
             }
 
             // 해당 반제품생산지시 내역
