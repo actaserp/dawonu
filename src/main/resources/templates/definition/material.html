@@ -1524,22 +1524,6 @@
                     let detailData = result.data;
                     FormUtil.BindDataForm(detailData, $('#matBasicForm'));
                     FormUtil.BindDataForm(detailData, $('#matProductionForm'));
-                    AjaxUtil.fillSelectOptions($('#StoreHouse_id'), 'store_house', ''); // 창고
-                    setTimeout(() => {
-                        $('#StoreHouse_id').val(detailData.StoreHouse_id).trigger('change');
-                    }, 0);
-                    AjaxUtil.fillSelectOptions($('#WorkCenter_id'), 'workcenter', ''); // 워크센터
-                    setTimeout(() => {
-                        $('#WorkCenter_id').val(detailData.WorkCenter_id).trigger('change');
-                    }, 0);
-                    AjaxUtil.fillSelectOptions($('#Equipment_id'), 'equipment_code', '');
-                    setTimeout(() => {
-                        $('#Equipment_id').val(detailData.WorkCenter_id).trigger('change');
-                    }, 0);
-                    let group_pk = $('#WorkCenter_id').val();
-                    if (group_pk) {
-                        AjaxUtil.fillSelectOptions($('#Equipment_id'), 'equipment_code', 'choose', detailData.Equipment_id, group_pk);
-                    }
                     FormUtil.BindDataForm(detailData, $('#matStockForm'));
                     FormUtil.BindDataForm(detailData, $('#matTestForm'));
                     FormUtil.BindDataForm(detailData, $('#priceForm'));
@@ -1569,7 +1553,19 @@
                         $('#useyn').prop('checked', false);
                     }
 
-
+                    let factory_id = $('#Factory_id').val();
+                    AjaxUtil.fillSelectOptions($('#WorkCenter_id'), 'workcenter', '', '', '', factory_id);
+                    setTimeout(() => {
+                        $('#WorkCenter_id').val(detailData.WorkCenter_id).trigger('change');
+                    }, 0);
+                    AjaxUtil.fillSelectOptions($('#Equipment_id'), 'equipment_code', '');
+                    setTimeout(() => {
+                        $('#Equipment_id').val(detailData.WorkCenter_id).trigger('change');
+                    }, 0);
+                    let group_pk = $('#WorkCenter_id').val();
+                    if (group_pk) {
+                        AjaxUtil.fillSelectOptions($('#Equipment_id'), 'equipment_code', 'choose', detailData.Equipment_id, group_pk);
+                    }
                     //$('#Routing_id').trigger('change');
                     //FormUtil.BindDataForm(result, $('#matRoutingForm'));
                 }
