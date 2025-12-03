@@ -248,6 +248,7 @@ public class ProductionResultService {
 			  SELECT
 				  jr.id                              AS child_id,
 				  jr."Parent_id"                     AS parent_id,
+				  jr."Description" as memo ,
 				  COALESCE(jr."Parent_id", jr.id)    AS base_id,
 				  CASE WHEN jr."State"='working' THEN 1 ELSE 0 END AS is_working,
 				  CASE WHEN jr."State"='stopped' THEN 1 ELSE 0 END AS is_stopped
@@ -322,6 +323,7 @@ public class ProductionResultService {
 			   , su."CompanyName" as company_name
 			   , M."Factory_id" AS "Factory_id"
 			   , fa."Name" as fac_name
+			   , S.memo
 			  FROM S
 			  JOIN job_res       C  ON C.id = S.child_id              -- child = 대표행
 			  JOIN job_res       B  ON B.id = S.base_id               -- base = 부모
@@ -1282,4 +1284,5 @@ public class ProductionResultService {
 
 		return qty;
 	}
+
 }

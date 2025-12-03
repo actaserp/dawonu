@@ -93,12 +93,13 @@ public class ProdOrderEditService {
 	            , q as (
 	                select s.id as suju_id
 	                , sum(jr."OrderQty") as ordered_qty
+	                , jr."Description" as memo
 	                from job_res jr 
 	                inner join s on s.id = jr."SourceDataPk" 
 	                and jr."SourceTableName"='suju' 
 	                and jr."Material_id" = s."Material_id"
 	                where jr."State" <>'canceled'
-	                group by s.id
+	                group by s.id, jr."Description"
 	            )
 	            select s.id
 	            , s."JumunNumber"
@@ -123,6 +124,7 @@ public class ProdOrderEditService {
 	            , s."StateName", s."State"
 	            , s.routing_nm
 	            , s.fac_name
+	            , q.memo
 	            from s 
 	            left join q on q.suju_id = s.id
 	            where 1 = 1
@@ -190,6 +192,8 @@ public class ProdOrderEditService {
 			, fn_code_name('job_state', jr."State") as "StateName"
 			, sju."Standard" as standard
 			, sju.id as suju_id
+			, jr."Description"
+			, sju."DueDate" 
 			from job_res jr 
 			inner join material m on m.id = jr."Material_id" 
 			inner join mat_grp mg on mg.id = m."MaterialGroup_id" 

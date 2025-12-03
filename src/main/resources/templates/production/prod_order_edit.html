@@ -179,6 +179,12 @@
                                         생산지시서 출력
                                     </a>
                                 </li>
+                                <li>
+                                    <a class="btn btn-edit" title="생산지시 메모" id="btnJobResDetail">
+                                        <img src="/images/icon/ico-edit.svg" alt="수정 아이콘">
+                                        생산지시 메모
+                                    </a>
+                                </li>
                             </ul>
                         </div>
                     </div>
@@ -452,7 +458,9 @@
                         {binding: 'mat_code', header: '제품코드', width: 80, align: 'center', isReadOnly: true},
                         {binding: 'mat_pk', header: '제품pk', width: 80, visible: false, isReadOnly: true},
                         {binding: 'routing_nm', header: '라우팅', width: 100, align: 'left', isReadOnly: true},
-                        {binding: 'description', header: '비고', width: 100, align: 'left', isReadOnly: true}
+                        {binding: 'description', header: '비고', width: 100, align: 'left', isReadOnly: true},
+                        {binding: 'memo', header: '메모', width: 100, align: 'left', isReadOnly: true},
+
                     ],
                     itemFormatter: function (panel, row, col, cell) {
                         if (panel.cellType === wijmo.grid.CellType.Cell) { // 일반 셀 확인
@@ -899,14 +907,16 @@
                     columns: [
                         {binding: 'WorkOrderNumber', header: '작업지시번호', width: 170, align: 'center'},
                         {binding: 'ProductionDate', header: '생산일', width: 120, align: 'center'},
-                        {binding: 'CompanyName', header: '판매처', width: 120, align: 'left'},
+                        {binding: 'CompanyName', header: '판매처', width: 170, align: 'left'},
                         {binding: 'ShiftName', header: '근무조', width: 120, align: 'center'},
                         {binding: 'mat_code', header: '제품코드', width: 120, align: 'center'},
                         {binding: 'mat_name', header: '제품명', width: 200, align: 'left'},
                         {binding: 'standard', header: '규격', width: 100, align: 'center'},
                         {binding: 'OrderQty', header: '지시량', width: 100, align: 'right'},
                         {binding: 'WorkcenterName', header: '워크센터', width: 120, align: 'center'},
-                        {binding: 'StateName', header: '상태', width: 100, align: 'center'}
+                        {binding: 'StateName', header: '상태', width: 100, align: 'center'},
+                        {binding: 'DueDate', header: '납기예정일', visible: false},
+                        {binding: 'Description', header: '메모', width: '*', align: 'center'}
                     ]
                 });
                 new FlexGridContextMenu(this.jobResGrid);
@@ -977,11 +987,23 @@
                         const date = item.ProductionDate || '';
                         const [y, m, d] = (date.includes('-') ? date.split('-') : ['', '', '']);
 
+                        const parentLen = parseFloat(item.standard || 0) || 0;   // 길이
+                        const parentQty = parseFloat(item.OrderQty || 0) || 0;   // 수량
+                        const parentTotal = parentLen * parentQty;
+
+                        // ✅ 하위항목 길이×수량 합계
+                        const detailTotal = (item.items || []).reduce((sum, v) => {
+                            const len = parseFloat(v.Standard || 0) || 0;
+                            const qty = parseFloat(v.Qty || 0) || 0;
+                            return sum + (len * qty);
+                        }, 0);
+
                         const data = {
                             title: '생 산 지 시 서',
                             CompanyName: item.CompanyName,
                             ProductionDate: date,
                             WorkcenterName: item.WorkcenterName,
+                            DueDate : item.DueDate ,
 
                             // ✅ 변경 1: mat_name에 인라인 스타일로 색 지정
                             mat_name: `<span style="color:red; font-weight:bold;">${item.mat_name}</span>`,
@@ -993,7 +1015,8 @@
                             month: m,
                             day: d,
                             items: item.items || [],
-                            totalMeter: (item.items || []).reduce((sum, v) => sum + parseFloat(v.Standard || 0), 0)
+                            totalMeter: parentTotal + detailTotal ,
+                            note: item.Description || item.description || ''
                         };
 
                         // 기존 tmpl 호출

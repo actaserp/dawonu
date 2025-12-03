@@ -23,8 +23,8 @@
               <td style="border:1px solid #000; height:28px;"></td>
             </tr>
             <tr>
-              <td style="text-align:center; border:1px solid #000; height:28px;">출하지</td>
-              <td style="text-align:center; border:1px solid #000; height:28px;"></td>
+              <td style="text-align:center; border:1px solid #000; height:28px;">출고 예정일</td>
+              <td style="text-align:center; border:1px solid #000; height:28px;">{%= o.DueDate || '' %}</td>
               <td style="border:1px solid #000; height:28px;"></td>
             </tr>
             <tr>
@@ -33,7 +33,9 @@
               <td style="border:1px solid #000; height:28px;"></td>
             </tr>
             <tr>
-              <td style="text-align:center; border:1px solid #000; height:28px;">특이사항</td>
+            </tr>
+            <tr>
+              <td style="text-align:center; border:1px solid #000; height:80px;">특이사항</td>
               <td style="border:1px solid #000; height:28px;">{%= o.note || '' %}</td>
               <td style="border:1px solid #000; height:28px;"></td>
             </tr>
@@ -46,8 +48,8 @@
                 <th style="width: 50px; border:1px solid #000; height:28px;">월</th>
                 <th style="width: 50px; border:1px solid #000; height:28px;">일</th>
                 <th style="width: 250px; border:1px solid #000; width:200px; height:28px;">품명</th>
-                <th style="width: 100px; border:1px solid #000; height:28px;">색상</th>
-                <th style="width: 100px; border:1px solid #000; height:28px;">두께</th>
+                <!--<th style="width: 100px; border:1px solid #000; height:28px;">색상</th>
+                <th style="width: 100px; border:1px solid #000; height:28px;">두께</th>-->
                 <th style="width: 100px; border:1px solid #000; height:28px;">길이</th>
                 <th style="width: 100px; border:1px solid #000; height:28px;">수량</th>
                 <th style="width: 50px; border:1px solid #000; height:28px;"></th>
@@ -66,8 +68,8 @@
                 <td style="border:1px solid #000; text-align:center; height:28px;">{%= month %}</td>
                 <td style="border:1px solid #000; text-align:center; height:28px;">{%= day %}</td>
                 <td style="border:1px solid #000; text-align:center; height:28px;">{%= o.mat_name %}</td>
-                <td style="border:1px solid #000; text-align:center; height:28px;">&nbsp;</td>
-                <td style="border:1px solid #000; text-align:center; height:28px;">&nbsp;</td>
+                <!--<td style="border:1px solid #000; text-align:center; height:28px;">&nbsp;</td>
+                <td style="border:1px solid #000; text-align:center; height:28px;">&nbsp;</td>-->
                 <td style="border:1px solid #000; text-align:center; height:28px;">{%= o.standard %}</td>
                 <td style="border:1px solid #000; text-align:center; height:28px;">{%= o.OrderQty %}</td>
                 <td style="border:1px solid #000; height:28px;">&nbsp;</td>
@@ -82,8 +84,8 @@
                   <td style="border:1px solid #000; height:28px;">&nbsp;</td>
                   <td style="border:1px solid #000; height:28px;">&nbsp;</td>
                   <td style="border:1px solid #000; height:28px;">&nbsp;</td>
-                  <td style="border:1px solid #000; height:28px;">&nbsp;</td>
-                  <td style="border:1px solid #000; height:28px;">&nbsp;</td>
+                 <!-- <td style="border:1px solid #000; height:28px;">&nbsp;</td>
+                  <td style="border:1px solid #000; height:28px;">&nbsp;</td>-->
                   <td style="border:1px solid #000; text-align:center; height:28px;">{%= row ? row.Standard : '' %}</td>
                   <td style="border:1px solid #000; text-align:center; height:28px;">{%= row ? row.Qty : '' %}</td>
                   <td style="border:1px solid #000; height:28px;">&nbsp;</td>
@@ -98,7 +100,7 @@
               <td style="width:100px; text-align:center; border:1px solid #000; height:50px;">총중량</td>
               <td style="width:150px; text-align:center; border:1px solid #000; height:50px;">&nbsp;</td>
               <td style="width:100px; text-align:center; border:1px solid #000; height:50px;">총M수</td>
-              <td style="width:150px; text-align:center; border:1px solid #000; height:50px;">{%= o.OrderQty %}</td>
+              <td style="width:150px; text-align:center; border:1px solid #000; height:50px;">{%= o.totalMeter || '' %}</td>
               <td style="width:100px; text-align:center; border:1px solid #000; height:50px;">배송기사</td>
               <td style="border:1px solid #000; text-align:center; height:50px;">&nbsp;</td>
             </tr>

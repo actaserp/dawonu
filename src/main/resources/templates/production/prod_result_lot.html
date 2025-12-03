@@ -327,6 +327,21 @@
                             </dd>
                         </dl>
                     </div>
+
+                    <div class="button-wrap">
+                        <ul>
+                            <li>
+                                <button type="button" class="btn" id="btnJobResPrint" data-labelCd="생산지시서 출력"
+                                        disabled>생산지시서 출력
+                                </button>
+                            </li>
+                            <li>
+                                <button type="button" class="btn" id="btnReportPrint" data-labelCd="제품확인서 출력"
+                                        disabled>제품확인서 출력
+                                </button>
+                            </li>
+                        </ul>
+                    </div>
                 </div>
 
                 <div class="container-fluid">
@@ -1071,7 +1086,7 @@
                         {binding: 'unit', header: '단위', width: 80, align: 'center'},
                         {binding: 'workcenter', header: '워크센터', width: 100, align: 'center'},
                         {binding: 'work_idx', header: '작업순서', width: 100, align: 'center'},
-                        {binding: 'description', header: '비고', width: 190, align: 'left'},
+                        {binding: 'memo', header: '비고', width: 190, align: 'left'},
                         {binding: 'routing_id', visible: false}
                     ],
                     itemsSource: new wijmo.collections.CollectionView([]),
@@ -1117,6 +1132,9 @@
 
                 });
 
+                const $btnJobResPrint = $('#btnJobResPrint');   // 생산지시서 출력
+                const $btnReportPrint = $('#btnReportPrint');   // 제품확인서 출력
+
                 this.grid.hostElement.addEventListener('click', function (e) {
                     const ht = _this.grid.hitTest(e);
                     if (ht.cellType !== wijmo.grid.CellType.Cell) return;
@@ -1130,6 +1148,27 @@
 
                     const item = _this.grid.rows[selectedRow]?.dataItem;
                     if (!item || _this._currentJrPk === item.id) return;
+
+                    // 🔹 1) 기본적으로 둘 다 비활성화
+                    $btnJobResPrint.prop('disabled', true);
+                    $btnReportPrint.prop('disabled', true);
+
+                    // 🔹 2) 상태에 따라 버튼 활성화
+                    //    - job_state 값이 '생산완료' / '작업지시' 라고 가정
+                    const jobState = item.job_state;   // 또는 item.state 사용
+
+                    if (jobState === '생산완료') {
+                        // ✅ 생산완료: 제품확인서 출력만 활성화
+                        $btnReportPrint.prop('disabled', false);
+                    } else if (jobState === '작업지시') {
+                        // ✅ 작업지시 상태: 생산지시서 출력만 활성화
+                        $btnJobResPrint.prop('disabled', false);
+                    }
+
+                    // 🔹 동일 행 다시 클릭해도 버튼 상태는 적용되도록, 여기 이후에 _currentJrPk 체크
+                    if (_this._currentJrPk === item.id) {
+                        return;
+                    }
 
                     _this._currentJrPk = item.id;
                     _this.jobres = item;
@@ -1574,7 +1613,6 @@
                 // form내부
                 AjaxUtil.fillSelectOptions($('#shift_code'), 'shift', 'choose', false); // 근무조
                 // AjaxUtil.fillSelectOptions($('#workcenter_id'), 'workcenter', 'choose', false); // 워크센터
-
 
             }
 
@@ -2775,49 +2813,170 @@
                 lib.onload = () => {
                     const runner = win.document.createElement('script');
                     runner.textContent = `
-    (function(){
-        const prodMatNm = ${JSON.stringify(prod_mat_nm)};
-        const rows = ${JSON.stringify(select_chasu || [])};
+                    (function(){
+                        const prodMatNm = ${JSON.stringify(prod_mat_nm)};
+                        const rows = ${JSON.stringify(select_chasu || [])};
 
-        function renderBarcodes() {
-            rows.forEach(function(chasu, i) {
-                const lot = chasu?.lot_no ? String(chasu.lot_no) : '';
-                if (!lot) return;
-                try {
-                    JsBarcode("#svgBarcode_" + i, lot, {
-                        format: "code128",
-                        width: 2,
-                        height: 100,
-                        displayValue: true,
-                        text: lot + " (" + prodMatNm + ")",
-                        fontSize: 12,
-                        margin: 10,
-                        background: "#fff",
-                        lineColor: "#000"
-                    });
-                } catch (e) {
-                    console.error("Barcode render failed for index", i, e);
-                }
-            });
-            // ✅ 여기서 프린트 + 자동 닫기 실행
-            window.print();
-            setTimeout(() => window.close(), 300);
-        }
+                        function renderBarcodes() {
+                            rows.forEach(function(chasu, i) {
+                                const lot = chasu?.lot_no ? String(chasu.lot_no) : '';
+                                if (!lot) return;
+                                try {
+                                    JsBarcode("#svgBarcode_" + i, lot, {
+                                        format: "code128",
+                                        width: 2,
+                                        height: 100,
+                                        displayValue: true,
+                                        text: lot + " (" + prodMatNm + ")",
+                                        fontSize: 12,
+                                        margin: 10,
+                                        background: "#fff",
+                                        lineColor: "#000"
+                                    });
+                                } catch (e) {
+                                    console.error("Barcode render failed for index", i, e);
+                                }
+                            });
+                            // ✅ 여기서 프린트 + 자동 닫기 실행
+                            window.print();
+                            setTimeout(() => window.close(), 300);
+                        }
 
-        // JsBarcode 준비가 끝났을 때 실행
-        if (document.readyState === "complete") {
-            renderBarcodes();
-        } else {
-            window.addEventListener("load", renderBarcodes);
-        }
-    })();
-`;
+                        // JsBarcode 준비가 끝났을 때 실행
+                        if (document.readyState === "complete") {
+                            renderBarcodes();
+                        } else {
+                            window.addEventListener("load", renderBarcodes);
+                        }
+                    })();
+                `;
 
                     win.document.body.appendChild(runner);
                 };
                 win.document.head.appendChild(lib);
             }
 
+            // 생산지시서 출력 (prod-result-grid 기준)
+            showJobResPrint() {
+                const _this = this;
+                const grid = _this.grid;
+
+                // 1) 선택된 행 가져오기
+                const selected = grid.selectedItems && grid.selectedItems[0];
+                if (!selected) {
+                    Alert.alert('', '생산지시를 선택하세요.');
+                    return;
+                }
+
+                // 상태 체크 (선택 사항)
+                if (selected.job_state !== '작업지시') {
+                    Alert.alert('', '작업지시 상태인 건만 출력할 수 있습니다.');
+                    return;
+                }
+
+                // 2) 바로 출력 함수 호출
+                _this.printJobResReportFromRow(selected);
+            }
+
+            // prod-result-grid 한 행(item)으로 생산지시서 출력
+            printJobResReportFromRow(item) {
+                // 날짜 파싱
+                const date = item.prod_date || '';
+                const [y, m, d] = (date.includes('-') ? date.split('-') : ['', '', '']);
+
+                const parentLen = parseFloat(item.standard || 0) || 0;
+                const parentQty = parseFloat(item.order_qty || 0) || 0;
+
+                // 하위항목 합계 (지금은 대부분 0일 것)
+                const detailTotal = (item.items || []).reduce((sum, v) => {
+                    const len = parseFloat(v.Standard || 0) || 0;
+                    const qty = parseFloat(v.Qty || 0) || 0;
+                    return sum + (len * qty);
+                }, 0);
+
+                let parentTotal = 0;
+
+                //  - standard가 비었거나 '총(M)'이면 → 길이정보 없는 총 길이 지시로 보고 수량 그대로 사용
+                //  - 그 외에는 길이 × 수량
+                if (!item.standard || item.standard === '총(M)') {
+                    parentTotal = parentQty;
+                } else {
+                    parentTotal = parentLen * parentQty;
+                }
+
+                const data = {
+                    title: '생 산 지 시 서',
+
+                    CompanyName: item.company_name,
+                    ProductionDate: date,
+                    WorkcenterName: item.workcenter,
+                    DueDate: item.due_date,
+
+                    mat_name: `<span style="color:black; font-weight:bold;">${item.mat_name}</span>`,
+                    standard: item.standard,
+                    unit_name: item.unit,
+                    OrderQty: item.order_qty,
+
+                    month: m,
+                    day: d,
+
+                    items: [],                   // 하위 품목 없음
+                    totalMeter: parentTotal + detailTotal ,
+                    note: item.memo || ''
+                };
+
+                // 1) 템플릿 렌더링
+                let html = tmpl('print_report', data);
+
+                // 2) tmpl이 <span> 등을 이스케이프했을 경우 복원
+                html = html
+                .replace(/&lt;/g, '<')
+                .replace(/&gt;/g, '>')
+                .replace(/&quot;/g, '"')
+                .replace(/&#39;/g, "'")
+                .replace(/&amp;/g, '&');
+
+                // 3) 전체 HTML 문서 구성
+                const allHtml = `
+                    <html>
+                    <head>
+                        <meta charset="utf-8">
+                        <title>생산지시서 출력</title>
+                        <style>
+                            body { font-family: 'Malgun Gothic'; margin: 20px; }
+                            @media print {
+                                .print-page { page-break-after: always; }
+                            }
+                            @media print {
+                                * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                            }
+                        </style>
+                    </head>
+                    <body>
+                        <div class="print-page">
+                            ${html}
+                        </div>
+                    </body>
+                    </html>
+                `;
+
+                // 4) 새 창 열어서 프린트
+                const printWindow = window.open('', '_blank', 'width=850,height=1000');
+                if (!printWindow) {
+                    alert('팝업이 차단되었습니다. 팝업 허용 후 다시 시도하세요.');
+                    return;
+                }
+
+                printWindow.document.open();
+                printWindow.document.write(allHtml);
+                printWindow.document.close();
+
+                printWindow.onload = function () {
+                    printWindow.focus();
+                    printWindow.print();
+                    setTimeout(() => printWindow.close(), 300);
+                };
+            }
 
             // 부적합목록 조회
             showDefectList(type) {
@@ -3932,7 +4091,15 @@
                 }, 300);
             }
 
+            //제품 확인서출력
+            $('#btnReportPrint').click(function (e) {
+                page.showBarcode();
+            });
 
+            $('#btnJobResPrint').click(function (e) {
+                e.preventDefault();
+                page.showJobResPrint();
+            });
 
             window.__pageReady = true;
 
