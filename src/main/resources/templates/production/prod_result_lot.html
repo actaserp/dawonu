@@ -1988,7 +1988,7 @@
                 const process_nm = result.process_nm || '';
                 const equipment_id = result.equipment_id;
 
-                AjaxUtil.fillSelectOptions($('#equipment_id'), 'equipment_code', 'choose', equipment_id, workcenter_id);
+                AjaxUtil.fillSelectedOptions($('#equipment_id'), 'equipment_code', 'choose', equipment_id, workcenter_id); //첫번째 데이터 선택
 
                 $('#ordqty').text((result.order_qty ?? 0).toLocaleString());
 
