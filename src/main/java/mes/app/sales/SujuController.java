@@ -191,9 +191,6 @@ public class SujuController {
     String sujuType = (String) payload.get("SujuType");
     String description = (String) payload.get("Description");
     String spjangcd = (String) payload.get("spjangcd");
-    Integer order_id = Integer.parseInt(payload.get("order_id").toString()); //수주처
-    String SuJuOrderName = (String) payload.get("OrderName");
-    String DeliveryName = (String) payload.get("DeliveryName");  //납품처
     String amountStr = payload.get("totalAmountSum").toString().replace(",", "");
 
     double totalAmount = 0.0;
@@ -225,11 +222,6 @@ public class SujuController {
     head.setSujuType(sujuType);
     head.setTotalPrice(totalAmount);
     head.setDescription(description);
-    head.setSuJuOrderId(order_id);
-    head.setSuJuOrderName(SuJuOrderName);
-    head.setDeliveryName(DeliveryName);
-    head.setEstimateMemo((String) payload.get("EstimateMemo"));
-
 
     head.set_status("manual");
     head = sujuHeadRepository.save(head);

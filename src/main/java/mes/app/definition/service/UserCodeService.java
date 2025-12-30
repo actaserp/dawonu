@@ -72,23 +72,25 @@ public class UserCodeService {
 		return codeRepository.countByCode(code) > 0;
 	}
 
-	public List<Map<String, Object>> getSystemCodeList(String txtCode,String txtCodeType, String spjangcd){
+	public List<Map<String, Object>> getSystemCodeList(String txtCode,String txtCodeType,String Description, String spjangcd){
 
 		MapSqlParameterSource dicParam = new MapSqlParameterSource();
 		dicParam.addValue("txtCode", txtCode);
 		dicParam.addValue("txtCodeType", txtCodeType);
+		dicParam.addValue("Description", Description);
 		dicParam.addValue("spjangcd", spjangcd);
 
 		String sql = """
 				select id
-				, "CodeType" as code_type
-                , "Code" as code
-                , "Value" as name
-                ,"Description" as description
-                from sys_code
-                where "Value" ilike concat('%%',:txtCode,'%%')
-                AND "Description" ilike concat('%%',:txtCodeType,'%%')
-                AND spjangcd = :spjangcd
+					, "CodeType" as code_type
+					, "Code" as code
+					, "Value" as name
+					,"Description" as description
+					from sys_code
+					where "Value" ilike concat('%%',:txtCode,'%%')
+					 AND "CodeType" ilike concat('%%',:txtCodeType,'%%')
+					 AND "Description" ilike concat('%%',:Description,'%%')
+					 AND spjangcd = :spjangcd
 				""";
 		List<Map<String, Object>> items = this.sqlRunner.getRows(sql, dicParam);
 		return items;

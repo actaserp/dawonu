@@ -28,7 +28,7 @@
     <section class="section">
       <div class="section-top">
         <div class="search-wrap">
-          <!--<dl>
+          <dl>
             <dt>
               <label for="cboDateKind">
                 검색 구분<span class="eq"></span>
@@ -42,7 +42,7 @@
                 </select>
               </div>
             </dd>
-          </dl>-->
+          </dl>
           <dl>
             <dt>
               조회기간<span class="eq">*</span>
@@ -76,31 +76,6 @@
         </div>
         <div class="button-wrap">
           <ul>
-            <li>
-              <a class="btn" title="견적서 출력" id="btnEstimatePrint">
-                견적서 출력
-              </a>
-            </li>
-            <li>
-              <a class="btn btn-excell" title="페이지 이동" id="balju_optimal_stock_move">
-                적정재고
-              </a>
-            </li>
-            <li>
-              <a class="btn btn-excell" title="페이지 이동" id="balju_order_move">
-                발주등록
-              </a>
-            </li>
-            <li>
-              <a class="btn btn-excell" title="페이지 이동" id="cash_io_move">
-                입출금등록
-              </a>
-            </li>
-            <li>
-              <a class="btn btn-excell" title="페이지 이동" id="sales_invoice_move">
-                매출등록
-              </a>
-            </li>
             <li>
               <a class="btn btn-excell" title="등록" id="btnAddNew">
                 <img src="/images/icon/ico-plus.svg" alt="등록 아이콘">
@@ -300,16 +275,16 @@
                     </tr>
                     <tr>
                        <th style="text-align: center">
-                            <label for="cboOrder">수주처<span class="eq">*</span></label>
+                           <label for="cboCompany">판매처<span class="eq">*</span></label>
                         </th>
                         <td >
-                            <input id="SuJuOrderId" name="SuJuOrderId" type="hidden">
-                            <input class="form-control2" type="text" id="SuJuOrderName" name="SuJuOrderName"
-                            placeholder="수주처 검색 버튼을 클릭하여 판매처를 검색하세요" readonly/>
+                            <input id="cboCompany" name="Company_id" type="hidden">
+                            <input class="form-control2" type="text" id="CompanyName" name="CompanyName"
+                            placeholder="판매처 검색 버튼을 클릭하여 판매처를 검색하세요" readonly/>
                             &nbsp;
-                            <a class="btn btn-delete" title="검색" id="btnOrderSearch">
+                            <a class="btn btn-delete" title="검색" id="btnCompanySearch">
                                 <img src="/images/icon/btn-srch.svg" alt="검색 아이콘">
-                                수주처 검색
+                                판매처 검색
                             </a>
                             <a class="btn in_btn plus" id="plusCompany" title="거래처등록">
                                 <img src="/images/icon/ico-plus.svg" alt="등록 아이콘" />
@@ -324,38 +299,10 @@
                     </tr>
                     <tr>
                         <th style="text-align: center">
-                            <label for="cboCompany">판매처<span class="eq">*</span></label>
-                        </th>
-                        <td >
-                            <input id="cboCompany" name="Company_id" type="hidden">
-                            <input class="form-control2" type="text" id="CompanyName" name="CompanyName"
-                            placeholder="판매처 검색 버튼을 클릭하여 판매처를 검색하세요" readonly/>
-                            &nbsp;
-                            <a class="btn btn-delete" title="검색" id="btnCompanySearch">
-                                <img src="/images/icon/btn-srch.svg" alt="검색 아이콘">
-                                판매처 검색
-                            </a>
-                        </td>
-                        <th style="text-align: center">
-                            <label for="delivery">납품처<span class="eq">*</span></label>
-                        </th>
-                        <td colspan="3">
-                            <input class="form-control2" type="text" id="DeliveryName" name="DeliveryName" placeholder="납품처"/>
-                        </td>
-                    </tr>
-                    <tr>
-                        <th style="text-align: center">
                             <label for="Description">비고</label>
                         </th>
-                        <td >
+                        <td colspan="5">
                             <textarea id="Description" name="Description" style="height:80px;"></textarea>
-                        </td>
-
-                        <th style="text-align: center">
-                            <label for="EstimateMemo">견적 메모</label>
-                        </th>
-                        <td>
-                            <textarea id="EstimateMemo" name="EstimateMemo" style="height:80px;"></textarea>
                         </td>
                     </tr>
                     <tr>
@@ -508,121 +455,6 @@
     </div>
   </script>
 
-  <script type="text/x-tmpl" id="StandardTemplate">
-    <style>
-  /* 공통 버튼 스타일 */
-  .item-Standard-table .btn.in_btn{
-    display:inline-flex; justify-content:center; align-items:center;
-    width:32px; height:32px; border-radius:4px; padding:0;
-    border:1px solid #B3B3B3; background-color:#fff; cursor:pointer;
-    transition:background-color .2s; line-height:0;
-  }
-/* 공통 아이콘 버튼 이미지 (삭제, 검색 포함) */
-.item-Standard-table .btn.in_btn img {
-  width:12px; height:12px; display:block; margin-right:2px;
-}
-
-/* + 버튼 전용 (공통보다 아래에 둬서 덮어쓰기) */
-.item-Standard-table .btn.in_btn.plus img {
-  width:10px; height:10px; display:block;
-}
-
-  /* 입력 공통 */
-  .item-Standard-table input{
-    width:100%; box-sizing:border-box; padding:6px; text-align:center;
-  }
-  .item-Standard-table th, .item-Standard-table td{ height:32px; }
-
-  /* (선택) 호버/비활성 효과 */
-  .item-Standard-table .btn.in_btn:hover{ background-color:#f6f6f6; }
-  .item-Standard-table .btn.in_btn:disabled{ opacity:.6; cursor:not-allowed; }
-</style>
-   <div class="content_wrap popup" id="div_excel_upload">
-     <div class="table-wrap">
-       <form id="FormStandard">
-         <table class="write-table">
-           <tbody>
-             <tbody>
-                <tr>
-                  <th style="text-align: center">
-                      <label for="ProductName">품목</label>
-                  </th>
-                  <td>
-                     <input type="text" name="ProductName" placeholder="품명" readonly />
-                  </td>
-                </tr>
-            </tbody>
-             <table class="item-Standard-table">
-               <colgroup>
-                 <col style="width: 15%">
-                 <col style="width: 15%">
-                 <col style="width: 10%">
-                 <col style="width: 15%">
-                 <col style="width: 15%">
-                 <col style="width: 15%">
-                 <col style="width: 15%">
-                 <col style="width: 4%">
-               </colgroup>
-               <thead>
-               <tr id="itemStandardRow">
-                 <th>규격</th>
-                 <th>단위</th>
-                 <th>수량</th>
-                 <th>단가</th>
-                 <th>공급가액</th>
-                 <th>부가세</th>
-                 <th>합계</th>
-                 <th>
-                   <a class="btn in_btn plus" id="addRemark" title="추가">
-                     <img src="/images/icon/ico-plus.svg" alt="등록 아이콘"/>
-                   </a>
-                 </th>
-               </tr>
-               </thead>
-               <tr class="item-template-row" style="display: none;">
-                 <td>
-                   <input type="text" style="text-align:center;" name="standard" placeholder="규격"/>
-                 </td>
-                 <td>
-                  <input type="text" style="text-align:center;" name="UnitName" placeholder="단위"/>
-                 </td>
-                 <td>
-                   <input type="text" style="text-align:center;" name="qty" placeholder="수량"/>
-                 </td>
-                 <td>
-                   <input type="text" style="text-align:center;" name="sd_UnitPrice" placeholder="단가"/>
-                 </td>
-                 <td>
-                   <input type="text" style="text-align:center;" name="sd_price" placeholder="공급가액" readonly/>
-                 </td>
-                 <td>
-                   <input type="text" style="text-align:center;" name="sd_vat" placeholder="부가세" readonly/>
-                 </td>
-                 <td>
-                   <input type="text" style="text-align:center;" name="TotalAmount" placeholder="합계" readonly />
-                 </td>
-                 <td class="al_c item_border">
-                   <a class="btn in_btn" title="삭제" onclick="removeItemRow(this)">
-                     <img src="/images/icon/ico-delete.svg" alt="삭제 아이콘"/>
-                   </a>
-                 </td>
-               </tr>
-             </table>
-           </tbody>
-         </table>
-       </form>
-     </div>
-     <div class="pt-2">
-       <textarea id="upload_message" style='display:none;width:100%;height:150px;'></textarea>
-     </div>
-   </section>
-   <div class="popup-button">
-     <button type="button" class="btn-popup y_write_auth" id="btn_standard_save">저장</button>
-     <button type="button" class="btn-popup" id="modal-close-button">닫기</button>
-   </div>
-   </div>
-  </script>
-
 </th:block>
 
 <th:block layout:fragment="scripts">
@@ -678,13 +510,6 @@
             {binding: 'StateName', header: '작업상태', width: 100, align: 'center'},
             {binding: 'ShipmentStateName', header: '출하상태', width: 100, align: 'center'},
             {binding: 'SujuTypeName', header: '수주구분', width: 100, align: 'center'},
-            {
-              binding: 'suju_action',
-              header: '견적확정',
-              width: 80,
-              align: 'center',
-              isReadOnly: true
-            },
             {binding: 'Description', header: '비고', width: '*'}
           ],
           itemsSource: this.viewData, // 데이터를 설정할 배열
@@ -692,41 +517,6 @@
 
         new FlexGridContextMenu(this.grid);
         this.grid.downloadFileName = '수주 내역';
-
-        _this.grid.formatItem.addHandler(function (s, e) {
-          if (e.panel.cellType === wijmo.grid.CellType.Cell) {
-            let col = s.columns[e.col];
-
-            if (col.binding === 'suju_action' && userinfo.can_write()) {
-              const item = s.rows[e.row]?.dataItem;
-              e.cell.innerHTML = '';
-              if (String(item?.SujuTypeName ?? '').trim() === '견적') {
-                const btn = document.createElement('button');
-                btn.className = 'btn-default';
-                btn.style.width = '100%';
-                btn.style.height = '25px';
-                btn.innerText = '확정';
-                btn.onclick = function () {
-                  _this.selectedIndex = s.rows.findIndex(r => r.dataItem === item);
-                  handleOrderClick(_this.selectedIndex, item);
-                };
-                e.cell.appendChild(btn);
-              }
-            }
-
-          }
-        });
-
-        function handleOrderClick(rowIndex, selectedItem) {
-
-          let data = {
-            JumunNumber: selectedItem.JumunNumber,
-          };
-
-          Alert.confirm('', '견적을 확정하시겠습니까?', function () {
-            _this.makeOrder(data);
-          });
-        }
 
         this.grid.hostElement.addEventListener('dblclick', function (e) {
           let items = _this.grid.selectedItems;
@@ -865,190 +655,6 @@
           return { head, items, supplier };
         }
 
-        function buildPrintDataFromRow(row, detail) {
-          const head = detail?.head ?? {};
-          const date = toStr(head.JumunDate || row.JumunDate || row.ProductionDate || head.DueDate || row.DueDate, '');
-          const [y, m, d] = date.includes('-') ? date.split('-') : ['', '', ''];
-          const qty       = toNum(head.OrderQty ?? row.OrderQty ?? row.SujuQty);
-          const headTotal = toNum(head.TotalPrice ?? row.TotalPrice);
-          const note      = toStr(head.Description || row.Description || '').replace(/\r\n?/g, '\n');
-
-          // items 정규화 + 유령행 제거
-          const itemsFromDetail = Array.isArray(detail?.items) ? detail.items : [];
-          const isPhantom = (it) => {
-            const nameEmpty  = toStr(it.product_name) === '';
-            const zeros4     = [it.Qty, it.UnitPrice, it.SupplyAmount, it.VatAmount].every(v => toNum(v) === 0);
-            const totalZeroOrHead = (toNum(it.TotalAmount) === 0) || (headTotal && toNum(it.TotalAmount) === headTotal);
-            return nameEmpty && zeros4 && totalZeroOrHead;
-          };
-          const finalItems = itemsFromDetail.filter(it => !isPhantom(it));
-
-          // ── 공급자 정보 병합 (head 우선, 없으면 detail.supplier)
-          const supSrc = detail?.supplier ?? {};
-          const SupplierBizNo   = toStr(head.SupplierBizNo   || supSrc.SupplierBizNo   || '');
-          const SupplierName    = toStr(head.SupplierName    || supSrc.SupplierName    || '');
-          const SupplierCeo    = toStr(head.SupplierCeo     || supSrc.SupplierCeo     || '');
-          const SupplierAddress = toStr(head.SupplierAddress || supSrc.SupplierAddress || '');
-          const SupplierBizType = toStr(head.SupplierBizType || supSrc.SupplierBizType || '');
-          const SupplierBizItem = toStr(head.SupplierBizItem || supSrc.SupplierBizItem || '');
-          const SupplierTel     = toStr(head.SupplierTel     || supSrc.SupplierTel     || '');
-
-          // 템플릿 우측 “거래처 … 귀하” 표시용
-          const CustomerName = toStr(
-            head.CustomerName || head.CompanyName || row.CustomerName || row.CompanyName || ''
-          );
-
-          return {
-            // 타이틀 & 날짜
-            title: '견 적 서',
-            ProductionDate: date,   // 템플릿에서 koDate()로 표시됨
-            JumunDate: date,        // 혹시 다른 템플릿에서도 쓰일 수 있어 같이 둠
-            DueDate: toStr(head.DueDate || row.DueDate),
-
-            // 상단 우측
-            CustomerName,
-            CompanyName: toStr(head.CompanyName || row.CompanyName), // 하위 호환
-
-            // 공급자(템플릿이 직접 읽음)
-            SupplierBizNo,
-            SupplierName,
-            SupplierCeo,
-            SupplierAddress,
-            SupplierBizType,
-            SupplierBizItem,
-            SupplierTel,
-
-            // 본문
-            SuJuOrderName: toStr(head.SuJuOrderName || ''),
-            DeliveryName:  toStr(head.DeliveryName || ''),
-            WorkcenterName: toStr(head.WorkcenterName || row.WorkcenterName),
-            OrderQty: qty,
-            ShiftName: toStr(row.ShiftName),
-            month: m, day: d, // (현재 템플릿은 사용하지 않지만 유지)
-            items: finalItems,
-            totalMeter: finalItems.reduce((s, v) => s + toNum(v.Standard, 0), 0),
-            SujuQty2: toNum(head.SujuQty2 ?? row.SujuQty2 ?? 0),
-
-            // 합계/메모
-            HeadTotalPrice: headTotal,
-            JumunNumber: toStr(head.JumunNumber || row.JumunNumber),
-            SujuTypeName: toStr(row.SujuTypeName),
-            note
-          };
-        }
-
-        // 1) 유틸: URL → data URI (인쇄 안전)
-        async function toDataURL(url) {
-          const res = await fetch(url, { cache: 'reload' }); // 캐시 우회
-          const blob = await res.blob();
-          return await new Promise(resolve => {
-            const reader = new FileReader();
-            reader.onload = () => resolve(reader.result);
-            reader.readAsDataURL(blob);
-          });
-        }
-
-// 2) 유틸: 문서 내 모든 이미지 로딩 대기
-        async function waitImages(doc) {
-          const imgs = Array.from(doc.images || []);
-          await Promise.all(imgs.map(img => (
-            img.complete ? Promise.resolve()
-              : new Promise(res => { img.onload = img.onerror = res; })
-          )));
-        }
-
-// 3) 클릭 핸들러
-        $('#btnEstimatePrint').off('click').on('click', async function () {
-          const grid = _this.grid;
-          const selected = grid?.selectedItems || [];
-          if (!selected.length) return Alert.alert('', '출력할 행을 먼저 선택하세요.');
-
-          // ‘견적’만 선택
-          const targets = selected.filter(it => toStr(it?.SujuTypeName) === '견적');
-          if (!targets.length) return Alert.alert('', '선택한 행 중 견적 건이 없습니다.');
-
-          if (typeof tmpl !== 'function') return Alert.alert('오류', '템플릿 엔진(tmpl)이 로드되지 않았습니다.');
-          const TEMPLATE_ID = 'print_estimate';
-          if (!document.getElementById(TEMPLATE_ID)) return Alert.alert('오류', `#${TEMPLATE_ID} 템플릿을 찾을 수 없습니다.`);
-
-          // ✅ 직인 이미지 data URI 준비(한 번만)
-          const ctx =
-            window.APP_CONTEXT_PATH
-            || document.querySelector('base')?.getAttribute('href')?.replace(/\/$/, '')
-            || '';
-          const sealHttpUrl = `${ctx}/images/sample/stamp.png`;
-
-          let sealDataUri = null;
-          try {
-            sealDataUri = await toDataURL(sealHttpUrl);
-          } catch (e) {
-            console.warn('직인 dataURI 변환 실패, 원본 URL 사용', e);
-            sealDataUri = sealHttpUrl; // 폴백
-          }
-
-          // 출력용 HTML 조립
-          let allHtml = `
-  <html><head><title>견적서 출력</title>
-  <style>body{font-family:'Malgun Gothic';margin:20px}
-  @media print{.print-page{page-break-after:always}}</style>
-  </head><body>`;
-
-          // 상세 병렬 조회
-          const responses = await Promise.allSettled(
-            targets.map(row => getDetailAsync(DETAIL_URL, buildDetailParams(row)))
-          );
-
-          for (let i = 0; i < targets.length; i++) {
-            const row = targets[i];
-            let detail = { head: {}, items: [] };
-
-            if (responses[i].status === 'fulfilled' && responses[i].value) {
-              try { detail = adaptDetailResponse(responses[i].value); }
-              catch (e) { console.warn('상세 적응 실패 → 빈 아이템', e); }
-            } else {
-              console.warn('상세 조회 실패', responses[i].reason);
-            }
-
-            const data = buildPrintDataFromRow(row, detail);
-
-            // ✅ 직인 URL 주입 (data에 넣어 템플릿 o.*로 전달)
-            if (!data.SupplierSealUrl) data.SupplierSealUrl = sealDataUri;
-
-            // (선택) 품목 없으면 건너뛰기
-            if (!data.items || data.items.length === 0) {
-              Alert.alert('', '이 견적은 품목이 없습니다. (상세 등록 또는 서버 응답 확인)');
-              continue;
-            }
-
-            allHtml += `<div class="print-page">${tmpl(TEMPLATE_ID, data)}</div>`;
-          }
-
-          allHtml += `</body></html>`;
-
-          // 새 창 열어 출력
-          const w = window.open('', '_blank', 'width=850,height=1000');
-          if (!w) return Alert.alert('', '팝업이 차단되었습니다. 팝업 허용 후 다시 시도해 주세요.');
-          w.document.open(); w.document.write(allHtml); w.document.close();
-
-          // ✅ 인쇄 전: 새 창의 이미지/폰트 로딩 완료 보장
-          const doPrint = async () => {
-            try { await waitImages(w.document); } catch(e) {}
-            if ('fonts' in w.document) {
-              try { await w.document.fonts.ready; } catch(e){}
-            }
-            w.focus();
-            w.print();
-          };
-
-          if (w.document.readyState === 'complete') {
-            w.requestAnimationFrame(() => w.requestAnimationFrame(doPrint));
-          } else {
-            w.onload = () => w.requestAnimationFrame(() => w.requestAnimationFrame(doPrint));
-          }
-        });
-
-
-
         // 엔터키 검색
         $('#keyword').on('keypress', function (e) {
           if (e.keyCode === 13) {
@@ -1057,27 +663,12 @@
         });
       }
 
-      makeOrder(data) {
-        let _this = this;
-        let url = _this.url + '/estimate_confirm';
-
-        let fnsuccess = function (result) {
-          if (result.success) {
-            Alert.alert('', '견적이 확정 되었습니다.');
-            _this.searchMainData();
-          }
-        };
-
-        AjaxUtil.postAsyncData(url, data, fnsuccess);
-      }
-
       showSujuForm(data) {
         //sujuTemplate
         let _this = this;
         let content = tmpl('sujuTemplate', data);
         let $content = $(content);
         const $root = $content;
-        const STD_BTN_SEL = 'a[name="btnStandard"], a#btnStandard[title="상세규격 등록"]';
 
         let modalContainer = null;
         if (data.mode === 'new') {
@@ -1105,91 +696,6 @@
           const v = (unit || '').trim();
           return v === 'm' || v === 'm(미터)' || v === 'meter' || v.includes('미터');
         }
-
-        function isLocked($row) {
-          const raw = (($row.find('input[name^="standard_locked_"], input[name="standard_locked"]').val() || '') + '')
-            .trim()
-            .toUpperCase();
-          return raw === 'N' ;
-        }
-
-        function refreshStdBtn($row) {
-          const locked = isLocked($row);
-          $row.find(STD_BTN_SEL).css('display', locked ? 'inline-flex' : 'none');
-        }
-
-        /*function refreshStdBtn($row) {
-          const unit = getUnitVal($row);
-          const showByUnit = isMeter(unit);
-          const locked = isLocked($row);
-          // console.log('unit=', unit, ' -> showByUnit=', showByUnit, ' locked=', locked);
-          $row.find(STD_BTN_SEL).css('display', showByUnit && !locked ? 'inline-flex' : 'none');
-        }*/
-
-        // 초기 렌더된 '버튼 있는' 행만 반영
-        $root.on(
-          'input change',
-          'input[name="unit"], input[name^="unit_"], input[name^="standard_locked_"], input[name="standard_locked"]',
-          function () {
-            refreshStdBtn($(this).closest('tr'));
-          }
-        );
-
-        // unit 값 변경(사용자/프로그램 모두) 시 해당 행만 갱신
-        $root.on('input change', 'input[name="unit"], input[name^="unit_"]', function () {
-          refreshStdBtn($(this).closest('tr'));
-        });
-
-        $root.off('click.btnStandard').on('click.btnStandard', STD_BTN_SEL, (e) => {
-          e.preventDefault();
-          const $row = $(e.currentTarget).closest('tr');
-          const productName = ($row.find('input[name^="txtProductName_"]:visible').val() || '').trim();
-          const Data = { id:'', mode:'standard', productName, _row:$row };
-
-          const target = (_this && typeof _this.showStandardForm === 'function') ? _this : window;
-          if (typeof target.showStandardForm !== 'function') return console.error('showStandardForm not found');
-          target.showStandardForm(Data);
-        });
-
-
-        $root.off('click.btnStandard').on('click.btnStandard', '#btnStandard', (e) => {
-          e.preventDefault();
-
-          const $row = $(e.currentTarget).closest('tr');
-          const productName = ($row.find('input[name^="txtProductName_"]:visible').val() || '').trim();
-          const suju_id = ($row.find('input[name^="suju_id"]:visible').val() || '').trim();
-          const standard_id = ($row.find('input[name^="standard_id_"]:visible').val() || '').trim();
-
-          const getRowIndex = ($r) => {
-            const $any = $r.find('input[name]').first();
-            const m = ($any.attr('name') || '').match(/_(\d+)$/);
-            return m ? parseInt(m[1], 10) : null;
-          };
-          const idx = getRowIndex($row);
-          const jsonName = (idx != null) ? `standard_detail_json_${idx}` : 'standard_detail_json';
-          let localDetails = null;
-          try {
-            const raw = $row.find(`input[type="hidden"][name="${jsonName}"]`).val();
-            if (raw) localDetails = JSON.parse(raw);
-          } catch (e) {}
-
-          const Data = {
-            id: standard_id,
-            suju_id: suju_id,
-            mode: 'standard',
-            productName,
-            _row: $row,
-            details: Array.isArray(localDetails) ? localDetails : null
-          };
-
-          const target = (_this && typeof _this.showStandardForm === 'function') ? _this : window;
-          if (typeof target.showStandardForm !== 'function') {
-            console.error('showStandardForm not found');
-            return;
-          }
-          target.showStandardForm(Data);
-        });
-
 
         $content.find('#btnCompanySearch').click(function () {
           let poppage = new PopCompSuJuComponent();
@@ -1243,9 +749,6 @@
             onSaved: (saved) => {
               if (typeof window.searchCompanyList === 'function') searchCompanyList();
               if (saved) {
-                $content.find('#SuJuOrderId').val(saved.id);
-                $content.find('#SuJuOrderName').val(saved.name);
-
                 $content.find('#cboCompany').val(saved.id);
                 $content.find('#CompanyName').val(saved.name);
 
@@ -1347,9 +850,9 @@
           const state = String(data?.StateName ?? '').trim();
           const ship  = String(data?.ShipmentStateName ?? '').trim();
 
-          if (ship) return false;                                        // 출하 진행됨 → 수정 불가
-          if (!state) return true;                                       // 상태 미지정이면 일단 허용(원하면 false로)
-          return ['수주', '지시', '계획'].includes(state);               // 허용 상태만 통과
+          if (ship) return false;          // 출하 진행됨 → 수정 불가
+          if (!state) return true;        // 상태 미지정이면 일단 허용(원하면 false로)
+          return ['수주'].includes(state);// 허용 상태만 통과
         }
 
         function applyEditability(data) {
@@ -1377,14 +880,6 @@
           let data = FormUtil.extractForm($sujuForm);
           console.log('데이터 확인:', data);
 
-          if (!$('#SuJuOrderName').val()) {
-            Alert.alert('', '수주처를 선택하세요.');
-            return;
-          }
-          if (!$('#DeliveryName').val()) {
-            Alert.alert('', '납품처를 입력하세요.');
-            return;
-          }
           if (!$('#cboCompany').val()) {
             Alert.alert('', '판매처를 선택하세요.');
             return;
@@ -1448,7 +943,6 @@
                   return ori !== cur;
                 })(),
                 standard: data[`standard_${i}`] || '',
-                standardDetails: standardDetails
               });
             }
 
@@ -1464,10 +958,6 @@
               spjangcd: data.spjangcd,
               totalAmountSum: data.totalAmountSum,
               Description: data.Description,
-              order_id: data.SuJuOrderId,
-              OrderName: data.SuJuOrderName,
-              DeliveryName: data.DeliveryName,
-              EstimateMemo : data.EstimateMemo,
               items: items
             };
 
@@ -1995,7 +1485,6 @@
           const $productId = $row.find('input[name^="Material_id_"]');
           const $productCode = $row.find('input[name^="product_code_"]');
           const $Standard = $row.find('input[name^="standard_"]');
-          const $standard_locked = $row.find('input[name^="standard_locked_"]');
           const $unit_name = $row.find('input[name^="unit_"]');
 
           const keyword = $field.val().trim();
@@ -2008,11 +1497,6 @@
             $productCode.val(item.Code || '');
             $unit_name.val(item.unit_name || '').trigger('input');
             $Standard.val(item.Spec || '');
-            if (item.Spec && item.Spec.trim() !== '') {
-              $standard_locked.val('Y').trigger('change');
-            } else {
-              $standard_locked.val('N').trigger('change');
-            }
 
             tryShowPrice($row);
           };
@@ -2050,7 +1534,6 @@
           const $productId = $row.find('input[name^="Material_id_"]');
           const $productCode = $row.find('input[name^="product_code_"]');
           const $Standard = $row.find('input[name^="standard_"]');
-          const $standard_locked = $row.find('input[name^="standard_locked_"]');
           const $unit_name = $row.find('input[name^="unit_"]');
 
           if ($field.val().trim() === '') {
@@ -2059,7 +1542,6 @@
             $productCode.val('');
             $Standard.val('');
             $unit_name.val('');
-            $standard_locked.val('').trigger('change');
             $Standard.prop('readonly', false);
           }
         });
@@ -2173,491 +1655,6 @@
         });
 
       }
-
-      // 규격/수량 등록
-      showStandardForm(Data){
-        const _this = this;
-        const html = tmpl('StandardTemplate', Data);
-        const $popup = $(html);
-        const modal = new PopupDraggable('규격/수량 입력');
-        modal.open({ width: 900, height: 400, $content: $popup });
-
-        $popup.find('input[name="ProductName"]').val(Data.productName || '');
-        $popup.find('input[name="unit"]').val(Data.unit || '');
-
-        //행 추가 함수 (표준행 표시용 클래스 부여)
-        const addRow = () => {
-          const $table = $popup.find('.item-Standard-table');
-          const $tpl   = $table.find('.item-template-row').first();
-          const $row   = $tpl.clone(true, true)
-            .removeClass('item-template-row')
-            .addClass('std-row')
-            .show();
-          $table.append($row);
-          return $row;
-        };
-        function isMeter(unit) {
-          const v = (unit ?? '').toString().trim().toLowerCase();
-          if (!v) return false;
-          // m, M(미터), 미터, meter 모두 허용
-          return v === 'm' || v === 'm(미터)' || v === 'meter'|| v === 'M' || v.includes('미터');
-        }
-
-        function isUnitMeter(unit) {
-          const v = (unit ?? '').toString().trim().toLowerCase();
-          if (!v) return false;
-          // m, M(미터), 미터, meter 모두 허용
-          return v === 'm' || v === 'm(미터)' || v === 'meter'|| v === 'M' || v.includes('미터');
-        }
-
-        function num(v) {
-          const s = (v == null ? '' : String(v)).replace(/,/g,'').trim();
-          const n = parseFloat(s);
-          return Number.isFinite(n) ? n : 0;
-        }
-        function fmt(n) {
-          const x = num(n);
-          return x ? x.toLocaleString() : '';
-        }
-        function formatMoneyRow($r) {
-          $r.find('input[name="sd_UnitPrice"]').val(fmt($r.find('input[name="sd_UnitPrice"]').val()));
-          $r.find('input[name="sd_price"]').val(fmt($r.find('input[name="sd_price"]').val()));
-          $r.find('input[name="sd_vat"]').val(fmt($r.find('input[name="sd_vat"]').val()));
-          $r.find('input[name="TotalAmount"]').val(fmt($r.find('input[name="TotalAmount"]').val()));
-        }
-        function formatAllMoney($root) {
-          $root.find('.item-Standard-table tr.std-row').each(function () {
-            formatMoneyRow($(this));
-          });
-        }
-        //서버/신규 데이터 → UI 채우기
-        function setRows(details){
-          // 기존 표준행 제거
-         $popup.find('.item-Standard-table tr.std-row').remove();
-
-          const list = (details || []); // 최대 3행
-          if (list.length === 0) {
-            // 신규: 기본 2행
-            addRow(); addRow();
-            return;
-          }
-
-          list.forEach(d => {
-            const $r = addRow();
-            $r.find('input[name="standard"]').val(d.Standard ?? d.standard ?? '' );
-            $r.find('input[name="qty"]').val(d.Qty ?? d.qty ?? '' );
-            $r.find('input[name="UnitName"]').val(d.UnitName ?? d.unit ?? d.unitName ?? d.Unit ?? '' );
-            $r.find('input[name="sd_UnitPrice"]').val(d.sd_UnitPrice ?? d.UnitPrice ?? d.unitPrice ?? '' );
-            $r.find('input[name="sd_price"]').val(d.sd_price ?? d.Price ?? d.price ?? '' );
-            $r.find('input[name="sd_vat"]').val(d.sd_vat ?? d.Vat ?? d.vat ?? '' );
-            $r.find('input[name="TotalAmount"]').val(d.TotalAmount ?? '' );
-            // ✅ 이 행만 즉시 포맷
-            formatMoneyRow($r);
-          });
-
-          // 최소 2행 보장
-          if ($popup.find('.item-Standard-table tr.std-row').length === 1) addRow();
-
-          formatAllMoney($popup);
-        }
-
-        // suju_id 추출 (Data 또는 부모행 입력에서)
-        const $parentRow = Data._row;
-        let sujuId = 0;
-        if (Data.suju_id) sujuId = parseInt(Data.suju_id, 10) || 0;
-        else if ($parentRow && $parentRow.length) {
-          sujuId = parseInt(($parentRow.find('input[name^="suju_id_"]').val() || '0'), 10) || 0;
-        }
-
-        // 1) 호출자가 전달한 로컬 초안(details) 우선
-        if (Array.isArray(Data.details) && Data.details.length > 0) {
-          setRows(Data.details);
-        } else {
-          // 2) 부모행 히든 JSON 시도
-          const idx = getRowIndex($parentRow); // 아래에 선언된 함수(호이스팅으로 사용 가능)
-          const jsonName = (idx != null) ? `standard_detail_json_${idx}` : 'standard_detail_json';
-
-          let localParsed = null;
-          try {
-            const raw = $parentRow.find(`input[type="hidden"][name="${jsonName}"]`).val();
-            if (raw) {
-              const arr = JSON.parse(raw);
-              if (Array.isArray(arr) && arr.length > 0) localParsed = arr;
-            }
-          } catch(e) { /* ignore */ }
-
-          if (localParsed) {
-            setRows(localParsed);
-          } else if (sujuId > 0) {
-            // 3) 서버 조회
-            $.getJSON('/api/sales/suju/detail_list', { sujuId })
-              .done(res => {
-                const rows = (res && (res.data || res.rows)) || [];
-                setRows(rows);
-              })
-              .fail(err => {
-                console.error('detail_list load error', err);
-                setRows([]); // 실패 시 기본 2행
-              });
-          } else {
-            // 4) 신규 기본
-            setRows([]);
-          }
-        }
-
-        //버튼
-        $popup.on('click', '#addRemark', function(e){
-          e.preventDefault();
-          addRow();
-        });
-
-        // 🗑 최소 2행 유지
-        $popup.on('click', 'a[title="삭제"]', function(e){
-          e.preventDefault();
-          const $table = $popup.find('.item-Standard-table');
-          const $rows  = $table.find('tr.std-row');
-          const $targetRow = $(this).closest('tr.std-row');
-
-          if ($rows.length <= 2) {
-            $targetRow.find('input[type="text"], input[type="number"]').val('');
-            $targetRow.find('input[type="hidden"]').val('');
-            return;
-          }
-          $targetRow.remove();
-        });
-
-        // 🔎 유틸
-        function getRowIndex($row){
-          const names = $row.find('input[name]').map((i,el)=>el.name).get();
-          for (const n of names) {
-            const m = n.match(/_(\d+)$/);
-            if (m) return parseInt(m[1], 10);
-          }
-          return null;
-        }
-        function upsertHidden($row, name, value){
-          const $cell = $row.find('td').last();
-          let $hid = $cell.find(`input[type="hidden"][name="${name}"]`);
-          if ($hid.length) $hid.val(value);
-          else $('<input>', {type:'hidden', name, value}).appendTo($cell);
-        }
-
-        function attachStdNav($root, addRow) {
-          // 1) 열 정의(이 순서대로 좌/우/엔터 이동)
-          const COLS = ['standard', 'UnitName', 'qty','sd_UnitPrice' ];  //'sd_price', 'sd_vat','TotalAmount'
-
-          // 2) selector 생성 (오타/불필요 쉼표 제거)
-          const selector = COLS.map(n => `.item-Standard-table tr.std-row input[name="${n}"]`).join(', ');
-
-          // 중복 바인딩 방지
-          $root.off('keydown.stdNav').on('keydown.stdNav', selector, function (e) {
-            const key = e.key;
-            if (!['Enter', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(key)) return;
-
-            const el = /** @type {HTMLInputElement} */(e.target);
-            const $input = $(el);
-
-            const $rows = $root.find('.item-Standard-table tr.std-row');
-            const $row  = $input.closest('tr.std-row');
-            const rowIdx = $rows.index($row);
-
-            const name = $input.attr('name') || '';
-            const colIdx = COLS.indexOf(name);
-            if (colIdx < 0) return;
-
-            const atStart = el.selectionStart === 0;
-            const atEnd   = el.selectionEnd === el.value.length;
-
-            const moveFocus = (nextRowIdx, nextColIdx) => {
-              while (nextRowIdx >= $root.find('.item-Standard-table tr.std-row').length) {
-                addRow();
-              }
-              const $r = $root.find('.item-Standard-table tr.std-row').eq(nextRowIdx);
-              const $c = $r.find(`input[name="${COLS[nextColIdx]}"]`);
-              if ($c.length) $c.focus().select();
-            };
-
-            // Enter: 다음 칼럼, 마지막이면 다음 행 첫 칼럼
-            if (key === 'Enter') {
-              e.preventDefault();
-              const nextCol = colIdx + 1;
-              if (nextCol < COLS.length) moveFocus(rowIdx, nextCol);
-              else moveFocus(rowIdx + 1, 0);
-              return;
-            }
-
-            // ▶ ArrowRight: 마지막 칼럼이면 다음 행 첫 칼럼(standard)로 래핑
-            if (key === 'ArrowRight' && atEnd) {
-              e.preventDefault();
-              if (colIdx === COLS.length - 1) {
-                // 마지막 칼럼 → 다음 행의 첫 칼럼
-                moveFocus(rowIdx + 1, 0);
-              } else {
-                moveFocus(rowIdx, colIdx + 1);
-              }
-              return;
-            }
-
-            // ◀ ArrowLeft: (옵션) 첫 칼럼에서 이전 행의 마지막 칼럼로 래핑
-            if (key === 'ArrowLeft' && atStart) {
-              e.preventDefault();
-              if (colIdx === 0) {
-                const prevRow = Math.max(0, rowIdx - 1);
-                moveFocus(prevRow, COLS.length - 1);
-              } else {
-                moveFocus(rowIdx, colIdx - 1);
-              }
-              return;
-            }
-
-            if (key === 'ArrowDown') {
-              e.preventDefault();
-              moveFocus(rowIdx + 1, colIdx);
-              return;
-            }
-
-            if (key === 'ArrowUp') {
-              e.preventDefault();
-              moveFocus(Math.max(0, rowIdx - 1), colIdx);
-              return;
-            }
-          });
-
-          // (선택) 계산 자동화: qty/단가 변경 시 공급가액/부가세 갱신
-          // $root.off('input.stdCalc').on('input.stdCalc',
-          //   '.item-Standard-table tr.std-row input[name="qty"], ' +
-          //   '.item-Standard-table tr.std-row input[name="sd_UnitPrice"]',
-          //   function () {
-          //     const $r = $(this).closest('tr.std-row');
-          //     const qty  = parseFloat(($r.find('input[name="qty"]').val() || '').toString().replace(/,/g,'')) || 0;
-          //     const unit = parseFloat(($r.find('input[name="sd_UnitPrice"]').val() || '').toString().replace(/,/g,'')) || 0;
-          //     const price = Math.round(qty * unit);  // 공급가액
-          //     const vat   = Math.round(price * 0.1); // 부가세(10%)
-          //     const total = price + vat;
-          //     $r.find('input[name="sd_price"]').val(price.toLocaleString());
-          //     $r.find('input[name="sd_vat"]').val(vat.toLocaleString());
-          //     $r.find('input[name="TotalAmount"]').val(total.toLocaleString());
-          //
-          //     // 행 계산 후 합계 갱신
-          //     updateTotals($root);
-          //   }
-          // );
-          // (선택) 계산 자동화: qty/단가/규격/단위 변경 시 공급가액/부가세 갱신
-          $root.off('input.stdCalc').on(
-            'input.stdCalc',
-            '.item-Standard-table tr.std-row input[name="qty"], ' +
-            '.item-Standard-table tr.std-row input[name="sd_UnitPrice"], ' +
-            '.item-Standard-table tr.std-row input[name="standard"], ' +
-            '.item-Standard-table tr.std-row input[name="UnitName"]',
-            function () {
-              const $r = $(this).closest('tr.std-row');
-
-              const qty  = parseFloat(($r.find('input[name="qty"]').val() || '').toString().replace(/,/g,'')) || 0;
-              const unit = parseFloat(($r.find('input[name="sd_UnitPrice"]').val() || '').toString().replace(/,/g,'')) || 0;
-
-              // 미터 단위면 (규격 × 수량) = 실수량
-              const unitName = ($r.find('input[name="UnitName"]').val() || '').toString().trim();
-              const isMeter  = isUnitMeter(unitName);
-
-              const stdRaw = ($r.find('input[name="standard"]').val() || '').toString().replace(/,/g,'').trim();
-              const stdNum = /^\d+(\.\d+)?$/.test(stdRaw) ? parseFloat(stdRaw) : 0;
-
-              const effectiveQty = isMeter && stdNum > 0 ? (stdNum * qty) : qty;
-
-              const price = Math.round(effectiveQty * unit);  // 공급가액
-              const vat   = Math.round(price * 0.1);          // 부가세(10%)
-              const total = price + vat;
-
-              $r.find('input[name="sd_price"]').val(price ? price.toLocaleString() : '');
-              $r.find('input[name="sd_vat"]').val(vat ? vat.toLocaleString() : '');
-              $r.find('input[name="TotalAmount"]').val(total ? total.toLocaleString() : '');
-
-              updateTotals($root);
-            }
-          );
-
-
-          // 별도 포맷 핸들러
-          $root
-            .off('focus.stdFmt blur.stdFmt')
-            .on('focus.stdFmt',
-              '.item-Standard-table tr.std-row input[name="sd_UnitPrice"], ' +
-              '.item-Standard-table tr.std-row input[name="sd_price"], ' +
-              '.item-Standard-table tr.std-row input[name="sd_vat"]',
-              function () {
-                this.value = (this.value || '').replace(/,/g, ''); // 편집 전 콤마 제거
-              }
-            )
-            .on('blur.stdFmt',
-              '.item-Standard-table tr.std-row input[name="sd_UnitPrice"],' +
-              ' .item-Standard-table tr.std-row input[name="sd_price"], ' +
-              '.item-Standard-table tr.std-row input[name="sd_vat"]',
-              function () {
-                const raw = (this.value || '').replace(/,/g, '');
-                const n = parseFloat(raw);
-                this.value = Number.isFinite(n) ? n.toLocaleString() : '';
-
-                // 포맷 후에도 계산/합계 반영 보장
-                $(this).trigger('input');
-                updateTotals($root);
-              }
-            );
-        }
-
-        attachStdNav($popup, addRow);
-        // 저장: 합계 바인딩 + 상세 JSON 부모행에 보관
-        $popup.off('click.btnStdSave')
-          .on('click.btnStdSave', '#btn_standard_save', function () {
-            const toNum = v => {
-              if (v == null) return 0;
-              const n = parseFloat(String(v).replace(/,/g, ''));
-              return Number.isFinite(n) ? n : 0;
-            };
-
-            // 1) 행 수집
-            const toStr = v => (v == null ? '' : String(v)).trim();
-            const rows = [];
-            $popup.find('.item-Standard-table tr.std-row').each(function () {
-              const $r = $(this);
-
-              const standard      = toStr($r.find('input[name="standard"]').val());
-              const UnitName      = toStr($r.find('input[name="UnitName"]').val());
-              const qtyStr        = toStr($r.find('input[name="qty"]').val());
-              const unitPriceStr  = toStr($r.find('input[name="sd_UnitPrice"]').val()).replace(/,/g,'');
-              const priceStr      = toStr($r.find('input[name="sd_price"]').val()).replace(/,/g,'');
-              const vatStr        = toStr($r.find('input[name="sd_vat"]').val()).replace(/,/g,'');
-              const totalStr      = toStr($r.find('input[name="TotalAmount"]').val()).replace(/,/g,'');
-
-              // 숫자 변환
-              const qty       = parseFloat(qtyStr)       || 0;
-              const unitPrice = parseFloat(unitPriceStr) || 0;
-              let   price     = parseFloat(priceStr);
-              let   vat       = parseFloat(vatStr);
-              let   total     = parseFloat(totalStr);
-
-              // 금액 보정(누락 시 계산)
-              const VAT_RATE = 0.1; // 필요시 변경
-              if (!Number.isFinite(price)) price = Math.round(qty * unitPrice);
-              if (!Number.isFinite(vat))   vat   = Math.round(price * VAT_RATE);
-              if (!Number.isFinite(total)) total = price + vat;
-
-              // 완전 빈 행은 제외(규격/수량 모두 비었으면 스킵)
-              if (standard !== '' || qtyStr !== '') {
-                rows.push({
-                  standard,
-                  UnitName,
-                  qty: qtyStr,                     // 원문 문자열 보존(필요 시 qty로 바꿔도 됨)
-                  sd_UnitPrice: String(unitPrice), // 콤마 제거된 원시값
-                  sd_price:     String(price),
-                  sd_vat:       String(vat),
-                  TotalAmount:  String(total)
-                });
-              }
-            });
-
-            // 2) 합계 계산
-            const num = v => {
-              const s = (v == null ? '' : String(v)).replace(/,/g, '').trim();
-              if (s === '' || s === '-' || s === '.') return 0;
-              const n = Number(s);
-              return Number.isFinite(n) ? n : 0;
-            }
-
-            const sumStd  = rows.reduce((a, r) => a + num(r.standard), 0);               // Σ 규격
-            const sumQty  = rows.reduce((a, r) => a + num(r.qty), 0);                     // Σ 수량
-            const sumMul  = rows.reduce((a, r) => a + num(r.standard) * num(r.qty), 0);   // Σ(규격×수량)
-
-            // 3) 부모행 타깃(standard_0 / quantity_0 우선)
-            const $qty0 = $parentRow.find('input[type="text"][name="quantity_0"]:visible');
-            const $std0 = $parentRow.find('input[type="text"][name="standard_0"]:visible');
-
-            let $qtyTarget = $qty0.length
-              ? $qty0
-              : $parentRow.find('input[type="text"][name^="quantity_"]:visible').first()
-                .add($parentRow.find('input[name="quantity"]').first()).first();
-
-            let $stdTarget = $std0.length
-              ? $std0
-              : $parentRow.find('input[type="text"][name^="standard_"]:visible').first()
-                .add($parentRow.find('input[name="standard"]').first()).first();
-
-            // 4) 단위에 따라 값 세팅
-            const unitVal =
-              (Data.unit || '').trim() ||
-              ($parentRow.find('input[name="UnitName"], input[name="unit"], input[name^="unit_"]').first().val() || '').trim();
-
-            const unitIsMeter = isUnitMeter(unitVal);
-
-            // 규격이 숫자인 행이 하나라도 있는지 (숫자면 '장'이어도 총길이로 처리)
-            const hasNumericStandard = rows.some(r => {
-              const s = String(r.standard ?? '').replace(/,/g, '').trim();
-              return /^\d+(\.\d+)?$/.test(s);
-            });
-
-            // 총길이 사용 여부
-            const useTotalLength = unitIsMeter || hasNumericStandard;
-
-            // 수량 채우기 (총길이: Σ(규격×수량), 아니면 Σ수량)
-            if ($qtyTarget.length) {
-              const v = useTotalLength ? sumMul : sumQty;
-              $qtyTarget.val(v ? v.toFixed(2) : '').trigger('input').trigger('change');
-            }
-
-          // 규격 표시 라벨
-            const stdList   = rows.map(r => (r.standard || '').trim()).filter(s => s !== '');
-            const firstStd  = stdList[0] || '';
-            const restCount = Math.max(0, stdList.length - 1);
-
-            const stdLabel  = unitIsMeter
-              ? '총(M)'
-              : (firstStd ? (restCount > 0 ? `${firstStd} 외 ${restCount}개` : firstStd) : '');
-
-            if ($stdTarget.length) {
-              $stdTarget.val(stdLabel).trigger('input').trigger('change');
-            }
-
-            // 수량: 미터면 총길이(Σ 규격×수량), 아니면 Σ수량
-            if ($qtyTarget.length) {
-              const v = isMeter ? sumMul : sumQty;
-              $qtyTarget.val(v.toFixed(2)).trigger('input').trigger('change');
-            }
-
-            // 5) 상세 JSON 저장
-            const idx = getRowIndex($parentRow);
-            const jsonName = (idx != null) ? `standard_detail_json_${idx}` : 'standard_detail_json';
-            upsertHidden($parentRow, jsonName, JSON.stringify(rows));
-
-            // 5-1) 부모행 금액 반영(공급/부가세/합계)
-            (() => {
-              const sumSupply = rows.reduce((a, r) => a + num(r.sd_price), 0);
-              const sumVat    = rows.reduce((a, r) => a + num(r.sd_vat),   0);
-              const sumTotal  = sumSupply + sumVat;
-
-              const findAny = (base) => $parentRow.find(`input[name="${base}"], input[name^="${base}_"]`).first();
-              const $supply = findAny('supplyAmount');
-              const $vat    = findAny('VatAmount');
-              const $total  = findAny('totalAmount');
-
-              if ($supply.length) $supply.val(sumSupply ? sumSupply.toLocaleString() : '').trigger('input').trigger('change');
-              if ($vat.length)    $vat.val(sumVat ? sumVat.toLocaleString() : '').trigger('input').trigger('change');
-              if ($total.length)  $total.val(sumTotal ? sumTotal.toLocaleString() : '').trigger('input').trigger('change');
-
-              upsertHidden($parentRow, 'standard_popup_total_supply', String(sumSupply));
-              upsertHidden($parentRow, 'standard_popup_total_vat',    String(sumVat));
-              upsertHidden($parentRow, 'standard_popup_total_amount', String(sumTotal));
-
-              if (typeof calculateTotalSum === 'function') {
-                calculateTotalSum($('#sujuForm'));
-              }
-            })();
-
-            modal.close?.();
-        });
-
-        // 닫기
-        $popup.on('click', '#modal-close-button', function(){ modal.close(); });
-      }
-
 
       deleteSujuData(id, state, ShipmentStateName) {
         let _this = this;
@@ -2779,7 +1776,7 @@
     }
 
     // ===== 합계 집계 (규격/수량 팝업) =====
-    function updateTotals($root) {
+    /*function updateTotals($root) {
       // 금액 합계 계산
       let sumPrice = 0; // 공급가액 합계
       let sumVat   = 0; // 부가세 합계
@@ -2814,7 +1811,7 @@
       let $hidV = $root.find('input[type="hidden"][name="TotalVat"]');
       if ($hidV.length) $hidV.val(String(sumVat));
       else $('<input>', { type: 'hidden', name: 'TotalVat', value: String(sumVat) }).appendTo($root);
-    }
+    }*/
 
     //행 삭제 함수
     function removeItemRow(el) {
@@ -2841,100 +1838,20 @@
       $targetRow.remove();
     }
 
-    // other-page.js
-    $(document).on('click', '.js-open-tab', function (e) {
-      e.preventDefault();
-      const id    = $(this).data('objid');
-      const title = $(this).data('title') || id;
-      const url   = $(this).attr('menuurl') || ('/gui/' + id + '/default');
-
-      // index 창(부모 프레임/최상위 창)에 함수가 있으면 호출
-      if (window.top && typeof window.top.openTabInMain === 'function') {
-        window.top.openTabInMain({ id, title, url });
-      } else if (window.opener && typeof window.opener.openTabInMain === 'function') {
-        // 팝업으로 열린 경우
-        window.opener.openTabInMain({ id, title, url });
-      } else {
-        Alert.alert('','메인 탭 컨테이너를 찾을 수 없습니다.');
-      }
-    });
-
-    $('#balju_order_move').on('click', function (e) {
-      e.preventDefault();
-      const id = 'wm_balju_order';
-      const title = '발주등록';
-      const url = '/gui/wm_balju_order/default';
-
-      if (window.top && typeof window.top.openTabInMain === 'function') {
-        window.top.openTabInMain({ id, title, url });
-      } else if (window.opener && typeof window.opener.openTabInMain === 'function') {
-        window.opener.openTabInMain({ id, title, url });
-      } else {
-        Alert.alert('','메인 탭 컨테이너를 찾을 수 없습니다.');
-      }
-    });
-
-    $('#balju_optimal_stock_move').on('click', function (e) {
-      e.preventDefault();
-      const id = 'wm_balju_optimal_stock';
-      const title = '수주량대비 적정재고현황';
-      const url = '/gui/wm_balju_optimal_stock/default';
-
-      if (window.top && typeof window.top.openTabInMain === 'function') {
-        window.top.openTabInMain({ id, title, url });
-      } else if (window.opener && typeof window.opener.openTabInMain === 'function') {
-        window.opener.openTabInMain({ id, title, url });
-      } else {
-        Alert.alert('','메인 탭 컨테이너를 찾을 수 없습니다.');
-      }
-    });
-
-    $('#cash_io_move').on('click', function (e) {
-      e.preventDefault();
-      const id = 'wm_transaction_input';
-      const title = '입출금 입력';
-      const url = '/gui/wm_transaction_input/default';
-
-      if (window.top && typeof window.top.openTabInMain === 'function') {
-        window.top.openTabInMain({ id, title, url });
-      } else if (window.opener && typeof window.opener.openTabInMain === 'function') {
-        window.opener.openTabInMain({ id, title, url });
-      } else {
-        Alert.alert('','메인 탭 컨테이너를 찾을 수 없습니다.');
-      }
-    });
-
-    $('#sales_invoice_move').on('click', function (e) {
-      e.preventDefault();
-      const id = 'wm_sales_invoice';
-      const title = '매출 계산서 관리';
-      const url = '/gui/wm_sales_invoice/default';
-
-      if (window.top && typeof window.top.openTabInMain === 'function') {
-        window.top.openTabInMain({ id, title, url });
-      } else if (window.opener && typeof window.opener.openTabInMain === 'function') {
-        window.opener.openTabInMain({ id, title, url });
-      } else {
-        Alert.alert('','메인 탭 컨테이너를 찾을 수 없습니다.');
-      }
-    });
-
     let page = null;
 
     $(document).ready(function (e) {
 
       page = new SujuUploadPage();
 
+     const now = new Date();
+     const month1 = new Date(now.getFullYear(), now.getMonth(), 1);
+     const monthLast = new Date(now.getFullYear(), now.getMonth() + 1, 0);
 
-     const now  = new Date();
-     const jan1 = new Date(now.getFullYear(), 0, 1);
-     const nextMonthLast = new Date(now.getFullYear(), now.getMonth() + 2, 0);
-
-     $('#srchStartDt').val(CommonUtil.formatYYYYMMDD(jan1));
-     $('#srchEndDt').val(CommonUtil.formatYYYYMMDD(nextMonthLast));
+     $('#srchStartDt').val(CommonUtil.formatYYYYMMDD(month1));
+     $('#srchEndDt').val(CommonUtil.formatYYYYMMDD(monthLast));
 
       page.searchMainData();
-
 
       // 검색
       $('#btnSearch').click(function (e) {

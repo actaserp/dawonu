@@ -44,6 +44,13 @@
                                 <label>설명</label>
                             </dt>
                             <dd>
+                                <input type="text" class="form-control2" id="Description" name="Description">
+                            </dd>
+                        </dl><dl>
+                            <dt>
+                                <label>코드타입</label>
+                            </dt>
+                            <dd>
                                 <input type="text" class="form-control2" id="txtCodeType" name="txtCodeType">
                             </dd>
                         </dl>
@@ -342,6 +349,7 @@
                 let data = {
                     'txtCode': $('#txtCode2').val(),
                     'txtCodeType': $('#txtCodeType').val(),
+                    'Description': $('#Description').val(),
                     spjangcd: sessionStorage.getItem('spjangcd'),
 
                 };
@@ -522,7 +530,7 @@
                 }
             });
 
-            $('#txtCodeType, #txtCode2').on('keydown', function (e) {
+            $('#txtCodeType, #txtCode2, #Description').on('keydown', function (e) {
                 if (e.keyCode === 13) {
                     page.searchMainData2();
                 }
