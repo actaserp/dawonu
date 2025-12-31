@@ -19,7 +19,7 @@ public class UserCodeService {
 	@Autowired
 	private UserCodeRepository codeRepository;
 	
-	public List<Map<String, Object>> getCodeList(String txtCode){
+	public List<Map<String, Object>> getCodeListFirst(String txtCode){
 		
 		MapSqlParameterSource dicParam = new MapSqlParameterSource();
 		dicParam.addValue("txtCode", txtCode);
@@ -28,44 +28,84 @@ public class UserCodeService {
 				WITH AGroupTB AS (
 				    SELECT *
 				    FROM user_code A
-				    WHERE A."Parent_id" IS NULL
+				    WHERE A."Parent_id" = 330
+				)
+				SELECT
+				    A.id AS aid,
+				    A."Code" AS agropcd,
+				    A."Value" AS agroupnm,
+				    A."_status" AS astatus,
+				    A."Description" AS adescription
+				FROM AGroupTB A
+				WHERE (:txtCode IS NULL OR LOWER(A."Value") LIKE '%' || LOWER(:txtCode) || '%')
+				ORDER BY A.id, A."Code"
+				""";
+		List<Map<String, Object>> items = this.sqlRunner.getRows(sql, dicParam);
+		return items;
+	
+	}
+
+	public List<Map<String, Object>> getCodeListSecond(String txtCode){
+
+		MapSqlParameterSource dicParam = new MapSqlParameterSource();
+		dicParam.addValue("txtCode", txtCode);
+
+		String sql = """
+				WITH\s
+				AGroupTB AS (
+				    SELECT *
+				    FROM user_code
+				    WHERE "Parent_id" = 330
 				),
 				BGroupTB AS (
 				    SELECT A.*
 				    FROM user_code A
 				    JOIN AGroupTB B ON A."Parent_id" = B.id
-				),
-				CGroupTB AS (
-				    SELECT A.*
+				)
+				SELECT
+				    B.id            AS bid,
+				    B."Code"        AS bgropcd,
+				    B."Value"       AS bgroupnm,
+				    B."_status"     AS Bstatus,
+				    B."Description" AS BDescription,
+				    B."Parent_id"   AS bparent_id,
+				    A."Value"       AS parent_name,
+				    A."Code"        AS parent_code,       
+				    A.id            AS aid         
+				FROM BGroupTB B
+				LEFT JOIN AGroupTB A ON B."Parent_id" = A.id
+				WHERE (:txtCode IS NULL OR LOWER(B."Value") LIKE '%' || LOWER(:txtCode) || '%')
+				ORDER BY B.id, B."Code";
+				""";
+		List<Map<String, Object>> items = this.sqlRunner.getRows(sql, dicParam);
+		return items;
+
+	}
+
+	public List<Map<String, Object>> getCodeListThird(String txtCode){
+
+		MapSqlParameterSource dicParam = new MapSqlParameterSource();
+		dicParam.addValue("txtCode", txtCode);
+
+		String sql = """
+				WITH CGroupTB AS (
+				    SELECT *
 				    FROM user_code A
-				    JOIN BGroupTB B ON A."Parent_id" = B.id
+				    WHERE A."Parent_id" = 335
 				)
 				SELECT\s
-				    A.id AS aid,
-				    A."Code" AS agropcd,
-				    A."Value" AS agroupnm,
-				    A."_status" AS astatus,
-				    A."Description" AS adescription,
-				    B.id AS bid,
-				    B."Code" AS bgropcd,
-				    B."Value" AS bgroupnm,
-				    B."_status" AS bstatus,
-				    B."Description" AS bdescription,
 				    C.id AS cid,
 				    C."Code" AS cgropcd,
 				    C."Value" AS cgroupnm,
 				    C."_status" AS cstatus,
 				    C."Description" AS cdescription
-				FROM AGroupTB A
-				LEFT JOIN BGroupTB B ON A.id = B."Parent_id"
-				LEFT JOIN CGroupTB C ON B.id = C."Parent_id"
-				WHERE (:txtCode IS NULL OR LOWER(A."Value") LIKE '%' || LOWER(:txtCode) || '%')
-				ORDER BY A.id, A."Code", B."Code", C."Code";
-				
+				FROM CGroupTB C
+				WHERE (:txtCode IS NULL OR LOWER(C."Value") LIKE '%' || LOWER(:txtCode) || '%')
+				ORDER BY C.id, C."Code"
 				""";
 		List<Map<String, Object>> items = this.sqlRunner.getRows(sql, dicParam);
 		return items;
-	
+
 	}
 
 	public boolean existsByCode(String code) {

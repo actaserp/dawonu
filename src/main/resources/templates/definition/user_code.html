@@ -34,7 +34,7 @@
     <!-- Page Title -->
     <div class="page-title-wrap">
       <div class="left">
-        <h2>품목분류 관리</h2>
+        <h2>공정별 관리</h2>
         <!--                <a title="북마크" class="bookmark toggle">-->
         <!--                    내메뉴-->
         <!--                </a>-->
@@ -42,7 +42,7 @@
       <ul class="page-navi">
         <li><img src="/images/icon/ico-nav-home.svg" alt="홈아이콘"></li>
         <li>기준정보</li>
-        <li>품목분류 관리</li>
+        <li>공정별 관리</li>
       </ul>
     </div>
 
@@ -52,6 +52,17 @@
     </div>
 
     <div class="tab-wrap">
+      <ul class="tab-links">
+        <li>
+          <a href="#tab1" title="1차공정" class="tab-button">1차공정</a>
+        </li>
+        <li>
+          <a href="#tab2" title="2차공정" class="tab-button">2차공정</a>
+        </li>
+        <li>
+          <a href="#tab3" title="3차공정" class="tab-button">3차공정</a>
+        </li>
+      </ul>
       <div class="tab-contents">
         <!-- Section -->
         <section class="tab-item" id="tab1">
@@ -59,19 +70,16 @@
             <div class="search-wrap">
               <dl>
                 <dt>
-                  <label for="txtCode">
+                  <label for="txtCode1">
                     코드명
-                    <img src="/images/icon/ico-info.png"
-                         class="zoom-img"
-                         onclick="openPopup('https://foms.atlassian.net/wiki/external/ZTQ5MWMyMmMxNDI1NDI5ZGI1YWZmYzkxNzk4YTBjZjM')" alt="도움말">
                   </label>
                 </dt>
                 <dd>
                   <div class="srch-box">
-                    <input type="text" id="txtCode" name="txtCode" class="input-srch" placeholder="코드명"
+                    <input type="text" id="txtCode1" name="txtCode1" class="input-srch" placeholder="코드명"
                            style="border-radius: 5px 5px 5px 5px;">
                     <!-- <a class="btn-srch" id="btnSearch" title="검색"></a>-->
-                    <a class="btn btn-delete" title="검색" id="btnSearch" style="margin-left: 5px;">
+                    <a class="btn btn-delete" title="검색" id="btnSearch1" style="margin-left: 5px;">
                       <img src="/images/icon/btn-srch.svg" alt="검색 아이콘">
                       검색
                     </a>
@@ -88,26 +96,129 @@
                      </a>
                  </li>-->
                 <li>
-                  <a class="btn btn-excell" title="신규등록" id="Newbtn">
+                  <a class="btn btn-excell" title="신규등록" id="Newbtn1">
                     <img src="/images/icon/ico-plus.svg" alt="등록 아이콘">
                     신규등록
                   </a>
                 </li>
                 <li>
-                  <a class="btn" title="하위추가" id="btnAddChild">
-                    <img src="/images/icon/ico-plus.svg" alt="등록 아이콘">
-                    하위추가
-                  </a>
-                </li>
-
-                <li>
-                  <a class="btn btn-edit" id="btnSave" title="저장">
+                  <a class="btn btn-edit" id="btnSave1" title="저장">
                     <img src="/images/icon/ico-save.svg" alt="저장 아이콘">
                     저장
                   </a>
                 </li>
                 <li>
-                  <a class="btn btn-delete " title="삭제" id="btnDelete"><!--삭제버튼 disabled 쓸려면 class에 disabled 추가하기-->
+                  <a class="btn btn-delete " title="삭제" id="btnDelete1"><!--삭제버튼 disabled 쓸려면 class에 disabled 추가하기-->
+                    <img src="/images/icon/ico-delete.svg" alt="엑셀 아이콘">
+                    삭제
+                  </a>
+                </li>
+              </ul>
+            </div>
+          </div> <!--//section-top end -->
+          <div class="row">
+            <div class="wp70 mg-r20">
+              <div class="container-fluid col">
+                <div id="theGrid" style="max-height: 540px;"></div>
+              </div>
+            </div>
+            <div class="col wp30">
+              <div class="section">
+                <form id="codeForm1">
+                  <input class="form-control2" type="text" id="id1" name="id1" hidden/>
+                  <div class="table-wrap">
+                    <table class="view-table">
+                      <caption>코드등록 테이블</caption>
+                      <colgroup>
+                        <col class="wp20">
+                        <col class="wauto">
+                      </colgroup>
+                      <tbody>
+                      <tr>
+                        <th><label for="code1">코드</label></th>
+                        <td>
+                          <input type="text" id="code1" name="code" class="wp100" required>
+                          <div style="text-align:left; ">
+                          <span id="code-check-message1"
+                                style="color: red; display: none; ">중복된 코드입니다.</span>
+                          </div>
+                        </td>
+                      </tr>
+                      <tr>
+                        <th><label for="name1">코드명</label></th>
+                        <td>
+                          <input type="text" id="name1" name="name" class="wp100">
+                        </td>
+                      </tr>
+                      <tr>
+                        <th><label for="description1">설명</label></th>
+                        <td>
+                          <input type="text" id="description1" name="description"
+                                 class="wp100">
+                        </td>
+                      </tr>
+
+                      <tr>
+                        <th><label for="status1">사용여부</label></th>
+                        <td style="text-align: center; vertical-align: middle;">
+                          <input type="checkbox" id="status1" name="status">
+                        </td>
+                      </tr>
+
+                      </tbody>
+                    </table>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+        </section>
+        <!-- Section -->
+        <!-- Section 2차공정 tab -->
+        <section class="tab-item" id="tab2">
+          <div class="section-top">
+            <div class="search-wrap">
+              <dl>
+                <dt>
+                  <label for="txtCode2">
+                    코드명
+                  </label>
+                </dt>
+                <dd>
+                  <div class="srch-box">
+                    <input type="text" id="txtCode2" name="txtCode2" class="input-srch" placeholder="코드명"
+                           style="border-radius: 5px 5px 5px 5px;">
+                    <!-- <a class="btn-srch" id="btnSearch" title="검색"></a>-->
+                    <a class="btn btn-delete" title="검색" id="btnSearch2" style="margin-left: 5px;">
+                      <img src="/images/icon/btn-srch.svg" alt="검색 아이콘">
+                      검색
+                    </a>
+                  </div>
+                </dd>
+              </dl>
+            </div>
+
+            <div class="button-wrap" style="border-top:none;">
+              <ul>
+                <!-- <li>
+                     <a class="btn modal_btn" title="How to Use">
+                         How to Use
+                     </a>
+                 </li>-->
+                <li>
+                  <a class="btn btn-excell" title="신규등록" id="Newbtn2">
+                    <img src="/images/icon/ico-plus.svg" alt="등록 아이콘">
+                    신규등록
+                  </a>
+                </li>
+                <li>
+                  <a class="btn btn-edit" id="btnSave2" title="저장">
+                    <img src="/images/icon/ico-save.svg" alt="저장 아이콘">
+                    저장
+                  </a>
+                </li>
+                <li>
+                  <a class="btn btn-delete " title="삭제" id="btnDelete2"><!--삭제버튼 disabled 쓸려면 class에 disabled 추가하기-->
                     <img src="/images/icon/ico-delete.svg" alt="엑셀 아이콘">
                     삭제
                   </a>
@@ -119,14 +230,131 @@
             <div class="wp70 mg-r20">
               <div class="container-fluid col">
                 <p id="selectedItem"></p>
-                <div id="theGrid" style="max-height: 540px;"></div>
+                <div id="theGrid2" style="max-height: 540px;"></div>
               </div>
             </div>
             <div class="col wp30">
               <div class="section">
-                <form id="codeForm">
-                  <input type="hidden" id="parent_id" name="parent_id"/>
-                  <input class="form-control2" type="text" id="id" name="id" hidden/>
+                <form id="codeForm2">
+                  <input class="form-control2" type="text" id="id2" name="id" hidden/>
+                  <div class="table-wrap">
+                    <table class="view-table">
+                      <caption>코드등록 테이블</caption>
+                      <colgroup>
+                        <col class="wp20">
+                        <col class="wauto">
+                      </colgroup>
+                      <tbody>
+                      <tr>
+                        <th><label for="parent_id2">상위코드</label></th>
+                        <td>
+                          <select type="text" id="parent_id2" name="parent_id2" class="wp100"
+                                 readonly>
+                          </select>
+                        </td>
+                      </tr>
+                      <tr>
+                        <th><label for="code2">코드</label></th>
+                        <td>
+                          <input type="text" id="code2" name="code" class="wp100" required>
+                          <div style="text-align:left; ">
+                                                        <span id="code-check-message2"
+                                                              style="color: red; display: none; ">중복된 코드입니다.</span>
+                          </div>
+                        </td>
+                      </tr>
+                      <tr>
+                        <th><label for="name2">코드명</label></th>
+                        <td>
+                          <input type="text" id="name2" name="name" class="wp100">
+                        </td>
+                      </tr>
+                      <tr>
+                        <th><label for="description2">설명</label></th>
+                        <td>
+                          <input type="text" id="description2" name="description"
+                                 class="wp100">
+                        </td>
+                      </tr>
+
+                      <tr>
+                        <th><label for="status2">사용여부</label></th>
+                        <td style="text-align: center; vertical-align: middle;">
+                          <input type="checkbox" id="status2" name="status">
+                        </td>
+                      </tr>
+
+                      </tbody>
+                    </table>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+        </section>
+        <!-- Section -->
+        <!-- Section 3차공정 tab-->
+        <section class="tab-item" id="tab3">
+          <div class="section-top">
+            <div class="search-wrap">
+              <dl>
+                <dt>
+                  <label for="txtCode3">
+                    코드명
+                  </label>
+                </dt>
+                <dd>
+                  <div class="srch-box">
+                    <input type="text" id="txtCode3" name="txtCode3" class="input-srch" placeholder="코드명"
+                           style="border-radius: 5px 5px 5px 5px;">
+                    <!-- <a class="btn-srch" id="btnSearch" title="검색"></a>-->
+                    <a class="btn btn-delete" title="검색" id="btnSearch3" style="margin-left: 5px;">
+                      <img src="/images/icon/btn-srch.svg" alt="검색 아이콘">
+                      검색
+                    </a>
+                  </div>
+                </dd>
+              </dl>
+            </div>
+
+            <div class="button-wrap" style="border-top:none;">
+              <ul>
+                <!-- <li>
+                     <a class="btn modal_btn" title="How to Use">
+                         How to Use
+                     </a>
+                 </li>-->
+                <li>
+                  <a class="btn btn-excell" title="신규등록" id="Newbtn3">
+                    <img src="/images/icon/ico-plus.svg" alt="등록 아이콘">
+                    신규등록
+                  </a>
+                </li>
+                <li>
+                  <a class="btn btn-edit" id="btnSave3" title="저장">
+                    <img src="/images/icon/ico-save.svg" alt="저장 아이콘">
+                    저장
+                  </a>
+                </li>
+                <li>
+                  <a class="btn btn-delete " title="삭제" id="btnDelete3"><!--삭제버튼 disabled 쓸려면 class에 disabled 추가하기-->
+                    <img src="/images/icon/ico-delete.svg" alt="엑셀 아이콘">
+                    삭제
+                  </a>
+                </li>
+              </ul>
+            </div>
+          </div> <!--//section-top end -->
+          <div class="row">
+            <div class="wp70 mg-r20">
+              <div class="container-fluid col">
+                <div id="theGrid3" style="max-height: 540px;"></div>
+              </div>
+            </div>
+            <div class="col wp30">
+              <div class="section">
+                <form id="codeForm3">
+                  <input class="form-control2" type="text" id="id3" name="id3" hidden/>
                   <div class="table-wrap">
                     <table class="view-table" id="selectedData">
                       <caption>코드등록 테이블</caption>
@@ -136,40 +364,33 @@
                       </colgroup>
                       <tbody>
                       <tr>
-                        <th><label for="parent_name">상위코드</label></th>
+                        <th><label for="code3">코드</label></th>
                         <td>
-                          <input type="text" id="parent_name" name="parent_name" class="wp100"
-                                 readonly>
-                        </td>
-                      </tr>
-                      <tr>
-                        <th><label for="code">코드</label></th>
-                        <td>
-                          <input type="text" id="code" name="code" class="wp100" required>
+                          <input type="text" id="code3" name="code3" class="wp100" required>
                           <div style="text-align:left; ">
-                                                        <span id="code-check-message"
+                                                        <span id="code-check-message3"
                                                               style="color: red; display: none; ">중복된 코드입니다.</span>
                           </div>
                         </td>
                       </tr>
                       <tr>
-                        <th><label for="name">코드명</label></th>
+                        <th><label for="name3">코드명</label></th>
                         <td>
-                          <input type="text" id="name" name="name" class="wp100">
+                          <input type="text" id="name3" name="name3" class="wp100">
                         </td>
                       </tr>
                       <tr>
-                        <th><label for="description">설명</label></th>
+                        <th><label for="description3">설명</label></th>
                         <td>
-                          <input type="text" id="description" name="description"
+                          <input type="text" id="description3" name="description3"
                                  class="wp100">
                         </td>
                       </tr>
 
                       <tr>
-                        <th><label for="status">사용여부</label></th>
+                        <th><label for="status3">사용여부</label></th>
                         <td style="text-align: center; vertical-align: middle;">
-                          <input type="checkbox" id="status" name="status">
+                          <input type="checkbox" id="status3" name="status3">
                         </td>
                       </tr>
 
@@ -190,23 +411,6 @@
     <p>Copyrightⓒ 0000 corp. All rights reserved.</p>
   </footer>
 
-  <!--<div class="modal2">
-      <div class="modal_popup">
-          <h3 style="text-align: center; margin-bottom: 20px">화면 설명서(목록탭)</h3>
-          <img src="/images/공통코드등록.png" style="margin-bottom: 10px"/>
-          <p style="margin-bottom: 8px"></p>
-          <p style="margin-bottom: 8px">1. 상위분류명을 통해 검색하여 조회할 수 있습니다.</p>
-          <p style="margin-bottom: 8px">2. 신규로 상위코드 등록 할 경우 코드, 코드명, 설명을 입력하고 저장 버튼을 누릅니다.</p>
-          <p style="margin-bottom: 8px">3. 중위코드 생성 시 상위분류명을 클릭 후 하위추가 버튼을 누르고 입력값 입력 후 저장 버튼을 누릅니다. </p>
-          <p style="margin-bottom: 8px">3-1. 하위코드 생성 시 증위분류명을 클릭 후 하위추가 버튼을 누르고 입력값 입력 후 저장 버튼을 누릅니다.</p>
-          <p style="margin-bottom: 8px">4. 상위분류명, 중분류명, 하위분류명 중 삭제 대상을 클릭 후 삭제 버튼을 누릅니다.</p>
-          <p style="margin-bottom: 8px"> ※ 상위분류명 선택 후 삭제 시 해당 전체 데이터가 삭제 됩니다.</p>
-          <button style="border: 1px solid #03428E !important; font-size: 15px !important; position: absolute; top: 10px; right: 10px"
-                  class="close_btn">닫기
-          </button>
-      </div>
-  </div>-->
-
 </th:block>
 
 <th:block layout:fragment="scripts">
@@ -216,6 +420,10 @@
 
     var theGrid;
     var viewdata;
+    var theGrid2;
+    var viewdata2;
+    var theGrid3;
+    var viewdata3;
     let csrfToken = $("[name=_csrf]").val();
     var selectedItem; // 전역 변수로 선택한 항목을 저장
     var menuGroupName;
@@ -236,27 +444,6 @@
      });*/
 
 
-    // wijmo grid에서 hidden 사용할려면 visible 사용해야함
-    var columns = [
-      { binding: 'aid', header: 'AID', align: 'left', width: "*", visible: false},
-      { binding: 'agropcd', header: '상위코드', align: 'left', width: "*", isReadOnly: true },
-      { binding: 'agroupnm', header: '상위분류명', align: 'left', width: "*" },
-      { binding: 'Astatus', header: 'A 사용여부', align: 'left', width: "*", visible: false },
-      /*   { binding: 'ADescription', header: 'A설명', align: 'left', width: 100, visible: false },*/
-      { binding: 'bid', header: 'BID', align: 'left', width: "*", visible: false, isReadOnly: true },
-      { binding: 'bgropcd', header: '중위코드', align: 'left', width: "*", isReadOnly: true  },
-      { binding: 'bgroupnm', header: '중분류명', align: 'left', width: "*" },
-      { binding: 'Bstatus', header: 'B 사용여부', align: 'left', width: "*", visible: false },
-      { binding: 'bdescription', header: '중분류 설명', align: 'left', width: 185},
-      { binding: 'cid', header: 'CID', align: 'left', width: "*", visible: false, isReadOnly: true },
-      { binding: 'cgropcd', header: '하위코드', align: 'left', width: "*", isReadOnly: true  },
-      { binding: 'cgroupnm', header: '하위분류명', align: 'left', width: "*" },
-      { binding: 'Cstatus', header: 'C 사용여부', align: 'left', width: "*", visible: false },
-      { binding: 'cdescription', header: '하위분류 설명', align: 'left', width: "*" },
-      /*   { binding: 'adescription', header: '설명', align: 'left', width: '*' }*/
-    ];
-
-
     document.readyState === 'complete' ? init() : window.onload = init;
 
     <!-- 초반 페이지 진입시 그리드 바인딩 끝-->
@@ -265,11 +452,20 @@
     let selectedColumnIndex = null;  // 선택된 열 인덱스 저장
 
     function init() {
+      getCodeListFirst();
+      getCodeListSecond();
+      getCodeListThird();
+      // 2차공정 상위코드 셀렉트 박스 초기화
+      AjaxUtil.fillSelectOptions($('#parent_id2'), 'user_code', 'choose', '', 'JFLAG');
+    }
+
+    // 1차공정 조회
+    function getCodeListFirst() {
       let data2 = [];
-      let txtCode = $('#txtCode').val();
+      let txtCode = $('#txtCode1').val();
 
       $.ajax({
-        url: '/api/definition/code/read',
+        url: '/api/definition/code/readFirst',
         type: 'GET',
         data: {
           'txtCode': txtCode,
@@ -281,31 +477,28 @@
         }
       })
 
-      menuGroupName = new wijmo.collections.PropertyGroupDescription('코드명', function (item, proName) {
-        return item.agroupnm;
-      });
-
-
-      // 데이터 배열이 비어있을 경우 여러 개의 빈 객체 추가
-      if (data2.length === 0) {
-        let emptyRowsCount = 8;  // 원하는 빈 행의 수
-        for (let i = 0; i < emptyRowsCount; i++) {
+      // 데이터 배열이 작을경우 여러 개의 빈 객체 추가
+      let emptyRowsCount = 12;  // 원하는 빈 행의 수
+      if (data2.length < emptyRowsCount) {
+        for (let i = 0; i < emptyRowsCount - data2.length; i++) {
           data2.push({});
         }
         /*   console.log('Grid initialized with empty data.');*/
       }
 
       viewdata = new wijmo.collections.CollectionView(data2);
-      viewdata.groupDescriptions.push(menuGroupName);
-
-
-      // viewdata = new wijmo.collections.CollectionView(data2);
 
       // 데이터 그리드에 바인딩
       theGrid = new wijmo.grid.FlexGrid('#theGrid', {
         autoGenerateColumns: false,
         showMarquee: true,
-        columns: columns,
+        columns: [
+          { binding: 'aid', header: 'AID', align: 'left', width: "*", visible: false},
+          { binding: 'agropcd', header: '코드', align: 'left', width: "*", isReadOnly: true },
+          { binding: 'agroupnm', header: '분류명', align: 'left', width: "*" },
+          { binding: 'Astatus', header: 'A 사용여부', align: 'left', width: "*", visible: true },
+          { binding: 'ADescription', header: 'A설명', align: 'left', width: "*", visible: true }
+        ],
         itemsSource: viewdata,
         isReadOnly: true,
       });
@@ -330,111 +523,235 @@
 
         // 선택된 항목과 선택된 셀의 바인딩을 확인
         if (selectedItem) {
-
-          var binding = theGrid.columns[selectedColumnIndex].binding;
-
-          // 바인딩에 따라 값을 필드에 설정
-          if (binding === 'agroupnm') {
-            $('#id').val(selectedItem.aid || '');
-            $('#code').val(selectedItem.agropcd || '');
-            $('#name').val(selectedItem.agroupnm || '');
-            $('#description').val(selectedItem.adescription || '');
-            $('#parent_name').val(''); // 상위코드는 비웁니다
-            // A 그룹 체크박스 상태 반영
-            $('#status').prop('checked', selectedItem.astatus === 'y');
-          } else if (binding === 'bgroupnm') {
-            $('#id').val(selectedItem.bid || '');
-            $('#parent_name').val(selectedItem.agropcd || '');
-            $('#code').val(selectedItem.bgropcd || '');
-            $('#name').val(selectedItem.bgroupnm || '');
-            $('#description').val(selectedItem.bdescription || '');
-            // B 그룹 체크박스 상태 반영
-            $('#status').prop('checked', selectedItem.bstatus === 'y');
-            // 여기에서 parent_id에 agroupnm에 해당하는 aid 값을 설정
-            $('#parent_id').val(selectedItem.aid || '');
-          } else if (binding === 'cgroupnm') {
-            $('#id').val(selectedItem.cid || '');
-            $('#parent_name').val(selectedItem.bgropcd || '');
-            $('#code').val(selectedItem.cgropcd || '');
-            $('#name').val(selectedItem.cgroupnm || '');
-            $('#description').val(selectedItem.cdescription || '');
-            // C 그룹 체크박스 상태 반영
-            $('#status').prop('checked', selectedItem.cstatus === 'y');
-
-            // 여기에서 parent_id에 bgroupnm에 해당하는 bid 값을 설정
-            $('#parent_id').val(selectedItem.bid || '');
-          } else {
-            // 해당 바인딩에 값이 없으면 필드 초기화
-            $('#id').val('');
-            $('#code').val('');
-            $('#name').val('');
-            $('#description').val('');
-            $('#parent_name').val('');
-            $('#parent_id').val(''); // parent_id 초기화
-            $('#status').prop('checked', false); // A 그룹 체크박스 초기화
-          }
-
-          /*  // 선택한 셀의 정보 출력
-            console.log('Selected Cell Binding:', binding);
-            console.log('Selected Cell Value:', selectedItem[binding]);*/
+          $('#id1').val(selectedItem.aid || '');
+          $('#code1').val(selectedItem.agropcd || '');
+          $('#name1').val(selectedItem.agroupnm || '');
+          $('#description1').val(selectedItem.adescription || '');
+          // $('#parent_name').val(''); // 상위코드는 비웁니다
+          // A 그룹 체크박스 상태 반영
+          $('#status1').prop('checked', selectedItem.astatus === 'y');
         }
       });
 
       theGrid.rowHeaders.columns.splice(0, 1);  //맨 앞에 헤더부분 없애기
 
       new FlexGridContextMenu(theGrid);
-      theGrid.downloadFileName = '공통코드';
+      theGrid.downloadFileName = '1차공정';
+    }
+    // 2차공정 조회
+    function getCodeListSecond() {
+      let data2 = [];
+      let txtCode = $('#txtCode2').val();
 
+      $.ajax({
+        url: '/api/definition/code/readSecond',
+        type: 'GET',
+        data: {
+          'txtCode': txtCode,
+        },
+        async: false,
+        success: function (data) {
+          /*    console.log('wijmo', data.data);*/
+          data2 = data.data;
+        }
+      })
+
+      // 데이터 배열이 작을경우 여러 개의 빈 객체 추가
+      let emptyRowsCount = 12;  // 원하는 빈 행의 수
+      if (data2.length < emptyRowsCount) {
+        for (let i = 0; i < emptyRowsCount - data2.length; i++) {
+          data2.push({});
+        }
+        /*   console.log('Grid initialized with empty data.');*/
+      }
+
+      viewdata2 = new wijmo.collections.CollectionView(data2);
+
+      // 데이터 그리드에 바인딩
+      theGrid2 = new wijmo.grid.FlexGrid('#theGrid2', {
+        autoGenerateColumns: false,
+        showMarquee: true,
+        columns: [
+          { binding: 'bid', header: 'BID', align: 'left', width: "*", visible: false},
+          { binding: 'parent_code', header: '상위코드', align: 'left', width: "*", visible: true},
+          { binding: 'parent_name', header: '상위코드명', align: 'left', width: "*", visible: true},
+          { binding: 'bgropcd', header: '코드', align: 'left', width: "*", isReadOnly: true },
+          { binding: 'bgroupnm', header: '분류명', align: 'left', width: "*" },
+          { binding: 'Bstatus', header: '사용여부', align: 'left', width: "*", visible: true },
+          { binding: 'BDescription', header: '설명', align: 'left', width: "*", visible: true }
+        ],
+        itemsSource: viewdata2,
+        isReadOnly: true,
+      });
+
+      theGrid2.selectionChanged.addHandler(function (s, e) {
+        selectedRowIndex = s.selection.row; // 선택된 행 인덱스
+        selectedColumnIndex = s.selection.col; // 선택된 열 인덱스
+
+        // 선택된 행 인덱스가 유효한지 확인
+        if (
+                selectedRowIndex < 0 ||
+                selectedRowIndex >= s.rows.length ||
+                selectedColumnIndex < 0 ||
+                selectedColumnIndex >= theGrid2.columns.length
+        ) {
+          return; // 선택된 행이나 열이 유효하지 않은 경우 함수를 종료
+        }
+
+        let selectedItem = s.rows[selectedRowIndex]?.dataItem; // 선택된 행의 데이터
+
+        /*  console.log(JSON.stringify(selectedItem, null, 2) + " 선택된 셀 정보확인");*/
+
+        // 선택된 항목과 선택된 셀의 바인딩을 확인
+        if (selectedItem) {
+          $('#id2').val(selectedItem.bid || '');
+          $('#code2').val(selectedItem.bgropcd || '');
+          $('#name2').val(selectedItem.bgroupnm || '');
+          $('#description2').val(selectedItem.bdescription || '');
+          $('#parent_id2').val(''); // 상위코드는 비웁니다
+          // A 그룹 체크박스 상태 반영
+          $('#status2').prop('checked', selectedItem.bstatus === 'y');
+        }
+      });
+
+      theGrid2.rowHeaders.columns.splice(0, 1);  //맨 앞에 헤더부분 없애기
+
+      new FlexGridContextMenu(theGrid);
+      theGrid2.downloadFileName = '2차공정';
+    }
+    // 3차공정 조회
+    function getCodeListThird() {
+      let data2 = [];
+      let txtCode = $('#txtCode3').val();
+
+      $.ajax({
+        url: '/api/definition/code/readThird',
+        type: 'GET',
+        data: {
+          'txtCode': txtCode,
+        },
+        async: false,
+        success: function (data) {
+          /*    console.log('wijmo', data.data);*/
+          data2 = data.data;
+        }
+      })
+
+      // 데이터 배열이 작을경우 여러 개의 빈 객체 추가
+      let emptyRowsCount = 12;  // 원하는 빈 행의 수
+      if (data2.length < emptyRowsCount) {
+        for (let i = 0; i < emptyRowsCount - data2.length; i++) {
+          data2.push({});
+        }
+        /*   console.log('Grid initialized with empty data.');*/
+      }
+
+      viewdata3 = new wijmo.collections.CollectionView(data2);
+
+      // 데이터 그리드에 바인딩
+      theGrid3 = new wijmo.grid.FlexGrid('#theGrid3', {
+        autoGenerateColumns: false,
+        showMarquee: true,
+        columns: [
+          { binding: 'cid', header: 'CID', align: 'left', width: "*", visible: false},
+          { binding: 'cgropcd', header: '코드', align: 'left', width: "*", isReadOnly: true },
+          { binding: 'cgroupnm', header: '분류명', align: 'left', width: "*" },
+          { binding: 'cstatus', header: '사용여부', align: 'left', width: "*", visible: true },
+          { binding: 'cDescription', header: '설명', align: 'left', width: "*", visible: true }
+        ],
+        itemsSource: viewdata3,
+        isReadOnly: true,
+      });
+
+      theGrid3.selectionChanged.addHandler(function (s, e) {
+        selectedRowIndex = s.selection.row; // 선택된 행 인덱스
+        selectedColumnIndex = s.selection.col; // 선택된 열 인덱스
+
+        // 선택된 행 인덱스가 유효한지 확인
+        if (
+                selectedRowIndex < 0 ||
+                selectedRowIndex >= s.rows.length ||
+                selectedColumnIndex < 0 ||
+                selectedColumnIndex >= theGrid3.columns.length
+        ) {
+          return; // 선택된 행이나 열이 유효하지 않은 경우 함수를 종료
+        }
+
+        let selectedItem = s.rows[selectedRowIndex]?.dataItem; // 선택된 행의 데이터
+
+        /*  console.log(JSON.stringify(selectedItem, null, 2) + " 선택된 셀 정보확인");*/
+
+        // 선택된 항목과 선택된 셀의 바인딩을 확인
+        if (selectedItem) {
+          $('#id3').val(selectedItem.cid || '');
+          $('#code3').val(selectedItem.cgropcd || '');
+          $('#name3').val(selectedItem.cgroupnm || '');
+          $('#description3').val(selectedItem.cdescription || '');
+          // $('#parent_name').val(''); // 상위코드는 비웁니다
+          // A 그룹 체크박스 상태 반영
+          $('#status3').prop('checked', selectedItem.cstatus === 'y');
+        }
+      });
+
+      theGrid3.rowHeaders.columns.splice(0, 1);  //맨 앞에 헤더부분 없애기
+
+      new FlexGridContextMenu(theGrid);
+      theGrid3.downloadFileName = '3차공정';
     }
 
     // 신규등록 버튼 클릭 이벤트 핸들러 등록
-    $('#Newbtn').click(function () {
+    $('#Newbtn1').click(function () {
       // 상위코드 입력 필드를 비활성화
-      $('#parent_name').prop('disabled', true);
+      ['id1', 'code1', 'name1','description1','parent_id1'].forEach(id=>{
+        document.getElementById(id).value = '';
+      });
+
+      // 모든 체크박스 초기화
+      $('#codeForm1 input[type="checkbox"]').prop('checked', false);
+    });
+
+    // 신규등록 버튼 클릭 이벤트 핸들러 등록
+    $('#Newbtn2').click(function () {
+      // 상위코드 입력 필드를 비활성화
       ['id', 'code', 'name','description','parent_name','parent_id'].forEach(id=>{
         document.getElementById(id).value = '';
       });
 
       // 모든 체크박스 초기화
-      $('#codeForm input[type="checkbox"]').prop('checked', false);
+      $('#codeForm2 input[type="checkbox"]').prop('checked', false);
     });
 
-    $('#btnSave').click(saveCode);   // 등록 버튼 클릭 이벤트 핸들러 등록
+    // 신규등록 버튼 클릭 이벤트 핸들러 등록
+    $('#Newbtn3').click(function () {
+      // 상위코드 입력 필드를 비활성화
+      ['id', 'code', 'name','description','parent_name','parent_id'].forEach(id=>{
+        document.getElementById(id).value = '';
+      });
 
-    $('#btnDelete').click(deleteCode);
+      // 모든 체크박스 초기화
+      $('#codeForm3 input[type="checkbox"]').prop('checked', false);
+    });
 
-    $('#btnSearch').click(searchDataBind); // 검색 버튼 클릭 이벤트 핸들러 등록
+    $('#btnSave1').click(saveCode1);   // 1차공정탭 등록 버튼 클릭 이벤트 핸들러 등록
+    $('#btnSave2').click(saveCode2);   // 2차공정탭
+    $('#btnSave3').click(saveCode3);   // 3차공정탭
 
-    $('#btnAddChild').click(addChildCode);
+    $('#btnDelete1').click(deleteCode1); // 1차공정탭 삭제버튼 클릭 이벤트 핸들러 등록
+    $('#btnDelete2').click(deleteCode2); // 2차공정탭
+    $('#btnDelete3').click(deleteCode3); // 3차공정탭
 
-    function addChildCode() {
-      /*  console.log("하위추가 버튼 클릭 이벤트");*/
+    $('#btnSearch1').click(searchDataBind1); // 1차공정탭 검색 버튼 클릭 이벤트 핸들러 등록
+    $('#btnSearc2').click(searchDataBind2); // 2차공정탭
+    $('#btnSearc3').click(searchDataBind3); // 3차공정탭
 
-      // `code` 필드의 값을 `parent_name`으로 설정 (상위 코드로 설정)
-      $('#parent_name').val($('#code').val());
-
-      // 선택된 셀의 `id`를 `parent_id`로 설정 (새로 추가되는 데이터의 상위 ID로 설정)
-      $('#parent_id').val($('#id').val());
-
-      // 새로운 데이터를 입력할 수 있도록 나머지 필드들은 초기화
-      $('#id').val('');  // 새로운 데이터이므로 id는 초기화 (신규 등록을 의미)
-      $('#code').val('');
-      $('#name').val('');
-      $('#description').val('');
-      $('#status').prop('checked', true);
-    }
-
-    function saveCode() {
+    function saveCode1() {
       let url = '/api/definition/code/save';
-      let data = FormUtil.extractForm($('#codeForm'));
+      let data = FormUtil.extractForm($('#codeForm1'));
 
       // 체크박스 상태에 따라 값을 설정
-      data.status = $('#status').is(':checked') ? 'y' : 'n';
+      data.status = $('#status1').is(':checked') ? 'y' : 'n';
 
-      let parentId = $('#parent_id').val();
-      data.parent_id = parentId;
-      /*data.parent_id = $('#parent_id').val(); // hidden input에서 parent_id 값 가져오기*/
-      /*  console.log('parent_id 값:', $('#parent_id').val());*/
+      data.parent_id = 330;
       // 필수 항목 확인
       if (!data.code || !data.name) {
         Alert.alert('', '필수항목을 입력해주세요');
@@ -447,7 +764,7 @@
       let fnSuccess = function (res) {
         if (res.success) {
           Alert.alert('', '저장되었습니다.');
-          searchDataBind();
+          searchDataBind1();
 
           // 그리드의 선택 상태를 초기화
           theGrid.collectionView.moveCurrentToPosition(-1);
@@ -464,22 +781,117 @@
       AjaxUtil.postAsyncData(url, data, fnSuccess);
     }
 
+    function saveCode2() {
+      let url = '/api/definition/code/save';
+      let data = FormUtil.extractForm($('#codeForm2'));
 
-    function searchDataBind() {
+      // 체크박스 상태에 따라 값을 설정
+      data.status = $('#status2').is(':checked') ? 'y' : 'n';
+
+      let parentId = $('#parent_id2').val();
+      data.parent_id = parentId;
+      /*data.parent_id = $('#parent_id').val(); // hidden input에서 parent_id 값 가져오기*/
+      /*  console.log('parent_id 값:', $('#parent_id').val());*/
+      // 필수 항목 확인
+      if (!data.code || !data.name) {
+        Alert.alert('', '필수항목을 입력해주세요');
+        return;
+      }
+
+      // 전송할 데이터 확인
+      console.log('서버로 전송할 데이터:', data);
+
+      let fnSuccess = function (res) {
+        if (res.success) {
+          Alert.alert('', '저장되었습니다.');
+          searchDataBind2();
+
+          // 그리드의 선택 상태를 초기화
+          theGrid2.collectionView.moveCurrentToPosition(-1);
+          theGrid2.selection = new wijmo.grid.CellRange(-1, -1, -1, -1); // 모든 셀의 선택을 해제
+          // 입력 필드 초기화
+          clearTableInputs2();
+
+        } else {
+          Alert.alert('', res.message);
+        }
+      };
+
+      // 데이터 전송
+      AjaxUtil.postAsyncData(url, data, fnSuccess);
+    }
+
+    function saveCode3() {
+      let url = '/api/definition/code/save';
+      let data = FormUtil.extractForm($('#codeForm3'));
+
+      // 체크박스 상태에 따라 값을 설정
+      data.status = $('#status3').is(':checked') ? 'y' : 'n';
+
+      data.parent_id = 335;
+      // 필수 항목 확인
+      if (!data.code || !data.name) {
+        Alert.alert('', '필수항목을 입력해주세요');
+        return;
+      }
+
+      // 전송할 데이터 확인
+      console.log('서버로 전송할 데이터:', data);
+
+      let fnSuccess = function (res) {
+        if (res.success) {
+          Alert.alert('', '저장되었습니다.');
+          searchDataBind3();
+
+          // 그리드의 선택 상태를 초기화
+          theGrid3.collectionView.moveCurrentToPosition(-1);
+          theGrid3.selection = new wijmo.grid.CellRange(-1, -1, -1, -1); // 모든 셀의 선택을 해제
+          // 입력 필드 초기화
+          clearTableInputs3();
+
+        } else {
+          Alert.alert('', res.message);
+        }
+      };
+
+      // 데이터 전송
+      AjaxUtil.postAsyncData(url, data, fnSuccess);
+    }
+
+
+    function searchDataBind1() {
       /*  console.log("searchDataBind called");*/
 
-      let data = {'txtCode': $('#txtCode').val()};
+      let data = {'txtCode': $('#txtCode1').val()};
 
       /*      console.log("Data to send:", data);*/
 
       $.ajax({
-        url: '/api/definition/code/read',
+        url: '/api/definition/code/readFirst',
         type: 'GET',
         data: data,
         success: function (result) {
           if (result.success) {
             /*  console.log("Result data:", result.data);*/
-            grid_binding(result.data);
+            let data = result.data;
+            let formattedData = data.map(item => ({
+              aid: item.aid,
+              agropcd: item.agropcd,
+              agroupnm: item.agroupnm,
+              astatus: item.astatus,
+              adescription:item.adescription
+            }));
+
+            // 데이터 배열이 작을경우 여러 개의 빈 객체 추가
+            let emptyRowsCount = 12;  // 원하는 빈 행의 수
+            if (formattedData.length < emptyRowsCount) {
+              for (let i = 0; i < emptyRowsCount - formattedData.length; i++) {
+                formattedData.push({});
+              }
+            }
+
+            // Create CollectionView and bind data
+            theGrid.itemsSource = new wijmo.collections.CollectionView(formattedData);
           } else {
             /* console.log("Error occurred");*/
           }
@@ -490,57 +902,94 @@
       });
     }
 
-    function grid_binding(data) {
-      /* console.log("Binding data to grid:", data);*/
+    function searchDataBind2() {
+      /*  console.log("searchDataBind called");*/
 
-      let formattedData = data.map(item => ({
-        aid: item.aid,
-        agropcd: item.agropcd,
-        agroupnm: item.agroupnm,
-        astatus: item.astatus,
-        adescription:item.adescription,
-        bid: item.bid,
-        bgropcd: item.bgropcd,
-        bgroupnm: item.bgroupnm,
-        bstatus: item.bstatus,
-        bdescription:item.bdescription,
-        cid: item.cid,
-        cgropcd: item.cgropcd,
-        cgroupnm: item.cgroupnm,
-        cstatus: item.cstatus,
-        cdescription:item.cdescription
-      }));
+      let data = {'txtCode': $('#txtCode2').val()};
 
-      /* console.log("Formatted data:", formattedData);*/
+      /*      console.log("Data to send:", data);*/
 
-      // Clear existing columns
-      theGrid.columns.clear();
-      theGrid.autoGenerateColumns = false;
+      $.ajax({
+        url: '/api/definition/code/readSecond',
+        type: 'GET',
+        data: data,
+        success: function (result) {
+          if (result.success) {
+            /*  console.log("Result data:", result.data);*/
+            let data = result.data;
+            let formattedData = data.map(item => ({
+              bid: item.bid,
+              bgropcd: item.bgropcd,
+              bgroupnm: item.bgroupnm,
+              bstatus: item.bstatus,
+              bdescription:item.bdescription
+            }));
 
-      // Add new columns
-      columns.forEach(colDef => {
-        let col = new wijmo.grid.Column(colDef);
-        theGrid.columns.push(col);
+            // 데이터 배열이 작을경우 여러 개의 빈 객체 추가
+            let emptyRowsCount = 12;  // 원하는 빈 행의 수
+            if (formattedData.length < emptyRowsCount) {
+              for (let i = 0; i < emptyRowsCount - formattedData.length; i++) {
+                formattedData.push({});
+              }
+            }
+
+            // Create CollectionView and bind data
+            theGrid2.itemsSource = new wijmo.collections.CollectionView(formattedData);
+          } else {
+            /* console.log("Error occurred");*/
+          }
+        },
+        error: function (jqXHR, textStatus, errorThrown) {
+          console.error('Error fetching log_list data:', textStatus, errorThrown);
+        }
       });
-
-      // Create CollectionView and bind data
-      viewdata = new wijmo.collections.CollectionView(formattedData);
-
-      // Set up grouping
-      if (typeof menuGroupName !== 'undefined') {
-        viewdata.groupDescriptions.clear();
-        viewdata.groupDescriptions.push(menuGroupName);
-      } else {
-        console.error("menuGroupName is not defined.");
-      }
-
-      // Bind CollectionView to grid
-      theGrid.itemsSource = viewdata;
-      theGrid.refresh();
-
     }
 
-    function deleteCode() {
+    function searchDataBind3() {
+      /*  console.log("searchDataBind called");*/
+
+      let data = {'txtCode': $('#txtCode3').val()};
+
+      /*      console.log("Data to send:", data);*/
+
+      $.ajax({
+        url: '/api/definition/code/readThird',
+        type: 'GET',
+        data: data,
+        success: function (result) {
+          if (result.success) {
+            /*  console.log("Result data:", result.data);*/
+            let data = result.data;
+            let formattedData = data.map(item => ({
+              cid: item.cid,
+              cgropcd: item.cgropcd,
+              cgroupnm: item.cgroupnm,
+              cstatus: item.cstatus,
+              cdescription:item.cdescription
+            }));
+
+            // 데이터 배열이 작을경우 여러 개의 빈 객체 추가
+            let emptyRowsCount = 12;  // 원하는 빈 행의 수
+            if (formattedData.length < emptyRowsCount) {
+              for (let i = 0; i < emptyRowsCount - formattedData.length; i++) {
+                formattedData.push({});
+              }
+            }
+
+            // Create CollectionView and bind data
+            theGrid3.itemsSource = new wijmo.collections.CollectionView(formattedData);
+          } else {
+            /* console.log("Error occurred");*/
+          }
+        },
+        error: function (jqXHR, textStatus, errorThrown) {
+          console.error('Error fetching log_list data:', textStatus, errorThrown);
+        }
+      });
+    }
+
+    // 1차공정 삭제 메서드
+    function deleteCode1() {
       // 그리드에서 선택된 항목과 열 정보를 가져옵니다
       var selectedRow = theGrid.selection.row;
       var selectedColumn = theGrid.selection.col; // .column 대신 .col로 변경
@@ -619,7 +1068,7 @@
             // 삭제 성공 시 사용자에게 알림 표시 후 그리드 갱신
             if (res.success) {
               Alert.alert('','삭제되었습니다.');
-              searchDataBind(); // 데이터 삭제 후 그리드를 새로 고침
+              searchDataBind1(); // 데이터 삭제 후 그리드를 새로 고침
 
               // 입력 필드 초기화
               clearTableInputs();
@@ -639,9 +1088,180 @@
       });
     }
 
+    function deleteCode2() {
+      // 그리드에서 선택된 항목과 열 정보를 가져옵니다
+      var selectedRow = theGrid2.selection.row;
+      var selectedColumn = theGrid2.selection.col; // .column 대신 .col로 변경
+
+      // 선택된 항목의 데이터 아이템을 가져옵니다
+      var selectedItem = theGrid2.rows[selectedRow]?.dataItem;
+
+      if (!selectedItem) {
+        Alert.alert('','선택된 항목이 없습니다.');
+        return;
+      }
+
+      if (selectedColumn === null || selectedColumn === undefined) {
+        Alert.alert('','선택된 열이 없습니다.');
+        console.error('Invalid column index:', selectedColumn);
+        return;
+      }
+
+      var column = theGrid2.columns[selectedColumn];
+
+      if (!column) {
+        Alert.alert('','유효한 열이 아닙니다. 선택된 열이 없는 것 같습니다.');
+        console.error('Invalid column:', column);
+        return;
+      }
+
+      var cellBinding = column.binding;
+
+      // 바인딩 이름을 확인합니다
+      /*         console.log('Selected Column Object:', column);
+               console.log('Selected Cell Binding:', cellBinding);*/
+
+      // 셀의 바인딩 이름에 따라 ID를 설정합니다
+      let id = null;
+      let value = null;
+
+      id = selectedItem.bid;
+      value = selectedItem.bgroupnm;
+
+
+      if (!id) {
+        Alert.alert('','유효한 ID를 찾을 수 없습니다.');
+        return;
+      }
+
+
+      let url = '/api/definition/code/delete';
+
+      // 삭제할 항목의 ID와 CSRF 토큰 데이터 설정
+      let data = {
+        id: id,  // 선택된 항목의 ID를 사용하여 서버에 전송
+        '_csrf': csrfToken
+      };
+
+
+      // Ajax를 통해 서버에 삭제 요청 전송
+      Alert.confirm('', `선택한 값: ${value}\n삭제하시겠습니까?`, function () {
+        $.ajax({
+          url: url,
+          type: 'POST',
+          data: data,
+          success: function (res) {
+            // 삭제 성공 시 사용자에게 알림 표시 후 그리드 갱신
+            if (res.success) {
+              Alert.alert('','삭제되었습니다.');
+              searchDataBind1(); // 데이터 삭제 후 그리드를 새로 고침
+
+              // 입력 필드 초기화
+              clearTableInputs2();
+
+              // 그리드의 선택 상태를 초기화
+              theGrid2.collectionView.moveCurrentToPosition(-1);
+              theGrid2.selection = new wijmo.grid.CellRange(-1, -1, -1, -1); // 모든 셀의 선택을 해제
+
+            } else {
+              Alert.alert('',res.message);  // 오류 발생 시 사용자에게 알림 표시
+            }
+          },
+          error: function (jqXHR, textStatus, errorThrown) {
+            console.error('Error:', textStatus, errorThrown);
+          }
+        });
+      });
+    }
+
+    function deleteCode3() {
+      // 그리드에서 선택된 항목과 열 정보를 가져옵니다
+      var selectedRow = theGrid3.selection.row;
+      var selectedColumn = theGrid3.selection.col; // .column 대신 .col로 변경
+
+      // 선택된 항목의 데이터 아이템을 가져옵니다
+      var selectedItem = theGrid3.rows[selectedRow]?.dataItem;
+
+      if (!selectedItem) {
+        Alert.alert('','선택된 항목이 없습니다.');
+        return;
+      }
+
+      if (selectedColumn === null || selectedColumn === undefined) {
+        Alert.alert('','선택된 열이 없습니다.');
+        console.error('Invalid column index:', selectedColumn);
+        return;
+      }
+
+      var column = theGrid3.columns[selectedColumn];
+
+      if (!column) {
+        Alert.alert('','유효한 열이 아닙니다. 선택된 열이 없는 것 같습니다.');
+        console.error('Invalid column:', column);
+        return;
+      }
+
+      var cellBinding = column.binding;
+
+      // 바인딩 이름을 확인합니다
+      /*         console.log('Selected Column Object:', column);
+               console.log('Selected Cell Binding:', cellBinding);*/
+
+      // 셀의 바인딩 이름에 따라 ID를 설정합니다
+      let id = null;
+      let value = null;
+
+      id = selectedItem.cid;
+      value = selectedItem.cgroupnm;
+
+      if (!id) {
+        Alert.alert('','유효한 ID를 찾을 수 없습니다.');
+        return;
+      }
+
+
+      let url = '/api/definition/code/delete';
+
+      // 삭제할 항목의 ID와 CSRF 토큰 데이터 설정
+      let data = {
+        id: id,  // 선택된 항목의 ID를 사용하여 서버에 전송
+        '_csrf': csrfToken
+      };
+
+
+      // Ajax를 통해 서버에 삭제 요청 전송
+      Alert.confirm('', `선택한 값: ${value}\n삭제하시겠습니까?`, function () {
+        $.ajax({
+          url: url,
+          type: 'POST',
+          data: data,
+          success: function (res) {
+            // 삭제 성공 시 사용자에게 알림 표시 후 그리드 갱신
+            if (res.success) {
+              Alert.alert('','삭제되었습니다.');
+              searchDataBind1(); // 데이터 삭제 후 그리드를 새로 고침
+
+              // 입력 필드 초기화
+              clearTableInputs3();
+
+              // 그리드의 선택 상태를 초기화
+              theGrid3.collectionView.moveCurrentToPosition(-1);
+              theGrid3.selection = new wijmo.grid.CellRange(-1, -1, -1, -1); // 모든 셀의 선택을 해제
+
+            } else {
+              Alert.alert('',res.message);  // 오류 발생 시 사용자에게 알림 표시
+            }
+          },
+          error: function (jqXHR, textStatus, errorThrown) {
+            console.error('Error:', textStatus, errorThrown);
+          }
+        });
+      });
+    }
+
     function clearTableInputs() {
       // 모든 입력 필드를 선택합니다.
-      let inputs = document.querySelectorAll('#codeForm input[type="text"], #codeForm input[type="number"], #codeForm textarea');
+      let inputs = document.querySelectorAll('#codeForm1 input[type="text"], #codeForm1 input[type="number"], #codeForm1 textarea');
 
       // 각 입력 필드의 값을 빈 문자열로 설정하여 초기화합니다.
       inputs.forEach(function (input) {
@@ -649,23 +1269,89 @@
       });
 
       // 체크박스를 선택하고 체크 해제 상태로 설정합니다.
-      let checkboxes = document.querySelectorAll('#codeForm input[type="checkbox"]');
+      let checkboxes = document.querySelectorAll('#codeForm1 input[type="checkbox"]');
       checkboxes.forEach(function (checkbox) {
         checkbox.checked = false;
       });
 
     }
+    function clearTableInputs2() {
+      // 모든 입력 필드를 선택합니다.
+      let inputs = document.querySelectorAll('#codeForm2 input[type="text"], #codeForm2 input[type="number"], #codeForm2 textarea');
 
-    function checkCodeDuplicate(code) {
+      // 각 입력 필드의 값을 빈 문자열로 설정하여 초기화합니다.
+      inputs.forEach(function (input) {
+        input.value = '';
+      });
+
+      // 체크박스를 선택하고 체크 해제 상태로 설정합니다.
+      let checkboxes = document.querySelectorAll('#codeForm2 input[type="checkbox"]');
+      checkboxes.forEach(function (checkbox) {
+        checkbox.checked = false;
+      });
+
+    }
+    function clearTableInputs3() {
+      // 모든 입력 필드를 선택합니다.
+      let inputs = document.querySelectorAll('#codeForm3 input[type="text"], #codeForm3 input[type="number"], #codeForm3 textarea');
+
+      // 각 입력 필드의 값을 빈 문자열로 설정하여 초기화합니다.
+      inputs.forEach(function (input) {
+        input.value = '';
+      });
+
+      // 체크박스를 선택하고 체크 해제 상태로 설정합니다.
+      let checkboxes = document.querySelectorAll('#codeForm3 input[type="checkbox"]');
+      checkboxes.forEach(function (checkbox) {
+        checkbox.checked = false;
+      });
+
+    }
+    // 코드 중복여부 확인
+    function checkCodeDuplicateFirst(code) {
       $.ajax({
         url: '/api/definition/code/checkDuplicate',
         type: 'GET',
         data: {code: code},
         success: function (response) {
           if (response.exists) {
-            $('#code-check-message').text('중복된 코드입니다.').show();
+            $('#code-check-message1').text('중복된 코드입니다.').show();
           } else {
-            $('#code-check-message').hide();
+            $('#code-check-message1').hide();
+          }
+        },
+        error: function (jqXHR, textStatus, errorThrown) {
+          console.error('중복 체크 오류:', textStatus, errorThrown);
+        }
+      });
+    }
+    function checkCodeDuplicateSecond(code) {
+      $.ajax({
+        url: '/api/definition/code/checkDuplicate',
+        type: 'GET',
+        data: {code: code},
+        success: function (response) {
+          if (response.exists) {
+            $('#code-check-message2').text('중복된 코드입니다.').show();
+          } else {
+            $('#code-check-message2').hide();
+          }
+        },
+        error: function (jqXHR, textStatus, errorThrown) {
+          console.error('중복 체크 오류:', textStatus, errorThrown);
+        }
+      });
+    }
+    function checkCodeDuplicateThird(code) {
+      $.ajax({
+        url: '/api/definition/code/checkDuplicate',
+        type: 'GET',
+        data: {code: code},
+        success: function (response) {
+          if (response.exists) {
+            $('#code-check-message3').text('중복된 코드입니다.').show();
+          } else {
+            $('#code-check-message3').hide();
           }
         },
         error: function (jqXHR, textStatus, errorThrown) {
@@ -675,12 +1361,28 @@
     }
 
     $(document).ready(function () {
-      $('#code').on('input', function () {
+      $('#code1').on('input', function () {
         let code = $(this).val();
         if (code) {
-          checkCodeDuplicate(code);
+          checkCodeDuplicateFirst(code);
         } else {
-          $('#code-check-message').hide();
+          $('#code-check-message1').hide();
+        }
+      });
+      $('#code2').on('input', function () {
+        let code = $(this).val();
+        if (code) {
+          checkCodeDuplicateSecond(code);
+        } else {
+          $('#code-check-message2').hide();
+        }
+      });
+      $('#code2').on('input', function () {
+        let code = $(this).val();
+        if (code) {
+          checkCodeDuplicateThird(code);
+        } else {
+          $('#code-check-message3').hide();
         }
       });
     });

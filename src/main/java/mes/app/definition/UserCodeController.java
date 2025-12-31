@@ -41,14 +41,38 @@ public class UserCodeController {
 	SysCodeRepository sysCodeRepository;
 
 	
-	@GetMapping("/read")
-	public AjaxResult getCodeList(
+	@GetMapping("/readFirst")
+	public AjaxResult getCodeListFirst(
 			@RequestParam("txtCode") String txtCode
 			) {
 		
-		List<Map<String, Object>> items = this.codeService.getCodeList(txtCode);
+		List<Map<String, Object>> items = this.codeService.getCodeListFirst(txtCode);
 		AjaxResult result = new AjaxResult();
 		
+		result.data = items;
+		return result;
+	}
+
+	@GetMapping("/readSecond")
+	public AjaxResult getCodeListSecond(
+			@RequestParam("txtCode") String txtCode
+	) {
+
+		List<Map<String, Object>> items = this.codeService.getCodeListSecond(txtCode);
+		AjaxResult result = new AjaxResult();
+
+		result.data = items;
+		return result;
+	}
+
+	@GetMapping("/readThird")
+	public AjaxResult getCodeListThird(
+			@RequestParam("txtCode") String txtCode
+	) {
+
+		List<Map<String, Object>> items = this.codeService.getCodeListThird(txtCode);
+		AjaxResult result = new AjaxResult();
+
 		result.data = items;
 		return result;
 	}
