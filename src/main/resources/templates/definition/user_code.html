@@ -181,7 +181,7 @@
               <dl>
                 <dt>
                   <label for="txtCode2">
-                    상위코드
+                    상위공정
                   </label>
                 </dt>
                 <dd>
@@ -260,10 +260,9 @@
                       </colgroup>
                       <tbody>
                       <tr>
-                        <th><label for="parent_id2">상위코드</label></th>
+                        <th><label for="parent_id2">상위공정</label></th>
                         <td>
-                          <select type="text" id="parent_id2" name="parent_id2" class="wp100"
-                                 readonly>
+                          <select type="text" id="parent_id2" name="parent_id2" class="wp100">
                           </select>
                         </td>
                       </tr>
@@ -591,8 +590,8 @@
         showMarquee: true,
         columns: [
           { binding: 'bid', header: 'BID', align: 'left', width: "*", visible: false},
-          { binding: 'parent_code', header: '상위코드', align: 'left', width: "*", visible: true},
-          { binding: 'parent_name', header: '상위코드명', align: 'left', width: "*", visible: true},
+          { binding: 'parent_code', header: '상위공정코드', align: 'left', width: "*", visible: true},
+          { binding: 'parent_name', header: '상위공정명', align: 'left', width: "*", visible: true},
           { binding: 'bgropcd', header: '코드', align: 'left', width: "*", isReadOnly: true },
           { binding: 'bgroupnm', header: '분류명', align: 'left', width: "*" },
           { binding: 'Bstatus', header: '사용여부', align: 'left', width: "*", visible: true },
@@ -811,7 +810,7 @@
       /*data.parent_id = $('#parent_id').val(); // hidden input에서 parent_id 값 가져오기*/
       /*  console.log('parent_id 값:', $('#parent_id').val());*/
       // 필수 항목 확인
-      if (!data.code || !data.name) {
+      if (!data.code || !data.name || data.parent_id) {
         Alert.alert('', '필수항목을 입력해주세요');
         return;
       }
