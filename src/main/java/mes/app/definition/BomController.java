@@ -213,7 +213,24 @@ public class BomController {
 		AjaxResult result = new AjaxResult();
 		
 		BomComponent bomComponent = null;
-		
+
+		// BOM 조회
+		Bom bom = this.bomService.getBom(bom_id);
+		if (bom == null) {
+			result.success = false;
+			result.message = "BOM 정보를 찾을 수 없습니다.";
+			return result;
+		}
+
+		// 자기 자신을 구성품으로 등록하는 경우 차단
+		if (bom.getMaterialId() == materialId) {
+			result.success = false;
+			result.message =
+					"자기 자신을 BOM 구성품으로 등록할 수 없습니다.";
+			return result;
+		}
+
+
 		if (id !=null) {
 			// 기존 데이터를 가져온다
 			bomComponent = this.bomService.getBomComponent(id);			

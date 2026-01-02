@@ -1326,7 +1326,7 @@
                     if (res.success)
                         Alert.alert('', '저장되었습니다.');
                     else {
-                        Alert.alert('', '저장에 실패했습니다. \n' + res.message);
+                        Alert.alert('', res.message);
                         return;
                     }
 
