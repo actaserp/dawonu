@@ -181,6 +181,20 @@
               <dl>
                 <dt>
                   <label for="txtCode2">
+                    상위코드
+                  </label>
+                </dt>
+                <dd>
+                  <div class="srch-box">
+                    <select id="parentCode2" name="parentCode2"
+                            style="border-radius: 5px 5px 5px 5px;">
+                    </select>
+                  </div>
+                </dd>
+              </dl>
+              <dl>
+                <dt>
+                  <label for="txtCode2">
                     코드명
                   </label>
                 </dt>
@@ -452,11 +466,13 @@
     let selectedColumnIndex = null;  // 선택된 열 인덱스 저장
 
     function init() {
+      // 2차공정 상위코드 셀렉트 박스 초기화
+      AjaxUtil.fillSelectOptions($('#parent_id2'), 'user_code', 'choose', '', 'JFLAG');
+      AjaxUtil.fillSelectOptions($('#parentCode2'), 'user_code', 'all', '', 'JFLAG');
+
       getCodeListFirst();
       getCodeListSecond();
       getCodeListThird();
-      // 2차공정 상위코드 셀렉트 박스 초기화
-      AjaxUtil.fillSelectOptions($('#parent_id2'), 'user_code', 'choose', '', 'JFLAG');
     }
 
     // 1차공정 조회
@@ -542,12 +558,14 @@
     function getCodeListSecond() {
       let data2 = [];
       let txtCode = $('#txtCode2').val();
+      let parentCode = $('#parentCode2').val();
 
       $.ajax({
         url: '/api/definition/code/readSecond',
         type: 'GET',
         data: {
           'txtCode': txtCode,
+          'parentCode': parentCode
         },
         async: false,
         success: function (data) {
@@ -741,8 +759,8 @@
     $('#btnDelete3').click(deleteCode3); // 3차공정탭
 
     $('#btnSearch1').click(searchDataBind1); // 1차공정탭 검색 버튼 클릭 이벤트 핸들러 등록
-    $('#btnSearc2').click(searchDataBind2); // 2차공정탭
-    $('#btnSearc3').click(searchDataBind3); // 3차공정탭
+    $('#btnSearch2').click(searchDataBind2); // 2차공정탭
+    $('#btnSearch3').click(searchDataBind3); // 3차공정탭
 
     function saveCode1() {
       let url = '/api/definition/code/save';
@@ -905,7 +923,10 @@
     function searchDataBind2() {
       /*  console.log("searchDataBind called");*/
 
-      let data = {'txtCode': $('#txtCode2').val()};
+      let data = {
+        'txtCode': $('#txtCode2').val(),
+        'parentCode': $('#parentCode2').val()
+      };
 
       /*      console.log("Data to send:", data);*/
 
@@ -919,6 +940,8 @@
             let data = result.data;
             let formattedData = data.map(item => ({
               bid: item.bid,
+              parent_code: item.parent_code,
+              parent_name: item.parent_name,
               bgropcd: item.bgropcd,
               bgroupnm: item.bgroupnm,
               bstatus: item.bstatus,

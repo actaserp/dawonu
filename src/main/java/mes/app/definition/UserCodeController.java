@@ -55,10 +55,11 @@ public class UserCodeController {
 
 	@GetMapping("/readSecond")
 	public AjaxResult getCodeListSecond(
-			@RequestParam("txtCode") String txtCode
+			@RequestParam("txtCode") String txtCode,
+			@RequestParam(value = "parentCode", required = false) String parentCode
 	) {
 
-		List<Map<String, Object>> items = this.codeService.getCodeListSecond(txtCode);
+		List<Map<String, Object>> items = this.codeService.getCodeListSecond(txtCode, parentCode);
 		AjaxResult result = new AjaxResult();
 
 		result.data = items;

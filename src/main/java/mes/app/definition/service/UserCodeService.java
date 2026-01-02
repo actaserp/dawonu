@@ -45,10 +45,11 @@ public class UserCodeService {
 	
 	}
 
-	public List<Map<String, Object>> getCodeListSecond(String txtCode){
+	public List<Map<String, Object>> getCodeListSecond(String txtCode, String parentCode){
 
 		MapSqlParameterSource dicParam = new MapSqlParameterSource();
 		dicParam.addValue("txtCode", txtCode);
+		dicParam.addValue("parentCode", parentCode);
 
 		String sql = """
 				WITH\s
@@ -75,8 +76,12 @@ public class UserCodeService {
 				FROM BGroupTB B
 				LEFT JOIN AGroupTB A ON B."Parent_id" = A.id
 				WHERE (:txtCode IS NULL OR LOWER(B."Value") LIKE '%' || LOWER(:txtCode) || '%')
-				ORDER BY B.id, B."Code";
 				""";
+		if (parentCode != null && !parentCode.isBlank()) {
+			dicParam.addValue("parentCode", parentCode);
+			sql += " AND B.\"Parent_id\" = (SELECT id FROM user_code WHERE \"Code\" = :parentCode) ";
+		}
+		sql += " ORDER BY B.id, B.\"Code\" ";
 		List<Map<String, Object>> items = this.sqlRunner.getRows(sql, dicParam);
 		return items;
 
