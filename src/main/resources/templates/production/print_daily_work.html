@@ -1,0 +1,197 @@
+<th:block th:fragment="print_daily_work_order">
+  <script type="text/x-tmpl" id="print_daily_work_order">
+
+    <style>
+      .dw-wrap{
+        width: 750px;
+        margin: 0 auto;
+        font-family: 'Malgun Gothic';
+        padding: 10px;
+        box-sizing: border-box;
+      }
+      .dw-table{
+        width:100%;
+        border-collapse:collapse;
+        table-layout: fixed;
+      }
+      .dw-table th, .dw-table td{
+        border:1px solid #000;
+        padding: 4px 6px;
+        font-size: 12px;
+        line-height: 1.2;
+        vertical-align: middle;
+      }
+      .dw-outer{
+        border:3px solid #000;
+      }
+      .dw-title{
+        font-size: 60px;
+        font-weight: 800;
+        text-align:center;
+        letter-spacing: 6px;
+        padding: 14px 0;
+      }
+      .dw-right{
+        text-align:right;
+      }
+      .dw-center{
+        text-align:center;
+      }
+      .dw-muted{
+        color:#333;
+        font-weight:700;
+      }
+      .dw-head-row td{
+        height: 30px;
+      }
+      .dw-approve th, .dw-approve td{
+        text-align:center;
+        height: 26px;
+        font-size: 12px;
+      }
+      .dw-grid thead th{
+        background:#f4f4f4;
+        font-weight:700;
+        height: 28px;
+      }
+      .dw-grid tbody td{
+        height: 24px;
+      }
+      .dw-note{
+        height: 120px;
+      }
+      .dw-no-border{
+        border:0 !important;
+      }
+      .dw-section-label{
+        font-size: 12px;
+        font-weight: 700;
+        padding: 6px 0;
+      }
+
+    </style>
+
+    <div class="dw-wrap">
+
+      {%
+        const rows = (o && o.rows) ? o.rows : 10;        // 품목 표 기본 10줄
+        const items = (o && o.items) ? o.items : [];     // 품목 리스트
+      %}
+
+      <!-- 전체 외곽 -->
+      <table class="dw-table dw-outer">
+        <!-- 1) 상단: 제목 + 결재란 -->
+        <tr>
+         <td colspan="9" class="dw-title" style="font-size:45px;">일일작업지시서</td>
+
+          <!-- 결재란(작성/검토/승인) -->
+          <td style="width:70px; padding:0;">
+            <table class="dw-table dw-approve">
+              <tr><th>작성</th></tr>
+              <tr><td style="height:54px;">{%= o.writerSign || '' %}</td></tr>
+            </table>
+          </td>
+          <td style="width:70px; padding:0;">
+            <table class="dw-table dw-approve">
+              <tr><th>검토</th></tr>
+              <tr><td style="height:54px;">{%= o.reviewerSign || '' %}</td></tr>
+            </table>
+          </td>
+          <td style="width:70px; padding:0;">
+            <table class="dw-table dw-approve">
+              <tr><th>승인</th></tr>
+              <tr><td style="height:54px;">{%= o.approverSign || '' %}</td></tr>
+            </table>
+          </td>
+        </tr>
+
+        <!-- 2) 작업일자 / 담당자 -->
+        <tr class="dw-head-row">
+          <td colspan="6">
+            <span class="dw-muted">작업일자 :</span>
+            <span style="padding-left:6px;">{%= o.workDate || '' %}</span>
+          </td>
+          <td colspan="3"></td>
+          <td colspan="3">
+            <span class="dw-muted">담당자:</span>
+            <span style="padding-left:6px;">{%= o.manager || '' %}</span>
+          </td>
+        </tr>
+
+        <!-- 3) 당일작업 / 업체명 -->
+        <tr class="dw-head-row">
+          <td colspan="6">
+            <span class="dw-muted">▶ 당일 작업</span>
+          </td>
+          <td colspan="3"></td>
+          <td colspan="3">
+            <span class="dw-muted">업체명</span>
+            <span style="padding-left:6px;">{%= o.companyName || '' %}</span>
+          </td>
+        </tr>
+
+        <!-- 4) 품목 그리드 헤더 -->
+        <tr>
+          <td colspan="12" style="padding:0;">
+            <table class="dw-table dw-grid">
+              <colgroup>
+                <col style="width:60px;">   <!-- NO. -->
+                <col style="width:220px;">  <!-- 품명 -->
+                <col style="width:170px;">  <!-- 규격 -->
+                <col style="width:90px;">   <!-- 수량 -->
+                <col style="width:70px;">   <!-- 단위 -->
+                <col style="width:auto;">   <!-- 현장 -->
+              </colgroup>
+              <thead>
+                <tr>
+                  <th class="dw-center">NO.</th>
+                  <th class="dw-center">품명</th>
+                  <th class="dw-center">규격</th>
+                  <th class="dw-center">수량</th>
+                  <th class="dw-center">단위</th>
+                  <th class="dw-center">현장</th>
+                </tr>
+              </thead>
+              <tbody>
+                {%
+                  for (var i=0; i<Math.max(rows, items.length); i++){
+                    const it = items[i] || {};
+                %}
+                  <tr>
+                    <td class="dw-center">{%= it.no || (items[i] ? (i+1) : '') %}</td>
+                    <td>{%= it.itemName || '' %}</td>
+                    <td class="dw-center">{%= it.spec || '' %}</td>
+                    <td class="dw-center">{%= it.qty || '' %}</td>
+                    <td class="dw-center">{%= it.unit || 'EA' %}</td>
+                    <td>{%= it.site || '' %}</td>
+                  </tr>
+                {% } %}
+              </tbody>
+            </table>
+          </td>
+        </tr>
+
+        <!-- 5) 특기사항 라벨 -->
+        <tr>
+          <td colspan="12" class="dw-no-border" style="border-left:0; border-right:0; border-top:0;">
+            <div class="dw-section-label">※ 특기사항</div>
+          </td>
+        </tr>
+
+        <!-- 6) 특기사항 박스 -->
+        <tr>
+          <td colspan="12" style="padding:0;">
+            <table class="dw-table">
+              <tr>
+                <td class="dw-note">{%= o.note || '' %}</td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+
+      </table>
+
+    </div>
+
+  </script>
+</th:block>

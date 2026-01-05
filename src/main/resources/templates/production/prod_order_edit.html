@@ -175,14 +175,14 @@
 <!--                                    </a>-->
 <!--                                </li>-->
                                 <li>
-                                    <a class="btn" title="생산지시서 출력" id="btnJobResPrint">
-                                        생산지시서 출력
+                                    <a class="btn" title="작업지시서 출력" id="btnJobResPrint">
+                                        작업지시서 출력
                                     </a>
                                 </li>
                                 <li>
-                                    <a class="btn btn-edit" title="생산지시 메모" id="btnJobResDetail">
+                                    <a class="btn btn-edit" title="특기사항 메모" id="btnJobResDetail">
                                         <img src="/images/icon/ico-edit.svg" alt="수정 아이콘">
-                                        생산지시 메모
+                                        특기사항
                                     </a>
                                 </li>
                             </ul>
@@ -301,6 +301,7 @@
     <!--    <th:block th:replace="/common/columns_setting :: columns_setting"></th:block>-->
     <!--    <script type="text/javascript" src="/js/grid.js"></script>-->
     <th:block th:replace="/common/print_report :: print_report"></th:block>
+    <th:block th:replace="/production/print_daily_work :: print_daily_work_order"></th:block>
     <script th:inline="javascript">
         const factory_id = [[${session.factory_id}]];
         const userid = [[${session.userid}]];
@@ -968,67 +969,68 @@
                     let allHtml = `
                         <html>
                         <head>
-                            <title>생산지시서 출력</title>
-                            <style>
-                                body { font-family: 'Malgun Gothic'; margin: 20px; }
-                                @media print {
-                                    .print-page { page-break-after: always; }
-                                }
-                                /* ✅ 프린트 시 색상 유지 */
-                                @media print {
-                                    * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-                                }
-                            </style>
+                          <title>일일작업지시서</title>
+                          <style>
+                            body { font-family: 'Malgun Gothic'; margin: 20px; }
+                            @media print { .print-page { page-break-after: always; } }
+                            @media print { * { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+                          </style>
                         </head>
                         <body>
-                    `;
+                      `;
 
                     for (const item of items) {
                         const date = item.ProductionDate || '';
                         const [y, m, d] = (date.includes('-') ? date.split('-') : ['', '', '']);
 
-                        const parentLen = parseFloat(item.standard || 0) || 0;   // 길이
-                        const parentQty = parseFloat(item.OrderQty || 0) || 0;   // 수량
-                        const parentTotal = parentLen * parentQty;
-
-                        // ✅ 하위항목 길이×수량 합계
-                        const detailTotal = (item.items || []).reduce((sum, v) => {
-                            const len = parseFloat(v.Standard || 0) || 0;
-                            const qty = parseFloat(v.Qty || 0) || 0;
-                            return sum + (len * qty);
-                        }, 0);
-
+                        // ✅ print_daily_work_order 템플릿에 맞춘 data 구성
                         const data = {
-                            title: '생 산 지 시 서',
-                            CompanyName: item.CompanyName,
-                            ProductionDate: date,
-                            WorkcenterName: item.WorkcenterName,
-                            DueDate : item.DueDate ,
+                            // 결재란(원하면 바인딩)
+                            writerSign:   item.writerSign || '',
+                            reviewerSign: item.reviewerSign || '',
+                            approverSign: item.approverSign || '',
 
-                            // ✅ 변경 1: mat_name에 인라인 스타일로 색 지정
-                            mat_name: `<span style="color:red; font-weight:bold;">${item.mat_name}</span>`,
+                            // 상단 정보
+                            workDate: date,                               // 작업일자
+                            manager: '',  // 담당자
+                            companyName: item.CompanyName || '',          // 업체명
 
-                            standard: item.standard,
-                            unit_name: item.unit_name,
-                            OrderQty: item.OrderQty,
-                            ShiftName: item.ShiftName,
-                            month: m,
-                            day: d,
-                            items: item.items || [],
-                            totalMeter: parentTotal + detailTotal ,
-                            note: item.Description || item.description || ''
+                            // 특기사항
+                            note: item.Description || item.description || '',
+
+                            // 품목 표 (템플릿은 it.itemName/it.spec/it.qty/it.unit/it.site 기대)
+                            rows: 10,
+                            items: [
+                                // ✅ 부모 1줄을 “당일 작업” 첫줄로 넣고, 하위항목 이어붙이기(원하는 형태로 조정 가능)
+                                {
+                                    no: 1,
+                                    itemName: item.mat_name || '',
+                                    spec: item.standard || '',
+                                    qty: item.OrderQty || '',
+                                    unit: item.unit_name || 'EA',
+                                    site: item.site || item.WorkcenterName || ''
+                                },
+                                ...((item.items || []).map((r, idx) => ({
+                                    no: idx + 2,
+                                    itemName: r.ItemName || r.mat_name || '',   // 하위항목에 품명이 없으면 빈칸
+                                    spec: r.Standard || '',
+                                    qty: r.Qty || '',
+                                    unit: r.unit_name || 'EA',
+                                    site: r.site || ''
+                                })))
+                            ]
                         };
 
-                        // 기존 tmpl 호출
-                        let html = tmpl('print_report', data);
+                        // ✅ 템플릿 id만 교체
+                        let html = tmpl('print_daily_work_order', data);
 
-                        // ✅ 변경 2: tmpl이 <span>을 이스케이프했을 경우 복원
+                        // ✅ tmpl이 태그 이스케이프했을 경우 복원(기존 그대로)
                         html = html
-                            .replace(/&lt;/g, '<')
-                            .replace(/&gt;/g, '>')
-                            .replace(/&quot;/g, '"')
-                            .replace(/&#39;/g, "'")
-                            .replace(/&amp;/g, '&');
+                        .replace(/&lt;/g, '<')
+                        .replace(/&gt;/g, '>')
+                        .replace(/&quot;/g, '"')
+                        .replace(/&#39;/g, "'")
+                        .replace(/&amp;/g, '&');
 
                         allHtml += `<div class="print-page">${html}</div>`;
                     }
@@ -1041,12 +1043,12 @@
                     printWindow.document.close();
 
                     printWindow.onload = function () {
-                        // ✅ 프린트 전 스타일 적용 보장
                         printWindow.focus();
                         printWindow.print();
                         setTimeout(() => printWindow.close(), 300);
                     };
                 });
+
             }
 
             // 해당 반제품생산지시 내역
