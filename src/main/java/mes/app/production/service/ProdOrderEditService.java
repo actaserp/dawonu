@@ -91,16 +91,19 @@ public class ProdOrderEditService {
         sql += """
         		)
 	            , q as (
-	                select s.id as suju_id
-	                , sum(jr."OrderQty") as ordered_qty
-	                , jr."Description" as memo
-	                from job_res jr 
-	                inner join s on s.id = jr."SourceDataPk" 
-	                and jr."SourceTableName"='suju' 
-	                and jr."Material_id" = s."Material_id"
-	                where jr."State" <>'canceled'
-	                group by s.id, jr."Description"
-	            )
+                        select
+                            s.id as suju_id
+                            , jr."Description" as memo
+                            , sum(jr."OrderQty") as ordered_qty
+                            , sum(sum(jr."OrderQty")) over (partition by s.id) as total_ordered_qty
+                        from job_res jr
+                        inner join s
+                            on s.id = jr."SourceDataPk"
+                           and jr."SourceTableName" = 'suju'
+                           and jr."Material_id" = s."Material_id"
+                        where jr."State" <> 'canceled'
+                        group by s.id, jr."Description"
+                    )
 	            select s.id
 	            , s."JumunNumber"
 	            , to_char(s."JumunDate", 'yyyy-mm-dd') as "JumunDate"
@@ -118,8 +121,8 @@ public class ProdOrderEditService {
 	            , s."SujuQty2" as "SujuQty2"
 	            , s."ReservationStock" as "ReservationStock"
 	            , coalesce(q.ordered_qty,0) as ordered_qty
-	            , round(greatest(0, s."SujuQty2" - coalesce(q.ordered_qty, 0))::numeric, 2) as remain_qty
-	            , 0 as "AdditionalQty"
+	            , round(greatest(0, s."SujuQty2" - coalesce(q.total_ordered_qty, 0))::numeric, 2) as remain_qty  --잔여량
+	            , 0 as "AdditionalQty"                                                                              --지시량 
 	            , s.description
 	            , s."StateName", s."State"
 	            , s.routing_nm
@@ -127,6 +130,7 @@ public class ProdOrderEditService {
 	            , q.memo
 	            from s 
 	            left join q on q.suju_id = s.id
+	            
 	            where 1 = 1
         		""";
 

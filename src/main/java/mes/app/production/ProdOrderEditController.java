@@ -283,7 +283,7 @@ public class ProdOrderEditController {
 		return result;
 	}
 
-	// 지시내역 수정
+	// 작업 지시 수정 (모달 저장)
 	@PostMapping("/update_order")
 	@Transactional
 	public AjaxResult updateOrder(

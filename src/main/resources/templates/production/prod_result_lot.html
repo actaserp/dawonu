@@ -615,13 +615,13 @@
                                 <div id="consumed-grid" style="height: 20vh;"></div>
                             </div>
                         </div>
-                        <div>
+                        <div style="display: none;">
                             <label class="switch">
                                 <input type="checkbox" id="btnToggle"><span class="slider round"></span>
                             </label>투입로트 보기/감추기
                         </div>
                         <div>&nbsp;</div>
-                        <div class="grid_box" id="input_lot_div">
+                        <div class="grid_box" id="input_lot_div" style="display: none;">
                             <div class="button-wrap">
                                 <ul>
                                     <li>
@@ -1173,8 +1173,10 @@
                     _this._currentJrPk = item.id;
                     _this.jobres = item;
 
+                    //로딩바 토글
                     AjaxUtil.showLoading();
 
+                    
                     requestAnimationFrame(() => {
                         requestAnimationFrame(() => {
                             try {

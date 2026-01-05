@@ -19,7 +19,7 @@ import lombok.Setter;
 @Setter
 @Getter
 @NoArgsConstructor
-public class EquRun extends AbstractAuditModel{
+public class EquRun extends AbstractAuditModel {
 	
 	@Id
 	@GeneratedValue(strategy=GenerationType.IDENTITY)

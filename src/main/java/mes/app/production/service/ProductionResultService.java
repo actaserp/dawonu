@@ -32,6 +32,14 @@ public class ProductionResultService {
 	@Autowired
 	MatLotRepository matLotRepository;
 
+
+    /**
+     * 작업지시에서 발생한 불량 수량을
+     * 불량 전용 창고로 입고 처리하여 재고에 반영한다.
+     *
+     * @param jrPk 작업지시 ID
+     * @param id   처리 기준 ID
+     */
 	public void add_jobres_defectqty_inout(Integer jrPk, int id) {
 
 		List<StoreHouse> sh = this.storehouseRepository.findByHouseType("defect");
@@ -79,10 +87,10 @@ public class ProductionResultService {
 		dicParam.addValue("jrPk", jrPk);
 
 		String sql = """
-				delete from mat_inout 
-		        where "SourceTableName"='job_res_defect' 
-		        and "SourceDataPk" in (select id 
-	            from job_res_defect 
+				delete from mat_inout
+		        where "SourceTableName"='job_res_defect'
+		        and "SourceDataPk" in (select id
+	            from job_res_defect
 	            where "JobResponse_id" = :jrPk)
 				""";
 		this.sqlRunner.execute(sql, dicParam);
@@ -101,15 +109,21 @@ public class ProductionResultService {
 		        , "ProductionDate"
 		        from mat_produce
 		         where id = :id
-		        ), bom1 as (
-		        select b1.id as bom_pk, b1."Material_id" as prod_pk
+		        ), 
+		        
+		        bom1 as (
+		        select 
+		        b1.id as bom_pk, 
+		        b1."Material_id" as prod_pk
 		        , b1."OutputAmount" as produced_qty
 		        , mp.prod_qty
 		        , row_number() over(partition by b1."Material_id" order by b1."Version" desc) as g_idx
 		        from bom b1
 		         inner join mp on mp."Material_id"=b1."Material_id"
 		        where b1."BOMType" = 'manufacturing' and mp."ProductionDate" between b1."StartDate" and b1."EndDate"  
-		        ), BT as (
+		        ), 
+		        
+		        BT as (
 		        select 
 		        bc."Material_id" as mat_pk
 		        , bom1.produced_qty
@@ -120,6 +134,7 @@ public class ProductionResultService {
 		        inner join bom1 on bom1.bom_pk=bc."BOM_id"
 		        where bom1.g_idx = 1
 		        )
+		        
 		        select 
 		        BT.mat_pk
 		        , mg."MaterialType" as mat_type
@@ -148,23 +163,31 @@ public class ProductionResultService {
 
 		String sql = """
                       with ll as(
-                      select 
+                      select
                       ml.id as ml_id
-                      from job_res jr  
+                      from job_res jr
                       inner join mat_proc_input mpi on mpi."MaterialProcessInputRequest_id"=jr."MaterialProcessInputRequest_id"
-                      inner join mat_lot ml on ml.id = mpi."MaterialLot_id" 
+                      inner join mat_lot ml on ml.id = mpi."MaterialLot_id"
                       where jr.id = :id
-                      ), ss as( select 
-                      ll.ml_id, sum(mlc."OutputQty") as out_sum 
+                      ),
+                
+                      ss as( 
+                      select 
+                      ll.ml_id, 
+                      sum(mlc."OutputQty") as out_sum 
                       from ll 
                       left join mat_lot_cons mlc on ll.ml_id= mlc."MaterialLot_id" 
                       group by ll.ml_id
-                      ), T as(
+                      ), 
+                      
+                      T as(
                       select 
-                      ss.ml_id, coalesce(ss.out_sum,0) as out_sum, ml."InputQty" 
+                      ss.ml_id, coalesce(ss.out_sum,0) as out_sum, 
+                      ml."InputQty" 
                       from ss
                       inner join mat_lot ml on ml.id=ss.ml_id
                       )
+                      
                       update mat_lot set "OutQtySum" = T.out_sum
                       , "CurrentStock" = mat_lot."InputQty"-T.out_sum
                       from T 
@@ -276,16 +299,16 @@ public class ProductionResultService {
 			  SELECT
 				 S.child_id                                  AS id                         -- 대표행 id
 			   , C."WorkOrderNumber"                         AS order_num
-			   , TO_CHAR(B."ProductionDate",'yyyy-mm-dd')    AS prod_date                  -- 기본정보는 base(부모)
-			   , TO_CHAR(su."DueDate",'yyyy-mm-dd')    AS due_date
-			   , C."LotNumber"                               AS lot_num
-			   , TO_CHAR(B."StartTime",'hh24:mi')            AS start_time
-			   , TO_CHAR(B."EndTime",'hh24:mi')              AS end_time
-			   , WC.id                                       AS workcenter_id
-			   , WC."Name"                                   AS workcenter
-			   , C."ShiftCode"                                AS shift_code
-			   , SH."Name"                                    AS shift_name
-			   , B."WorkIndex"                                AS work_idx
+			   , TO_CHAR(B."ProductionDate",'yyyy-mm-dd')    AS prod_date  --생산일                 -- 기본정보는 base(부모)
+			   , TO_CHAR(su."DueDate",'yyyy-mm-dd')    AS due_date         --수주테이블의 마감기한
+			   , C."LotNumber"                               AS lot_num    --lot 번호
+			   , TO_CHAR(B."StartTime",'hh24:mi')            AS start_time --작업 시작시간
+			   , TO_CHAR(B."EndTime",'hh24:mi')              AS end_time   --작업 종료시간
+			   , WC.id                                       AS workcenter_id --작업 워크센터 아이디
+			   , WC."Name"                                   AS workcenter    --작업 웨크센터 이름
+			   , C."ShiftCode"                                AS shift_code   --근무조 코드
+			   , SH."Name"                                    AS shift_name   --근무조 이름
+			   , B."WorkIndex"                                AS work_idx     --작업순서
 			
 			   -- 파생 상태: working 있으면 working, 아니면 부모 상태
 			   , CASE
@@ -299,31 +322,31 @@ public class ProductionResultService {
 						 WHEN S.any_stopped = 1 THEN 'stopped'
 						 ELSE B."State"
 					 END
-				 ) AS job_state
+				 ) AS job_state                 --작업상태 이름
 			
-			   , C."WorkerCount"                              AS worker_count
-			   , M.id                                         AS mat_pk
-			   , M."Code"                                     AS mat_code
-			   , M."Name"                                     AS mat_name
-			   , fn_code_name('mat_type', MG."MaterialType")  AS mat_type
-			   , M."LotSize"                                  AS lot_size
-			   , M."Weight"                                   AS weight
-			   , U."Name"                                     AS unit
-			   , E.id                                         AS equipment_id
-			   , E."Name"                                     AS equipment
-			   , C."Description"                              AS description
-			   , ROUND(B."OrderQty"::numeric, 2)              AS order_qty
-			   , ROUND(B."GoodQty"::numeric, 2)              AS good_qty
-			   , ROUND(B."DefectQty"::numeric, 2)             AS defect_qty
-			   , B."LossQty"                                  AS loss_qty
-			   , B."ScrapQty"                                 AS scrap_qty
-			   , TO_CHAR(B."ProductionDate" + M."ValidDays", 'yyyy-mm-dd') AS "ValidDays"
-			   , M."Routing_id"                               AS routing_id
-			   , COALESCE(su."Standard", M."Standard1") as standard
-			   , su."CompanyName" as company_name
-			   , M."Factory_id" AS "Factory_id"
-			   , fa."Name" as fac_name
-			   , S.memo
+			   , C."WorkerCount"                              AS worker_count  --작업자수
+			   , M.id                                         AS mat_pk        -- 품목아이디
+			   , M."Code"                                     AS mat_code      -- 품목코드
+			   , M."Name"                                     AS mat_name      -- 품목이름
+			   , fn_code_name('mat_type', MG."MaterialType")  AS mat_type      --품목타입
+			   , M."LotSize"                                  AS lot_size      --한 로트당 사이즈
+			   , M."Weight"                                   AS weight        --품목무게
+			   , U."Name"                                     AS unit          --단위이름
+			   , E.id                                         AS equipment_id  --설비 아이디
+			   , E."Name"                                     AS equipment     --설비이름
+			   , C."Description"                              AS description   --설명
+			   , ROUND(B."OrderQty"::numeric, 2)              AS order_qty     --작업 주문수량
+			   , ROUND(B."GoodQty"::numeric, 2)              AS good_qty       --양품수량
+			   , ROUND(B."DefectQty"::numeric, 2)             AS defect_qty    --불량품수량
+			   , B."LossQty"                                  AS loss_qty      --손실수량
+			   , B."ScrapQty"                                 AS scrap_qty     --잔여수량
+			   , TO_CHAR(B."ProductionDate" + M."ValidDays", 'yyyy-mm-dd') AS "ValidDays" -- (생산일+사용기한)
+			   , M."Routing_id"                               AS routing_id    -- 라우팅 id
+			   , COALESCE(su."Standard", M."Standard1") as standard            -- 규격 
+			   , su."CompanyName" as company_name                              -- 거래처이름
+			   , M."Factory_id" AS "Factory_id"                                -- 공장아이디
+			   , fa."Name" as fac_name                                         -- 공장이름
+			   , S.memo                                                        -- 메모 
 			  FROM S
 			  JOIN job_res       C  ON C.id = S.child_id              -- child = 대표행
 			  JOIN job_res       B  ON B.id = S.base_id               -- base = 부모
@@ -636,6 +659,14 @@ public class ProductionResultService {
 		return items;
 	}
 
+    /**
+     * 공정(Job Response)에 투입된 자재의 LOT별 정보와
+     * 해당 LOT에서 실제 소비된 수량을 조회한다.
+     *
+     * @param jrPk     공정 실행(Job Response) PK
+     * @param mat_code 자재 코드 (null 또는 빈 값이면 전체 조회)
+     * @return LOT 단위의 투입 자재 정보 및 소비 수량 목록
+     */
 	public List<Map<String, Object>> getInputLotList(Integer jrPk, String mat_code) {
 
 		MapSqlParameterSource dicParam = new MapSqlParameterSource();
@@ -724,6 +755,15 @@ public class ProductionResultService {
 		return row != null ? (Integer) row.get("id") : null;
 	}
 
+    /**
+     * 공정 시작 전, 목표 생산 수량을 기준으로
+     * BOM에 정의된 자재의 이론적 소요량을 계산한다.
+     *
+     * @param prodMatId       생산할 제품(Material) ID
+     * @param needProMatQty   목표 생산 수량
+     * @param prodDate        생산 기준일
+     * @return 자재별 이론 소요량 목록 (계획값)
+     */
 	public List<Map<String, Object>> getConsumedListPlan(Integer prodMatId, BigDecimal needProMatQty, String prodDate) {
 		MapSqlParameterSource p = new MapSqlParameterSource();
 		p.addValue("prodMatId", prodMatId);
@@ -786,7 +826,15 @@ public class ProductionResultService {
 	}
 
 
-
+    /**
+     * BOM 기준 이론 소요량과
+     * 실제 현장에서 발생한 투입/소비 데이터를 비교하기 위한 종합 조회.
+     *
+     * @param jrPk     공정 실행(Job Response) PK
+     * @param prodPk   생산 제품(Material) PK
+     * @param prodDate 생산일자
+     * @return 자재별 이론 소요량 vs 실제 투입/소비 현황
+     */
 	public List<Map<String, Object>> getConsumedListFirst(Integer jrPk, Integer prodPk, String prodDate) {
 
 		MapSqlParameterSource dicParam = new MapSqlParameterSource();
@@ -891,6 +939,38 @@ public class ProductionResultService {
 		return items;
 	}
 
+    /**
+     * 지정된 공정(process)에 대해,
+     * 루트 품목(materialId)의 제조 BOM을 기준으로 하위 BOM을 재귀적으로 탐색하여
+     * 공정 산출 품목의 BOM 정보와 누적 소요 비율을 계산한다.
+     *
+     * <p>계산 결과에는 다음 정보가 포함된다.
+     * <ul>
+     *   <li>공정 산출 품목 ID 및 품목명</li>
+     *   <li>해당 품목의 BOM ID 및 부모 BOM ID</li>
+     *   <li>루트 품목 대비 누적 소요 비율(ratio_from_root)</li>
+     *   <li>
+     *     최상위 주문 수량(orderQty)에 누적 비율을 곱하여 산출한
+     *     최종 필요 수량(need_pro_mat_qty)
+     *   </li>
+     * </ul>
+     *
+     * <p>재귀 CTE(WITH RECURSIVE)를 사용하여
+     * <ol>
+     *   <li>유효 기간 및 최신 버전의 제조 BOM을 선택하고</li>
+     *   <li>부모 BOM 산출량 대비 자식 BOM 소요량 비율을 누적 계산하며</li>
+     *   <li>선택된 공정(processId)에 해당하는 산출 품목만을 집계한다</li>
+     * </ol>
+     *
+     * @param routingId   라우팅 ID (확장용 파라미터)
+     * @param processId   조회 대상 공정 ID
+     * @param materialId  루트(최상위) 품목 ID
+     * @param order_qty   최상위 주문 수량
+     * @param prodDate    BOM 유효성 판단 기준 생산일자 (yyyy-MM-dd)
+     *
+     * @return 공정 산출 품목의 BOM 정보, 누적 비율 및
+     *         최종 필요 수량(need_pro_mat_qty)을 포함한 결과 Map
+     */
 	public Map<String, Object> getProcessStepMeta(
 			Integer routingId, Integer processId, Integer materialId, BigDecimal order_qty, String prodDate) {
 
@@ -909,7 +989,7 @@ public class ProductionResultService {
 				 SELECT b1.id AS bom_pk,
 						b1."Material_id"          AS node_mat_id,
 						b1."OutputAmount"::numeric AS node_out,        -- ★ numeric 고정
-						ROW_NUMBER() OVER (PARTITION BY b1."Material_id" ORDER BY b1."Version" DESC) AS rn
+						ROW_NUMBER() OVER (PARTITION BY b1."Material_id" ORDER BY b1."Version" DESC) AS rn  --같은 Material_id 별로 Version이 높은 순서대로 1, 2, 3… 번호를 매긴다
 				 FROM bom b1
 				 WHERE b1."BOMType" = 'manufacturing'
 				   AND :prodDate::date BETWEEN b1."StartDate" AND b1."EndDate"
@@ -938,8 +1018,8 @@ public class ProductionResultService {
 						* ( bc."Amount"::numeric / NULLIF(w.node_out,0)::numeric )
 					  )::numeric AS cum_ratio                          -- ★ 재귀식도 numeric
 			   FROM walk w
-			   JOIN bom_comp bc
-				 ON bc."BOM_id" = w.bom_pk
+			   JOIN bom_comp bc ON bc."BOM_id" = w.bom_pk              -- bom 상세
+				 
 			   JOIN LATERAL (
 				 SELECT b2.id AS bom_pk,
 						b2."Material_id" AS mat_id,
@@ -952,6 +1032,7 @@ public class ProductionResultService {
 				 LIMIT 1
 			   ) child ON TRUE
 			 ),
+			 
 			 targets AS (  -- 선택 공정에 해당하는 산출품 후보
 			   SELECT
 				 w.node_mat_id                     AS pro_mat_id,
@@ -965,6 +1046,7 @@ public class ProductionResultService {
 			   WHERE wc."Process_id" = :processId
 			   GROUP BY w.node_mat_id
 			 )
+			 
 			 SELECT
 			   t.pro_mat_id,
 			   m."Name" AS pro_mat_nm,
@@ -1234,13 +1316,13 @@ public class ProductionResultService {
                 	  , ml.id as ml_id
                 	  , ml."LotNumber"
                 	  , ml."EffectiveDate" as eff_date
-                from job_res jr 
+                from job_res jr
                 inner join mat_proc_input mpi on mpi."MaterialProcessInputRequest_id"  = jr."MaterialProcessInputRequest_id"
-                inner join mat_lot ml on ml.id = mpi."MaterialLot_id" 
+                inner join mat_lot ml on ml.id = mpi."MaterialLot_id"
                 where jr.id = :jrPk
                 and mpi."Material_id" = :matPk
                 order by ml."EffectiveDate"
-                   """;
+                """;
 
 		List<Map<String, Object>> items = this.sqlRunner.getRows(sql, param);
 

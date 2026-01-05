@@ -323,7 +323,7 @@
 
                 this.url = '/api/production/prod_order_edit';
 
-                this.initSuju();
+                this.initSuju(); //수주받은 내역들
                 this.initSemi();
                 this.initJobRes();
                 this.initSemiJobRes();
@@ -486,9 +486,9 @@
                         let item = _this.grid.rows[ht.row]?.dataItem;
                         if (!item) return;
 
-                        _this.loadJobResList(item);
-                        _this.loadSemiJobResList(item);
-                        _this.semiJobRes();
+                        _this.loadJobResList(item); //제품 지시내역
+                        _this.loadSemiJobResList(item); //반제품 지시내역
+                        _this.semiJobRes(); //반제품 작업지시
                     }
                 });
 
@@ -609,6 +609,7 @@
 
                     if (result.success) {
                         Alert.alert('', '생성되었습니다.');
+                        console.log('check', result);
                         selectedItem.ordered_qty = result.data.info.ordered_qty;
                         selectedItem.remain_qty = result.data.info.remain_qty;
                         selectedItem.workcenter_id = null;
