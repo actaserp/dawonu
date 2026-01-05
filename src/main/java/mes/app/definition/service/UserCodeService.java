@@ -70,6 +70,8 @@ public class UserCodeService {
 				    B."_status"     AS Bstatus,
 				    B."Description" AS BDescription,
 				    B."Parent_id"   AS bparent_id,
+				    B."Type" 		AS type,
+				    B."Type2" 		AS type3,
 				    A."Value"       AS parent_name,
 				    A."Code"        AS parent_code,       
 				    A.id            AS aid         

@@ -119,7 +119,10 @@ public class UserCodeController {
 			@RequestParam("name") String value,
 			@RequestParam("code") String code,
 			@RequestParam(value="parent_id" , required=false) Integer parent_id,
-			@RequestParam("description") String description,
+			@RequestParam(value="parent_code" , required=false) String parent_code,
+			@RequestParam(value="type" , required=false) String type,
+			@RequestParam(value = "description", required = false) String description,
+			@RequestParam("status") String status,
 			HttpServletRequest request,
 			Authentication auth) {
 		User user = (User)auth.getPrincipal();
@@ -131,11 +134,23 @@ public class UserCodeController {
 		} else {
 			c = this.userCodeRepository.getUserCodeById(id);
 		}
+		if(parent_code != null && !parent_code.isEmpty()) {
+			List<UserCode> resultList = this.userCodeRepository.findByCode(parent_code);
+			if (!resultList.isEmpty()) {
+				UserCode p = resultList.get(0); // ✅ 첫 번째 데이터 사용
+				c.setParentId(p.getId());
+			}
+		}else{
+			c.setParentId(parent_id);
+		}
+		if(type != null && !type.isEmpty()) {
+			c.setType(type);
+		}
 		c.setValue(value);
 		c.setCode(code);
 		c.setDescription(description);
-		c.setParentId(parent_id);
 		c.set_audit(user);
+		c.set_status(status);
 		
 		c = this.userCodeRepository.save(c);
 		

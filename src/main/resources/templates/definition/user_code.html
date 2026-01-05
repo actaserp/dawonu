@@ -34,7 +34,7 @@
     <!-- Page Title -->
     <div class="page-title-wrap">
       <div class="left">
-        <h2>공정별 관리</h2>
+        <h2>공정별 품목분류</h2>
         <!--                <a title="북마크" class="bookmark toggle">-->
         <!--                    내메뉴-->
         <!--                </a>-->
@@ -42,7 +42,7 @@
       <ul class="page-navi">
         <li><img src="/images/icon/ico-nav-home.svg" alt="홈아이콘"></li>
         <li>기준정보</li>
-        <li>공정별 관리</li>
+        <li>공정별 품목분류</li>
       </ul>
     </div>
 
@@ -137,7 +137,7 @@
                       <tr>
                         <th><label for="code1">코드</label></th>
                         <td>
-                          <input type="text" id="code1" name="code" class="wp100" required>
+                          <input type="text" id="code1" name="code1" class="wp100" required>
                           <div style="text-align:left; ">
                           <span id="code-check-message1"
                                 style="color: red; display: none; ">중복된 코드입니다.</span>
@@ -153,7 +153,7 @@
                       <tr>
                         <th><label for="description1">설명</label></th>
                         <td>
-                          <input type="text" id="description1" name="description"
+                          <input type="text" id="description1" name="description1"
                                  class="wp100">
                         </td>
                       </tr>
@@ -181,7 +181,7 @@
               <dl>
                 <dt>
                   <label for="txtCode2">
-                    상위공정
+                    1차공정
                   </label>
                 </dt>
                 <dd>
@@ -250,26 +250,38 @@
             <div class="col wp30">
               <div class="section">
                 <form id="codeForm2">
-                  <input class="form-control2" type="text" id="id2" name="id" hidden/>
+                  <input class="form-control2" type="text" id="id2" name="id2" hidden/>
                   <div class="table-wrap">
                     <table class="view-table">
                       <caption>코드등록 테이블</caption>
                       <colgroup>
                         <col class="wp20">
-                        <col class="wauto">
+                        <col class="wp40">
+                        <col class="wp40">
                       </colgroup>
                       <tbody>
                       <tr>
-                        <th><label for="parent_id2">상위공정</label></th>
-                        <td>
+                        <th><label for="parent_id2">1차공정</label></th>
+                        <td colspan="2">
                           <select type="text" id="parent_id2" name="parent_id2" class="wp100">
                           </select>
                         </td>
                       </tr>
                       <tr>
-                        <th><label for="code2">코드</label></th>
+                        <th><label for="type2">원재료</label></th>
                         <td>
-                          <input type="text" id="code2" name="code" class="wp100" required>
+                          <select type="text" id="type2" name="type2" class="wp100">
+                          </select>
+                        </td>
+                        <td>
+                          <select type="text" id="type3" name="type3" class="wp100">
+                          </select>
+                        </td>
+                      </tr>
+                      <tr>
+                        <th><label for="code2">코드</label></th>
+                        <td colspan="2">
+                          <input type="text" id="code2" name="code" class="wp100" required readonly>
                           <div style="text-align:left; ">
                                                         <span id="code-check-message2"
                                                               style="color: red; display: none; ">중복된 코드입니다.</span>
@@ -278,21 +290,27 @@
                       </tr>
                       <tr>
                         <th><label for="name2">코드명</label></th>
-                        <td>
+                        <td colspan="2">
                           <input type="text" id="name2" name="name" class="wp100">
                         </td>
                       </tr>
                       <tr>
+                        <th><label for="thick2">두께(T)</label></th>
+                        <td colspan="2">
+                          <input type="number" id="thick2" name="thick2" class="wp100">
+                        </td>
+                      </tr>
+                      <tr>
                         <th><label for="description2">설명</label></th>
-                        <td>
-                          <input type="text" id="description2" name="description"
+                        <td colspan="2">
+                          <input type="text" id="description2" name="description2"
                                  class="wp100">
                         </td>
                       </tr>
 
                       <tr>
                         <th><label for="status2">사용여부</label></th>
-                        <td style="text-align: center; vertical-align: middle;">
+                        <td style="text-align: center; vertical-align: middle;" colspan="2">
                           <input type="checkbox" id="status2" name="status">
                         </td>
                       </tr>
@@ -468,6 +486,22 @@
       // 2차공정 상위코드 셀렉트 박스 초기화
       AjaxUtil.fillSelectOptions($('#parent_id2'), 'user_code', 'choose', '', 'JFLAG');
       AjaxUtil.fillSelectOptions($('#parentCode2'), 'user_code', 'all', '', 'JFLAG');
+      // 원재료 셀렉트 박스 초기화
+      AjaxUtil.fillSelectOptions($('#type2'), 'user_code', 'choose', '', 'JFLAG4');
+      // ✅ type2 변경 시 type3 초기화 및 재로딩
+      $('#type2').on('change', function () {
+        const selectedValue = $(this).val(); // 현재 선택된 type2 값
+
+        // type3 옵션 초기화
+        const $type3 = $('#type3');
+        $type3.empty(); // 옵션 제거
+        $type3.append('<option value="">선택하세요</option>'); // 기본값 추가
+
+        if (selectedValue) {
+          // ✅ 선택값이 있으면 해당 값으로 다시 로딩
+          AjaxUtil.fillSelectOptions($type3, 'user_code', 'choose', '', selectedValue);
+        }
+      });
 
       getCodeListFirst();
       getCodeListSecond();
@@ -510,12 +544,31 @@
         columns: [
           { binding: 'aid', header: 'AID', align: 'left', width: "*", visible: false},
           { binding: 'agropcd', header: '코드', align: 'left', width: "*", isReadOnly: true },
-          { binding: 'agroupnm', header: '분류명', align: 'left', width: "*" },
-          { binding: 'Astatus', header: 'A 사용여부', align: 'left', width: "*", visible: true },
-          { binding: 'ADescription', header: 'A설명', align: 'left', width: "*", visible: true }
+          { binding: 'agroupnm', header: '공정명', align: 'left', width: "*" },
+          { binding: 'astatus', header: '사용여부', align: 'center', width: "*", visible: true },
+          { binding: 'adescription', header: '설명', align: 'left', width: "*", visible: true }
         ],
         itemsSource: viewdata,
         isReadOnly: true,
+        // ✅ 셀 렌더링 시 실행
+        itemFormatter: function(panel, r, c, cell) {
+          if (panel.cellType === wijmo.grid.CellType.Cell) {
+            let col = panel.columns[c];
+            let item = panel.rows[r].dataItem;
+
+            // ✅ astatus 컬럼일 때만 체크 표시
+            if (col.binding === 'astatus') {
+              if (item.astatus && item.astatus.toLowerCase() === 'y') {
+                cell.textContent = '√';  // 표시 문자
+                // cell.style.color = '#00aa00';  // 초록색 표시 (선택사항)
+                cell.style.fontWeight = 'bold';
+                cell.style.textAlign = 'center';
+              } else {
+                cell.textContent = '';  // 'n' 또는 null일 경우 비움
+              }
+            }
+          }
+        }
       });
 
       theGrid.selectionChanged.addHandler(function (s, e) {
@@ -542,7 +595,6 @@
           $('#code1').val(selectedItem.agropcd || '');
           $('#name1').val(selectedItem.agroupnm || '');
           $('#description1').val(selectedItem.adescription || '');
-          // $('#parent_name').val(''); // 상위코드는 비웁니다
           // A 그룹 체크박스 상태 반영
           $('#status1').prop('checked', selectedItem.astatus === 'y');
         }
@@ -590,15 +642,36 @@
         showMarquee: true,
         columns: [
           { binding: 'bid', header: 'BID', align: 'left', width: "*", visible: false},
-          { binding: 'parent_code', header: '상위공정코드', align: 'left', width: "*", visible: true},
-          { binding: 'parent_name', header: '상위공정명', align: 'left', width: "*", visible: true},
+          { binding: 'parent_code', header: '1차공정코드', align: 'left', width: "*", visible: true},
+          { binding: 'parent_name', header: '1차공정명', align: 'left', width: "*", visible: true},
           { binding: 'bgropcd', header: '코드', align: 'left', width: "*", isReadOnly: true },
-          { binding: 'bgroupnm', header: '분류명', align: 'left', width: "*" },
-          { binding: 'Bstatus', header: '사용여부', align: 'left', width: "*", visible: true },
-          { binding: 'BDescription', header: '설명', align: 'left', width: "*", visible: true }
+          { binding: 'bgroupnm', header: '공정명', align: 'left', width: "*" },
+          { binding: 'type', header: '두께(T)', align: 'center', width: "*" },
+          { binding: 'bstatus', header: '사용여부', align: 'left', width: "*", visible: true },
+          { binding: 'bdescription', header: '설명', align: 'left', width: "*", visible: true }
         ],
         itemsSource: viewdata2,
         isReadOnly: true,
+
+        // ✅ 셀 렌더링 시 실행
+        itemFormatter: function(panel, r, c, cell) {
+          if (panel.cellType === wijmo.grid.CellType.Cell) {
+            let col = panel.columns[c];
+            let item = panel.rows[r].dataItem;
+
+            // ✅ astatus 컬럼일 때만 체크 표시
+            if (col.binding === 'bstatus') {
+              if (item.bstatus && item.bstatus.toLowerCase() === 'y') {
+                cell.textContent = '√';  // 표시 문자
+                // cell.style.color = '#00aa00';  // 초록색 표시 (선택사항)
+                cell.style.fontWeight = 'bold';
+                cell.style.textAlign = 'center';
+              } else {
+                cell.textContent = '';  // 'n' 또는 null일 경우 비움
+              }
+            }
+          }
+        }
       });
 
       theGrid2.selectionChanged.addHandler(function (s, e) {
@@ -621,14 +694,26 @@
 
         // 선택된 항목과 선택된 셀의 바인딩을 확인
         if (selectedItem) {
+          const $type2 = $('#type2');
+          const $type3 = $('#type3');
+
+          const type3Value = selectedItem.type3 || '';
+          const type2Value = type3Value ? type3Value.charAt(0) : '';
+          $type2.val(type2Value).trigger('change');
+          setTimeout(() => {
+            $type3.val(type3Value);
+          }, 200);
+
+          // 5️⃣ 나머지 필드 바인딩
           $('#id2').val(selectedItem.bid || '');
           $('#code2').val(selectedItem.bgropcd || '');
           $('#name2').val(selectedItem.bgroupnm || '');
           $('#description2').val(selectedItem.bdescription || '');
-          $('#parent_id2').val(''); // 상위코드는 비웁니다
-          // A 그룹 체크박스 상태 반영
+          $('#parent_id2').val(selectedItem.parent_code || '');
+          $('#thick2').val(selectedItem.type || '');
           $('#status2').prop('checked', selectedItem.bstatus === 'y');
         }
+
       });
 
       theGrid2.rowHeaders.columns.splice(0, 1);  //맨 앞에 헤더부분 없애기
@@ -672,12 +757,32 @@
         columns: [
           { binding: 'cid', header: 'CID', align: 'left', width: "*", visible: false},
           { binding: 'cgropcd', header: '코드', align: 'left', width: "*", isReadOnly: true },
-          { binding: 'cgroupnm', header: '분류명', align: 'left', width: "*" },
+          { binding: 'cgroupnm', header: '공정명', align: 'left', width: "*" },
           { binding: 'cstatus', header: '사용여부', align: 'left', width: "*", visible: true },
-          { binding: 'cDescription', header: '설명', align: 'left', width: "*", visible: true }
+          { binding: 'cdescription', header: '설명', align: 'left', width: "*", visible: true }
         ],
         itemsSource: viewdata3,
         isReadOnly: true,
+
+        // ✅ 셀 렌더링 시 실행
+        itemFormatter: function(panel, r, c, cell) {
+          if (panel.cellType === wijmo.grid.CellType.Cell) {
+            let col = panel.columns[c];
+            let item = panel.rows[r].dataItem;
+
+            // ✅ astatus 컬럼일 때만 체크 표시
+            if (col.binding === 'cstatus') {
+              if (item.cstatus && item.cstatus.toLowerCase() === 'y') {
+                cell.textContent = '√';  // 표시 문자
+                // cell.style.color = '#00aa00';  // 초록색 표시 (선택사항)
+                cell.style.fontWeight = 'bold';
+                cell.style.textAlign = 'center';
+              } else {
+                cell.textContent = '';  // 'n' 또는 null일 경우 비움
+              }
+            }
+          }
+        }
       });
 
       theGrid3.selectionChanged.addHandler(function (s, e) {
@@ -767,6 +872,9 @@
 
       // 체크박스 상태에 따라 값을 설정
       data.status = $('#status1').is(':checked') ? 'y' : 'n';
+      data.id = data.id1;
+      data.code = data.code1;
+      data.description = data.description1;
 
       data.parent_id = 330;
       // 필수 항목 확인
@@ -804,13 +912,15 @@
 
       // 체크박스 상태에 따라 값을 설정
       data.status = $('#status2').is(':checked') ? 'y' : 'n';
+      data.id = data.id2;
+      data.code = data.code2;
+      data.parent_code = data.parent_id2
+      data.description = data.description2;
 
-      let parentId = $('#parent_id2').val();
-      data.parent_id = parentId;
-      /*data.parent_id = $('#parent_id').val(); // hidden input에서 parent_id 값 가져오기*/
-      /*  console.log('parent_id 값:', $('#parent_id').val());*/
+      console.log('aid 값:', data.aid);
+      console.log('parent_id 값:', data.parent_id2);
       // 필수 항목 확인
-      if (!data.code || !data.name || data.parent_id) {
+      if (!data.code || !data.name || !data.parent_id2) {
         Alert.alert('', '필수항목을 입력해주세요');
         return;
       }
@@ -846,8 +956,12 @@
       data.status = $('#status3').is(':checked') ? 'y' : 'n';
 
       data.parent_id = 335;
+      data.id = data.id3;
+      data.code = data.code3;
+      data.description = data.description3;
+      data.name = data.name3;
       // 필수 항목 확인
-      if (!data.code || !data.name) {
+      if (!data.code3 || !data.name3) {
         Alert.alert('', '필수항목을 입력해주세요');
         return;
       }
@@ -1407,8 +1521,26 @@
           $('#code-check-message3').hide();
         }
       });
-    });
+      function updateCode2() {
+        const parentVal = $('#parent_id2').val()?.trim() || '';
+        const type3Val = $('#type3').val()?.trim() || '';
+        const thickVal = $('#thick2').val()?.trim() || '';
 
+        let newCode = '';
+        if (parentVal && type3Val && thickVal) {
+          newCode = `${parentVal}${type3Val}${thickVal}`;
+        } else if (parentVal && type3Val) {
+          newCode = `${parentVal}${type3Val}`;
+        } else if (parentVal) {
+          newCode = parentVal;
+        }
+
+        $('#code2').val(newCode);
+      }
+
+      // 3가지 요소 모두 감시
+      $('#parent_id2, #type3, #thick2').on('change input', updateCode2);
+    });
   </script>
 
 </th:block>
