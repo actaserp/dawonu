@@ -824,7 +824,7 @@
     // 신규등록 버튼 클릭 이벤트 핸들러 등록
     $('#Newbtn1').click(function () {
       // 상위코드 입력 필드를 비활성화
-      ['id1', 'code1', 'name1','description1','parent_id1'].forEach(id=>{
+      ['id1', 'code1', 'name1','description1'].forEach(id=>{
         document.getElementById(id).value = '';
       });
 
@@ -834,19 +834,31 @@
 
     // 신규등록 버튼 클릭 이벤트 핸들러 등록
     $('#Newbtn2').click(function () {
-      // 상위코드 입력 필드를 비활성화
-      ['id', 'code', 'name','description','parent_name','parent_id'].forEach(id=>{
-        document.getElementById(id).value = '';
+      // 입력 필드 초기화
+      ['id2', 'code2', 'name2', 'description2'].forEach(id => {
+        $('#' + id).val('');
       });
 
-      // 모든 체크박스 초기화
+      // ✅ select 박스 초기화
+      $('#parent_id2').val('');
+      $('#type2').val('');
+      $('#type3').val('');
+
+      // ✅ 두께 입력값도 초기화
+      $('#thick2').val('');
+
+      // ✅ 체크박스 해제
       $('#codeForm2 input[type="checkbox"]').prop('checked', false);
+
+      // ✅ 코드 중복 메시지도 숨기기
+      $('#code-check-message2').hide();
     });
+
 
     // 신규등록 버튼 클릭 이벤트 핸들러 등록
     $('#Newbtn3').click(function () {
       // 상위코드 입력 필드를 비활성화
-      ['id', 'code', 'name','description','parent_name','parent_id'].forEach(id=>{
+      ['id3', 'code3', 'name3','description3'].forEach(id=>{
         document.getElementById(id).value = '';
       });
 
