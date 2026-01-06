@@ -147,7 +147,7 @@
                       <tr>
                         <th><label for="name1">코드명</label></th>
                         <td>
-                          <input type="text" id="name1" name="name" class="wp100">
+                          <input type="text" id="name1" name="name1" class="wp100">
                         </td>
                       </tr>
                       <tr>
@@ -291,7 +291,7 @@
                       <tr>
                         <th><label for="name2">코드명</label></th>
                         <td colspan="2">
-                          <input type="text" id="name2" name="name" class="wp100">
+                          <input type="text" id="name2" name="name2" class="wp100">
                         </td>
                       </tr>
                       <tr>
@@ -1140,61 +1140,13 @@
 
     // 1차공정 삭제 메서드
     function deleteCode1() {
-      // 그리드에서 선택된 항목과 열 정보를 가져옵니다
-      var selectedRow = theGrid.selection.row;
-      var selectedColumn = theGrid.selection.col; // .column 대신 .col로 변경
-
-      // 선택된 항목의 데이터 아이템을 가져옵니다
-      var selectedItem = theGrid.rows[selectedRow]?.dataItem;
-
-      if (!selectedItem) {
-        Alert.alert('','선택된 항목이 없습니다.');
-        return;
-      }
-
-      if (selectedColumn === null || selectedColumn === undefined) {
-        Alert.alert('','선택된 열이 없습니다.');
-        console.error('Invalid column index:', selectedColumn);
-        return;
-      }
-
-      var column = theGrid.columns[selectedColumn];
-
-      if (!column) {
-        Alert.alert('','유효한 열이 아닙니다. 선택된 열이 없는 것 같습니다.');
-        console.error('Invalid column:', column);
-        return;
-      }
-
-      var cellBinding = column.binding;
-
-      // 바인딩 이름을 확인합니다
-      /*         console.log('Selected Column Object:', column);
-               console.log('Selected Cell Binding:', cellBinding);*/
-
-      // 셀의 바인딩 이름에 따라 ID를 설정합니다
       let id = null;
       let value = null;
-      switch (cellBinding) {
-        case 'agroupnm':
-          id = selectedItem.aid;
-          value = selectedItem.agroupnm;
-          break;
-        case 'bgroupnm':
-          id = selectedItem.bid;
-          value = selectedItem.bgroupnm;
-          break;
-        case 'cgroupnm':
-          id = selectedItem.cid;
-          value = selectedItem.cgroupnm;
-          break;
-        default:
-          Alert.alert('','알 수 없는 바인딩입니다: ' + cellBinding); // 바인딩 이름을 출력
-          return;
-      }
-
+      let formData = FormUtil.extractForm($('#codeForm1'));
+      id = formData.id1;
+      value = formData.name1;
       if (!id) {
-        Alert.alert('','유효한 ID를 찾을 수 없습니다.');
+        Alert.alert('','1차공정 품목분류를 선택하여 주십시오');
         return;
       }
 
@@ -1239,48 +1191,13 @@
     }
 
     function deleteCode2() {
-      // 그리드에서 선택된 항목과 열 정보를 가져옵니다
-      var selectedRow = theGrid2.selection.row;
-      var selectedColumn = theGrid2.selection.col; // .column 대신 .col로 변경
-
-      // 선택된 항목의 데이터 아이템을 가져옵니다
-      var selectedItem = theGrid2.rows[selectedRow]?.dataItem;
-
-      if (!selectedItem) {
-        Alert.alert('','선택된 항목이 없습니다.');
-        return;
-      }
-
-      if (selectedColumn === null || selectedColumn === undefined) {
-        Alert.alert('','선택된 열이 없습니다.');
-        console.error('Invalid column index:', selectedColumn);
-        return;
-      }
-
-      var column = theGrid2.columns[selectedColumn];
-
-      if (!column) {
-        Alert.alert('','유효한 열이 아닙니다. 선택된 열이 없는 것 같습니다.');
-        console.error('Invalid column:', column);
-        return;
-      }
-
-      var cellBinding = column.binding;
-
-      // 바인딩 이름을 확인합니다
-      /*         console.log('Selected Column Object:', column);
-               console.log('Selected Cell Binding:', cellBinding);*/
-
-      // 셀의 바인딩 이름에 따라 ID를 설정합니다
       let id = null;
       let value = null;
-
-      id = selectedItem.bid;
-      value = selectedItem.bgroupnm;
-
-
+      let formData = FormUtil.extractForm($('#codeForm2'));
+      id = formData.id2;
+      value = formData.name2;
       if (!id) {
-        Alert.alert('','유효한 ID를 찾을 수 없습니다.');
+        Alert.alert('','1차공정 품목분류를 선택하여 주십시오');
         return;
       }
 
@@ -1307,7 +1224,7 @@
               searchDataBind1(); // 데이터 삭제 후 그리드를 새로 고침
 
               // 입력 필드 초기화
-              clearTableInputs2();
+              clearTableInputs();
 
               // 그리드의 선택 상태를 초기화
               theGrid2.collectionView.moveCurrentToPosition(-1);
@@ -1325,47 +1242,13 @@
     }
 
     function deleteCode3() {
-      // 그리드에서 선택된 항목과 열 정보를 가져옵니다
-      var selectedRow = theGrid3.selection.row;
-      var selectedColumn = theGrid3.selection.col; // .column 대신 .col로 변경
-
-      // 선택된 항목의 데이터 아이템을 가져옵니다
-      var selectedItem = theGrid3.rows[selectedRow]?.dataItem;
-
-      if (!selectedItem) {
-        Alert.alert('','선택된 항목이 없습니다.');
-        return;
-      }
-
-      if (selectedColumn === null || selectedColumn === undefined) {
-        Alert.alert('','선택된 열이 없습니다.');
-        console.error('Invalid column index:', selectedColumn);
-        return;
-      }
-
-      var column = theGrid3.columns[selectedColumn];
-
-      if (!column) {
-        Alert.alert('','유효한 열이 아닙니다. 선택된 열이 없는 것 같습니다.');
-        console.error('Invalid column:', column);
-        return;
-      }
-
-      var cellBinding = column.binding;
-
-      // 바인딩 이름을 확인합니다
-      /*         console.log('Selected Column Object:', column);
-               console.log('Selected Cell Binding:', cellBinding);*/
-
-      // 셀의 바인딩 이름에 따라 ID를 설정합니다
       let id = null;
       let value = null;
-
-      id = selectedItem.cid;
-      value = selectedItem.cgroupnm;
-
+      let formData = FormUtil.extractForm($('#codeForm3'));
+      id = formData.id3;
+      value = formData.name3;
       if (!id) {
-        Alert.alert('','유효한 ID를 찾을 수 없습니다.');
+        Alert.alert('','1차공정 품목분류를 선택하여 주십시오');
         return;
       }
 
@@ -1392,7 +1275,7 @@
               searchDataBind1(); // 데이터 삭제 후 그리드를 새로 고침
 
               // 입력 필드 초기화
-              clearTableInputs3();
+              clearTableInputs();
 
               // 그리드의 선택 상태를 초기화
               theGrid3.collectionView.moveCurrentToPosition(-1);

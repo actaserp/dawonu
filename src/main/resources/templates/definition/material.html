@@ -1531,6 +1531,22 @@
                 if (result.success != null) {
                     let detailData = result.data;
                     FormUtil.BindDataForm(detailData, $('#matBasicForm'));
+                    // ✅ 종속 select 처리
+                    const $class1 = $('#Class1');
+                    const $class2 = $('#Class2');
+                    const $class3 = $('#Class3');
+                    // 1️⃣ Class1 먼저 바인드 + change 트리거 (→ Class2 로딩)
+                    $class1.val(detailData.Class1).trigger('change');
+
+                    // 2️⃣ Class1의 change 핸들러(Ajax 로드)가 완료되도록 약간의 지연 후 Class2 값 세팅
+                    setTimeout(() => {
+                        $class2.val(detailData.Class2).trigger('change');
+
+                        // 3️⃣ Class2가 변경되면 Class3 로딩됨 → 그 후 값 세팅
+                        setTimeout(() => {
+                            $class3.val(detailData.Class3).trigger('change');
+                        }, 200);
+                    }, 200);
                     FormUtil.BindDataForm(detailData, $('#matProductionForm'));
                     FormUtil.BindDataForm(detailData, $('#matStockForm'));
                     FormUtil.BindDataForm(detailData, $('#matTestForm'));
