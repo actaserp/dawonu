@@ -249,27 +249,27 @@
                                             </td>
 
                                             <th>
-                                                <label for="MaterialFirstCode"><span class="eq">*</span>1차공정</label>
+                                                <label for="Class1"><span class="eq">*</span>1차공정</label>
                                             </th>
                                             <td colspan="2">
-                                                <select id="MaterialFirstCode" name="MaterialFirstCode"
+                                                <select id="Class1" name="Class1"
                                                         style="width: 100%;" required></select>
                                             </td>
                                         </tr>
                                         <tr>
                                             <th>
-                                                <label for="MaterialSecondCode"><span class="eq">*</span>2차공정</label>
+                                                <label for="Class2"><span class="eq">*</span>2차공정</label>
                                             </th>
                                             <td colspan="2">
-                                                <select id="MaterialSecondCode" name="MaterialSecondCode"
+                                                <select id="Class2" name="Class2"
                                                         style="width: 100%;" required></select>
                                             </td>
 
                                             <th>
-                                                <label for="MaterialThirdCode"><span class="eq">*</span>3차공정</label>
+                                                <label for="Class3"><span class="eq">*</span>3차공정</label>
                                             </th>
                                             <td colspan="2">
-                                                <select id="MaterialThirdCode" name="MaterialThirdCode"
+                                                <select id="Class3" name="Class3"
                                                         style="width: 100%;" required></select>
                                             </td>
                                         </tr>
@@ -428,33 +428,6 @@
                                                        name="Standard2">
                                             </td>
                                             <th>
-                                                <label for="Class1">분류1</label>
-                                            </th>
-                                            <td colspan="2">
-                                                <input type="text" id="Class1" name="Class1"
-                                                       style="width: 100%;">
-                                            </td>
-
-
-                                        </tr>
-                                        <tr>
-                                            <th>
-                                                <label for="Class2">분류2</label>
-                                            </th>
-                                            <td colspan="2">
-                                                <input type="text" style="width: 100%;" id="Class2"
-                                                       name="Class2">
-                                            </td>
-                                            <th>
-                                                <label for="Class3">분류3</label>
-                                            </th>
-                                            <td colspan="2">
-                                                <input type="text" style="width: 100%;" id="Class3"
-                                                       name="Class3">
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <th>
                                                 <label for="Usage">용도</label>
                                             </th>
                                             <td colspan="2">
@@ -462,10 +435,14 @@
                                                        style="width: 100%;">
                                             </td>
 
+                                        </tr>
+                                        <tr>
+
+
                                             <th>
                                                 <label for="Description">비고</label>
                                             </th>
-                                            <td colspan="2">
+                                            <td colspan="5">
                                                 <!--<textarea id="Description" name="Description"></textarea>-->
                                                 <input type="text" id="Description" name="Description"
                                                        style="width: 100%;">
@@ -1435,14 +1412,14 @@
                 AjaxUtil.fillSelectOptions($('#MaterialGroup_id'), 'material_group', '', false); // 품목그룹
                 AjaxUtil.fillSelectOptions($('#Unit_id'), 'unit', '', false); // 단위
                 AjaxUtil.fillSelectOptions($('#StoreHouse_id'), 'store_house', '', '4'); // 창고
-                AjaxUtil.fillSelectOptions($('#MaterialFirstCode'), 'user_code', 'choose', '', 'JFLAG');
-                AjaxUtil.fillSelectOptions($('#MaterialThirdCode'), 'user_code', 'all', '', 'JFLAG3');
+                AjaxUtil.fillSelectOptions($('#Class1'), 'user_code', 'choose', '', 'JFLAG');
+                AjaxUtil.fillSelectOptions($('#Class3'), 'user_code', 'all', '', 'JFLAG3');
                 // 1차공정 변경 시 2차공정 초기화 및 재로딩
-                $('#MaterialFirstCode').on('change', function () {
+                $('#Class1').on('change', function () {
                     const selectedValue = $(this).val(); // 현재 선택된 type2 값
 
-                    // type3 옵션 초기화
-                    const $type3 = $('#MaterialSecondCode');
+                    // 2차공정 옵션 초기화
+                    const $type3 = $('#Class2');
                     $type3.empty(); // 옵션 제거
                     $type3.append('<option value="">선택하세요</option>'); // 기본값 추가
 
@@ -2693,7 +2670,25 @@
                     $("#unitcostSaveButtonContainer").hide();
                 }
             });
+            function updateCode2() {
+                const Class1 = $('#Class1').val()?.trim() || '';
+                const Class2 = $('#Class2').val()?.trim() || '';
+                const Class3 = $('#Class3').val()?.trim() || '';
 
+                let newCode = '';
+                if (Class1 && Class2 && Class3) {
+                    newCode = `${Class1}${Class2}${Class3}`;
+                } else if (Class1 && Class2) {
+                    newCode = `${Class1}${Class2}`;
+                } else if (Class1) {
+                    newCode = Class1;
+                }
+
+                $('#Code').val(newCode);
+            }
+
+            // 3가지 요소 모두 감시
+            $('#parent_id2, #type3, #thick2').on('change input', updateCode2);
 
             page.searchDataBind();
             resetForms();
