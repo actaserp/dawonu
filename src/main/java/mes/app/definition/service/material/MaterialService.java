@@ -49,8 +49,11 @@ public class MaterialService {
                 , m."Color" as color
                 , m."Usage" as usage
                 , m."Class1" as class1
+                , uc1."Value" as "class1Name"
                 , m."Class2" as class2
+                , uc2."Value" as "class2Name"
                 , m."Class3" as class3
+                , uc3."Value" as "class3Name"
                 , m."Standard1" as starndard1
                 , m."Standard2" as standard2 
                 , m."Description" as description
@@ -84,7 +87,6 @@ public class MaterialService {
                 , m."Avrqty" as avrqty
                 , m."Routing_id"
                 , m."mat_user_code"
-                , uc."Value" as user_code_name
                 , CASE
 					 WHEN b."Material_id" IS NOT NULL THEN 1
 					 ELSE 0
@@ -101,7 +103,9 @@ public class MaterialService {
 				on b."Material_id" = m.id
 				and (b."StartDate" IS NULL OR b."StartDate" <= CURRENT_DATE)
 				and (b."EndDate"   IS NULL OR b."EndDate"   >= CURRENT_DATE)
-			left join user_code uc on m.mat_user_code = uc.id
+			left join user_code uc1 on m."Class1" = uc1."Code"
+			left join user_code uc2 on m."Class2" = uc2."Code"
+			left join user_code uc3 on m."Class3" = uc3."Code"
             where 1=1
             AND m.spjangcd = :spjangcd
             AND m."Useyn" = :UseYn
