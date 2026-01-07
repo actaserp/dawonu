@@ -277,7 +277,7 @@
 
             theGrid.hostElement.addEventListener('dblclick', function (e) {
                 let selectedItem = theGrid.selectedItems[0];
-                /*console.log(selectedItem);*/
+                console.log(selectedItem);
 
 
                 document.getElementById('id').value = selectedItem.id;
@@ -337,9 +337,9 @@
             resetForm(true);
             //equipGrid.setData([]);
 
+               // $('#btnDelEquip').prop('disabled', true);
             setButtonState();
             /*$('#btnNewEquip').prop('disabled', true);*/
-            $('#btnDelEquip').prop('disabled', true);
         }
 
         function grid_binding(data) {
@@ -347,6 +347,8 @@
                 console.error('데이터가 배열 형식이 아닙니다:', data);
                 return;
             }
+
+            console.log(data);
 
             let menulogData = data.map(item => ({
                 id: item.id,
@@ -389,6 +391,8 @@
             let url = '/api/definition/workcenter/save';
             //데이터입력체크루틴 누락
             let data = FormUtil.extractForm($('#workcenterForm'));
+
+            console.log('foactory_id', data.factory_id)
 
             if (!data.factory_id) {
                 Alert.alert('', '공장을 선택해주세요.');
@@ -569,6 +573,9 @@
         function setButtonState() {
             let pk = $('#id').val();
 
+            console.log('pk', pk);
+            
+
             $('#btnNewWorkcenter').prop('disabled', false);
             $('#btnSaveWorkcenter').prop('disabled', false);
 
@@ -578,8 +585,10 @@
                 $('#workcenterForm select, #workcenterForm input, #workcenterForm :checkbox').each(function () {
                     $(this).prop('disabled', false);
                 });
+                $('#btnDelEquip').prop('disabled', false);
             } else {
                 $('#btnDelWorkcenter').prop('disabled', true);
+                $('#btnDelEquip').prop('disabled', true);
             }
 
         }

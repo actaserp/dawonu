@@ -197,11 +197,13 @@
       theGrid.hostElement.addEventListener('click', function (e) {
         let selectedItem = theGrid.selectedItems[0];
 
-        document.getElementById('id').value = selectedItem.id;
-        document.getElementById('Code').value = selectedItem.dept_code;
-        document.getElementById('Name').value = selectedItem.dept_name;
-        document.getElementById('Type').value = selectedItem.dept_type;
-        document.getElementById('Description').value = selectedItem.description;
+        console.log('selected', selectedItem)
+
+        document.getElementById('id').value = selectedItem.id ? selectedItem.id : '';
+        document.getElementById('Code').value = selectedItem.dept_code ? selectedItem.dept_code : '';
+        document.getElementById('Name').value = selectedItem.dept_name ? selectedItem.dept_name : '';
+        document.getElementById('Type').value = selectedItem.dept_type ? selectedItem.dept_type : '';
+        document.getElementById('Description').value = selectedItem.description ? selectedItem.description : '';
 
         setButtonState();
       });
@@ -336,7 +338,7 @@
 
     // 부서 정보 삭제
     function deleteDepart() {
-      let url = '/api/definition/depart';
+      let url = '/api/definition/factory';
       let id = $('#basicForm').find('#id').val();
       let data = {id: id};
       let fnSuccess = function (res) {

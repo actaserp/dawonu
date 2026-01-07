@@ -1469,7 +1469,29 @@ let AjaxUtil = {
         });
 
         if (selected_value) {
-            $combo.val(selected_value).change();
+
+            switch(selected_value){
+                case 'change' : $combo.change();
+                break;
+                
+                case 'first':
+                $combo.prop('selectedIndex', 0).trigger('change');
+                break;
+                
+                case 'none':
+                    $combo.prop('selectedIndex', -1).trigger('change');
+                    break;
+
+                default : $combo.val(selected_value).change();
+                break;
+
+            }
+
+            // if(selected_value === 'change'){
+            //     $combo.change();
+            // }else{
+            //         $combo.val(selected_value).change();
+            // }
         }
 
         return rows;

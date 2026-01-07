@@ -153,6 +153,8 @@
 
         let columns = [
             {binding: 'equipment_type', header: '설비구분', width: 200, align: 'center'},
+            {binding: 'id', header: '설비구분', width: 200, align: 'center', visible: false},
+            
             {binding: 'equipment_group_code', header: '설비그룹코드', width: 200, align: 'center'},
             {binding: 'equipment_group_name', header: '설비그룹명', width: 250, align: 'center'},
             {binding: '', header: '', width: "*", align: 'center'}
@@ -193,6 +195,8 @@
 
             theGrid.hostElement.addEventListener('dblclick', function (e) {
                 let selectedItem = theGrid.selectedItems[0];
+                console.log('iod', selectedItem);
+
                 document.getElementById('id').value = selectedItem.id;
 
 
@@ -270,6 +274,7 @@
 
 
             let menulogData = data.map(item => ({
+                id: item.id,
                 equipment_type: item.equipment_type,
                 equipment_group_code: item.equipment_group_code,
                 equipment_group_name: item.equipment_group_name
@@ -307,6 +312,13 @@
 
             //let data = $('#equipmentGroupForm').serialize();
             let data = FormUtil.extractForm($('#equipmentGroupForm'));
+            //id -> int형으로 변환
+            if(data.id !== undefined && data.id !== null && data.id == ''){
+                data.id = parseInt(data.id, 10);
+            }else{  }  
+            
+
+            console.log('data', data);
 
             // 필수입력 check routine
             if (!data.equipment_type) {

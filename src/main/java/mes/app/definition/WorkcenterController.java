@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Map;
 
 import javax.servlet.http.HttpServletRequest;
+import javax.transaction.Transactional;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
@@ -177,10 +178,18 @@ public class WorkcenterController {
 		
 		// 워크센터 정보 삭제
 		@PostMapping("/delete")
+        @Transactional
 		public AjaxResult deleteWorkcenter(@RequestParam("id") int id) {
 	        
-	        this.workcenterRepository.deleteById(id);
-	        AjaxResult result = new AjaxResult();
+	        //워크센터 삭제
+            this.workcenterRepository.deleteById(id);
+
+            //rela_data 삭제
+            List<RelationData> byDataPk1AndTableName1AndTableName2 = this.relationRepository.findByDataPk1AndTableName1AndTableName2(id, "work_center", "equ");
+            relationRepository.deleteAll(byDataPk1AndTableName1AndTableName2);
+
+
+            AjaxResult result = new AjaxResult();
 			return result;
 		}
 		

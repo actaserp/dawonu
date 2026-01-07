@@ -193,6 +193,7 @@
             {binding: 'storehouse_code', header: '창고코드', width: 100, align: 'center'},
             {binding: 'storehouse_name', header: '창고명', width: 200, align: 'center'},
             {binding: 'factory_name', header: '공장', width: 150, align: 'center'},
+            {binding: 'factory_id', header: '공장id', width: 150, align: 'center', visible: false},
             {binding: 'created', header: '생성일', width: 130, align: 'center'},
             {binding: 'description', header: '비고', width: '*', align: 'center'},
         ];
@@ -247,8 +248,13 @@
 
                 let factory_name_typeSelect = document.getElementById('factory_id');
                 if (factory_name_typeSelect) {
+
+                    factory_name_typeSelect.value = "";
+
+                    console.log('factory', factory_name_typeSelect)
+                    console.log('factory2', selectedItem.factory_id)
                     for (let i = 0; i < factory_name_typeSelect.options.length; i++) {
-                        if (factory_name_typeSelect.options[i].text === selectedItem.factory_name) {
+                        if (factory_name_typeSelect.options[i].value === String(selectedItem.factory_id)) {
                             factory_name_typeSelect.options[i].selected = true;
                             break;
                         }
