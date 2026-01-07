@@ -20,7 +20,17 @@ public class MaterialService {
 	SqlRunner sqlRunner;
 
 
-	public List<Map<String, Object>> getMaterialList(String matType, String matGroupId, String keyword, String spjangcd, String useYnFlag, Integer userCodeId){
+	public List<Map<String, Object>> getMaterialList(
+			String matType
+			, String matGroupId
+			, String keyword
+			, String spjangcd
+			, String useYnFlag
+			, String searchClass1
+			, String searchClass2
+			, String searchClass3
+			, Integer userCodeId
+	){
 
 		MapSqlParameterSource paramMap = new MapSqlParameterSource();
 		paramMap.addValue("mat_type", matType);
@@ -28,6 +38,9 @@ public class MaterialService {
 		paramMap.addValue("keyword", keyword);
 		paramMap.addValue("spjangcd", spjangcd);
 		paramMap.addValue("UseYn", useYnFlag);
+		paramMap.addValue("searchClass1", searchClass1);
+		paramMap.addValue("searchClass2", searchClass2);
+		paramMap.addValue("searchClass3", searchClass3);
 		paramMap.addValue("userCodeId", userCodeId);
 
 		String sql = """
@@ -112,6 +125,9 @@ public class MaterialService {
         """;
 		if (StringUtils.isEmpty(matType)==false) sql +=" and mg.\"MaterialType\" = :mat_type ";
 		if (StringUtils.isEmpty(matGroupId)==false) sql +=" and m.\"MaterialGroup_id\" = (:mat_group_id)::int ";
+		if (StringUtils.isEmpty(searchClass1)==false) sql +=" and m.\"Class1\" = :searchClass1 ";
+		if (StringUtils.isEmpty(searchClass2)==false) sql +=" and m.\"Class2\" = :searchClass2 ";
+		if (StringUtils.isEmpty(searchClass3)==false) sql +=" and m.\"Class3\" = :searchClass3 ";
 		if (userCodeId != null) sql +=" and m.\"mat_user_code\" = :userCodeId ";
 		if (StringUtils.isEmpty(keyword)==false) {
 			sql += """  
