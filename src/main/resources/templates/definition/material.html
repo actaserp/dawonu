@@ -79,7 +79,7 @@
                                 <label>품목구분</label>
                             </dt>
                             <dd>
-                                <select class="form-control2" id="cboMaterialType" name="cboMaterialType"></select>
+                                <select class="form-control2" id="cboMaterialType" name="cboMaterialType" style="width: 100px;"></select>
                             </dd>
                         </dl>
                         <dl>
@@ -92,24 +92,30 @@
                         </dl>
                         <dl>
                             <dt>
-                                <label>품목중분류</label>
+                                <label>1차공정</label>
                             </dt>
                             <dd>
-                                <select class="form-control2" id="cboMaterialMid" name="cboMaterialMid" style="width: 250px;"></select>
+                                <select class="form-control2" id="searchClass1" name="searchClass1" style="width: 150px;"></select>
                             </dd>
                         </dl>
-<!--                        <dl>-->
-<!--                            <dt>-->
-<!--                                <label>품목소분류</label>-->
-<!--                            </dt>-->
-<!--                            <dd>-->
-<!--                                <select class="form-control2" id="cboMaterialRow" name="cboMaterialRow" style="width: 150px;"></select>-->
-<!--                            </dd>-->
-<!--                        </dl>-->
-
-
+                        <dl>
+                            <dt>
+                                <label>2차공정</label>
+                            </dt>
+                            <dd>
+                                <select class="form-control2" id="searchClass2" name="searchClass2" style="width: 170px;"></select>
+                            </dd>
+                        </dl>
                     </div>
                     <div class="search-wrap" style="margin-top: -10px;">
+                        <dl>
+                            <dt>
+                                <label>3차공정</label>
+                            </dt>
+                            <dd>
+                                <select class="form-control2" id="searchClass3" name="searchClass3" style="width: 150px;"></select>
+                            </dd>
+                        </dl>
                         <dl>
                             <dt>
                                 <label>품목명</label>
@@ -137,7 +143,7 @@
                                 </li>
                             </dd>
                         </dl>
-                        <dl style="margin-left: 175px;">
+                        <dl style="margin-left: 20px;">
                             <dt><span class="eq"></span></dt>
                             <dd>
                                 <li>
@@ -274,13 +280,13 @@
                                             </td>
                                         </tr>
                                         <tr>
-<!--                                            <th>-->
-<!--                                                <label for="MaterialRowCode"><span class="eq">*</span>품목소분류</label>-->
-<!--                                            </th>-->
-<!--                                            <td>-->
-<!--                                                <select id="MaterialRowCode" name="MaterialRowCode"-->
-<!--                                                        style="width: 100%;" required></select>-->
-<!--                                            </td>-->
+                                            <!--                                            <th>-->
+                                            <!--                                                <label for="MaterialRowCode"><span class="eq">*</span>품목소분류</label>-->
+                                            <!--                                            </th>-->
+                                            <!--                                            <td>-->
+                                            <!--                                                <select id="MaterialRowCode" name="MaterialRowCode"-->
+                                            <!--                                                        style="width: 100%;" required></select>-->
+                                            <!--                                            </td>-->
 
                                             <th>
                                                 <label for="Name"><span class="eq">*</span>품목명</label>
@@ -1426,36 +1432,44 @@
                         AjaxUtil.fillSelectOptions($type3, 'user_code', 'choose', '', selectedValue);
                     }
                 });
+                AjaxUtil.fillSelectOptions($('#searchClass1'), 'user_code', 'choose', '', 'JFLAG');
+                AjaxUtil.fillSelectOptions($('#searchClass3'), 'user_code', 'all', '', 'JFLAG3');
+                // 1차공정 변경 시 2차공정 초기화 및 재로딩
+                $('#searchClass1').on('change', function () {
+                    const selectedValue = $(this).val(); // 현재 선택된 type2 값
+
+                    // 2차공정 옵션 초기화
+                    const $type3 = $('#searchClass2');
+                    $type3.empty(); // 옵션 제거
+                    $type3.append('<option value="">선택하세요</option>'); // 기본값 추가
+
+                    if (selectedValue) {
+                        // ✅ 선택값이 있으면 해당 값으로 다시 로딩
+                        AjaxUtil.fillSelectOptions($type3, 'user_code', 'choose', '', selectedValue);
+                    }
+                });
                 setTimeout(() => {
                     $('#StoreHouse_id').val(4).trigger('change');
                 }, 0);
-
-                AjaxUtil.fillSelectOptions($('#WorkCenter_id'), 'workcenter', '', '', '', ''); // 워크센터
+                AjaxUtil.fillSelectOptions($('#WorkCenter_id'), 'workcenter', '', '45', '', 1); // 워크센터
                 setTimeout(() => {
                     $('#WorkCenter_id').val(45).trigger('change');
                 }, 0);
-
-
                 AjaxUtil.fillSelectOptions($('#Equipment_id'), 'equipment_code', '', 102, 45);
                 setTimeout(() => {
-                    //$('#Equipment_id').val(102).trigger('change');
+                    $('#Equipment_id').val(102).trigger('change');
                 }, 0);
 
                 $('#WorkCenter_id').change(function (e) {
                     let group_pk = $('#WorkCenter_id').val();
-                    //alert('이벤트!');
-                    AjaxUtil.fillSelectOptions($('#Equipment_id'), 'equipment_code', '', '', group_pk);
+                    AjaxUtil.fillSelectOptions($('#Equipment_id'), 'equipment_code', 'choose', '', group_pk);
                 });
 
-                AjaxUtil.fillSelectOptions($('#Factory_id'), 'factory', 'choose', ''); // 공장
-
+                AjaxUtil.fillSelectOptions($('#Factory_id'), 'factory', "", false); // 공장
                 $('#Factory_id').change(function (e) {
-                    //alert('asd')
                     let factory_id = $('#Factory_id').val();
-                    AjaxUtil.fillSelectOptions($('#WorkCenter_id'), 'workcenter', '', 'change', '', factory_id);  //워크센터
+                    AjaxUtil.fillSelectOptions($('#WorkCenter_id'), 'workcenter', '', '', '', factory_id);
                 });
-
-                
                 AjaxUtil.fillSelectOptions($('#ManagementLevel'), 'user_code', 'choose', false, 'mat_manage_level');
                 AjaxUtil.fillSelectOptions($('#EquipmentGroup_id'), 'equipment_group', 'choose', false); // 설비그룹
                 AjaxUtil.fillSelectOptions($('#Routing_id'), 'routing', 'choose', false); // 라우팅
@@ -1511,6 +1525,9 @@
                     'action': 'read',
                     'useYn_flag': $('#useYn_flag').is(':checked') ? '1' : '0',
                     'user_code': $('#cboMaterialMid').val(),
+                    'searchClass1': $('#searchClass1').val(),
+                    'searchClass2': $('#searchClass2').val(),
+                    'searchClass3': $('#searchClass3').val(),
                     spjangcd: sessionStorage.getItem('spjangcd'),
                 };
 
@@ -1538,7 +1555,6 @@
                 let result = AjaxUtil.getSyncData(this.url + '/detail', param);
                 if (result.success != null) {
                     let detailData = result.data;
-                    console.log('detail', detailData);
                     FormUtil.BindDataForm(detailData, $('#matBasicForm'));
                     // ✅ 종속 select 처리
                     const $class1 = $('#Class1');
@@ -1586,29 +1602,19 @@
                         $('#useyn').prop('checked', false);
                     }
 
-                     let factory_id = $('#Factory_id').val();
-
-                     
-                     AjaxUtil.fillSelectOptions($('#WorkCenter_id'), 'workcenter', '', 'change', '', factory_id);
-                     setTimeout(() => {
-                        
+                    let factory_id = $('#Factory_id').val();
+                    AjaxUtil.fillSelectOptions($('#WorkCenter_id'), 'workcenter', '', '', '', factory_id);
+                    setTimeout(() => {
                         $('#WorkCenter_id').val(detailData.WorkCenter_id).trigger('change');
                     }, 0);
-
-
-                    AjaxUtil.fillSelectOptions($('#Equipment_id'), 'equipment_code', '', 'first');
+                    AjaxUtil.fillSelectOptions($('#Equipment_id'), 'equipment_code', '');
                     setTimeout(() => {
-                        console.log(detailData);
-                        $('#Equipment_id').val(detailData.Equipment_id).trigger('change');
+                        $('#Equipment_id').val(detailData.WorkCenter_id).trigger('change');
                     }, 0);
-                    
-                    
-                    // let group_pk = $('#WorkCenter_id').val();
-                    
-                
-                    // if (group_pk) {
-                    //     AjaxUtil.fillSelectOptions($('#Equipment_id'), 'equipment_code', 'choose', detailData.Equipment_id, group_pk);
-                    // }
+                    let group_pk = $('#WorkCenter_id').val();
+                    if (group_pk) {
+                        AjaxUtil.fillSelectOptions($('#Equipment_id'), 'equipment_code', 'choose', detailData.Equipment_id, group_pk);
+                    }
                     //$('#Routing_id').trigger('change');
                     //FormUtil.BindDataForm(result, $('#matRoutingForm'));
                 }
@@ -2286,7 +2292,7 @@
                 setTimeout(() => {
                     $('#WorkCenter_id').val(45).trigger('change');
                 }, 0);
-                AjaxUtil.fillSelectOptions($('#Equipment_id'), 'equipment_code', '');
+                AjaxUtil.fillSelectOptions($('#Equipment_id'), 'equipment_code', '', 102, 45);
                 setTimeout(() => {
                     $('#Equipment_id').val(102).trigger('change');
                 }, 0);
