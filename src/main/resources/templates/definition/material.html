@@ -1005,6 +1005,9 @@
     <th:block th:replace="/common/columns_setting :: columns_setting"></th:block>
 
     <script type="text/javascript">
+        let formMode = 'create'; // 폼 상태: 'create', 'edit'
+        let isAutoCodeEnabled = true; // 품목코드 자동체번 사용 여부
+
         class MaterialPage {
             constructor() {
                 this.url = '/api/definition/material';
@@ -1084,6 +1087,8 @@
 
 
                 this.grid.hostElement.addEventListener('dblclick', (e) => {
+                    isAutoCodeEnabled = false;
+                    formMode = 'edit'; // 수정 모드로 전환
                     let hitTest = this.grid.hitTest(e);
                     if (hitTest.cellType === wijmo.grid.CellType.Cell) {
                         let row = hitTest.row;
@@ -1112,6 +1117,8 @@
                             if (mat_pk) page.showTestList(mat_pk);
                         }
                     }
+                    // 📌 폼이 다 채워진 후 다시 자동코드 생성 활성화해도 됨 (필요시)
+                    setTimeout(() => { isAutoCodeEnabled = true; }, 500);
                 });
 
                 this.grid.formatItem.addHandler((s, e) => {
@@ -2272,7 +2279,8 @@
 
             // 기본정보 신규버튼
             $('#btnNew').click(function (e) {
-
+                formMode = 'create';
+                isAutoCodeEnabled = true;
                 // 기본정보 리셋
                 $('#matBasicForm')[0].reset();
                 $('#matBasicForm').find('#id').val('');
@@ -2742,6 +2750,8 @@
             $('#Class1, #Class2, #Class3').on('change input', updateMaterialCode);
 
             async function updateMaterialCode() {
+                // ✅ 수정/조회 모드에서는 자동체번 비활성화
+                if (!isAutoCodeEnabled || formMode !== 'create') return;
                 const class1 = $('#Class1').val()?.trim() || '';
                 const class2 = $('#Class2').val()?.trim() || '';
                 const class3 = $('#Class3').val()?.trim() || '';
