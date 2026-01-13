@@ -38,4 +38,6 @@ public interface MaterialRepository extends JpaRepository<Material, Integer>{
 	boolean existsByCode(String s);
 
     Integer findIdByCode(String code);
+
+	Material findTopByCodeStartingWithOrderByCodeDesc(String prefix);
 }

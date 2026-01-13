@@ -1432,7 +1432,7 @@
                         AjaxUtil.fillSelectOptions($type3, 'user_code', 'choose', '', selectedValue);
                     }
                 });
-                AjaxUtil.fillSelectOptions($('#searchClass1'), 'user_code', '', '', 'JFLAG');
+                AjaxUtil.fillSelectOptions($('#searchClass1'), 'user_code', 'all', '', 'JFLAG');
                 setTimeout(() => {
                     $('#searchClass1').val('ZL250').trigger('change');
                 }, 0);
@@ -2732,9 +2732,53 @@
             // 3가지 요소 모두 감시
             $('#parent_id2, #type3, #thick2').on('change input', updateCode2);
 
-            page.searchDataBind();
-            resetForms();
-            // ✅ 페이지 로딩 시 중분류부터 바인딩
+            // ✅ change 이벤트 내부에서 Ajax 처리 완료 후 실행되도록 약간 지연
+            setTimeout(() => {
+                page.searchDataBind();
+                resetForms();
+            }, 500); // 0.5초 후 실행
+
+            // 품목코드 자동화 로직
+            $('#Class1, #Class2, #Class3').on('change input', updateMaterialCode);
+
+            async function updateMaterialCode() {
+                const class1 = $('#Class1').val()?.trim() || '';
+                const class2 = $('#Class2').val()?.trim() || '';
+                const class3 = $('#Class3').val()?.trim() || '';
+
+                let prefix = '';
+
+                // Class2가 이미 Class1 포함하는 경우
+                if (class2 && class3) {
+                    prefix = `${class2}${class3}`;
+                } else if (class2) {
+                    prefix = class2;
+                } else if (class1) {
+                    prefix = class1;
+                } else {
+                    $('#Code').val('');
+                    return;
+                }
+
+                try {
+                    const response = await $.ajax({
+                        url: `/api/definition/material/nextCode`,
+                        type: 'GET',
+                        data: { prefix },
+                        dataType: 'json'
+                    });
+
+                    if (response && response.data) {
+                        const nextNum = String(response.data.nextNumber).padStart(3, '0');
+                        $('#Code').val(prefix + nextNum);
+                    } else {
+                        $('#Code').val(prefix + '001');
+                    }
+                } catch (err) {
+                    console.error('자동체번 조회 실패:', err);
+                    $('#Code').val(prefix + '001');
+                }
+            }
         });
 
         // 1. 폼 리셋 유틸 함수

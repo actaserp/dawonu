@@ -540,5 +540,17 @@ public class MaterialController {
 		}
 		return result;
 	}
+	// 품목코드 자동화 로직
+	@GetMapping("/nextCode")
+	public AjaxResult getNextMaterialCode(@RequestParam String prefix) {
+		int nextNum = materialService.findNextCodeNumber(prefix);
 
+		Map<String, Object> item = new HashMap<>();
+		item.put("nextNumber", nextNum);
+
+		AjaxResult result = new AjaxResult();
+		result.data = item;
+		result.success = true;
+		return result;
+	}
 }

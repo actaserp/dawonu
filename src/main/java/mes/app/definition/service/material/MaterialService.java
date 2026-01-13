@@ -4,6 +4,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
+import mes.domain.entity.Material;
+import mes.domain.repository.MaterialRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.stereotype.Service;
@@ -18,6 +20,9 @@ public class MaterialService {
 
 	@Autowired
 	SqlRunner sqlRunner;
+
+	@Autowired
+	MaterialRepository materialRepository;
 
 
 	public List<Map<String, Object>> getMaterialList(
@@ -513,5 +518,30 @@ public class MaterialService {
 			String sql = " UPDATE material SET \"Routing_id\" = :routing_pk WHERE id = :mat_pk;";
 			int result = this.sqlRunner.execute(sql, dicParam);
 		return result;
+	}
+
+	// 품목코드 자동화 로직 findNextCodeNumber
+	public int findNextCodeNumber(String prefix) {
+		Material lastMaterial = materialRepository.findTopByCodeStartingWithOrderByCodeDesc(prefix);
+
+		// DB에 없는 경우 → 첫 번째 코드 = 001
+		if (lastMaterial == null || lastMaterial.getCode() == null) {
+			return 1;
+		}
+
+		String lastCode = lastMaterial.getCode();
+
+		// 마지막 3자리만 추출
+		if (lastCode.length() < 3) {
+			return 1; // 예외 방어
+		}
+
+		String suffix = lastCode.substring(lastCode.length() - 3);
+
+		try {
+			return Integer.parseInt(suffix) + 1;
+		} catch (NumberFormatException e) {
+			return 1;
+		}
 	}
 }
