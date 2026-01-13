@@ -1,9 +1,25 @@
 package mes.app.production.service;
 
 import java.sql.Timestamp;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import mes.Exception.CustomException;
+import mes.app.production.production_package.*;
+import mes.domain.entity.JobRes;
+import mes.domain.entity.Material;
+import mes.domain.entity.User;
+import mes.domain.repository.JobResRepository;
+import mes.domain.repository.MaterialRepository;
+import mes.domain.services.CommonUtil;
+import org.springframework.batch.core.Job;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.stereotype.Service;
@@ -14,10 +30,24 @@ import mes.domain.services.SqlRunner;
 @Service
 public class ProdOrderEditService {
 
-	@Autowired
-	SqlRunner sqlRunner;
-	
-	// 수주 목록 조회
+    private final SqlRunner sqlRunner;
+    private final MaterialRepository materialRepository;
+    private final JobResRepository jobResRepository;
+    private final Map<ProcessType, ProcessStartStrategy> strategyMap;
+
+    public ProdOrderEditService(SqlRunner sqlRunner, MaterialRepository materialRepository, JobResRepository jobResRepository, List<ProcessStartStrategy> strategies) {
+        this.sqlRunner = sqlRunner;
+        this.materialRepository = materialRepository;
+        this.jobResRepository = jobResRepository;
+        this.strategyMap = strategies.stream()
+                .collect(Collectors.toMap(
+                        ProcessStartStrategy::getType,
+                        Function.identity()
+                ));
+    }
+
+
+    // 수주 목록 조회
 	public List<Map<String, Object>> getSujuList(String date_kind, String start, String end, Integer mat_group, String mat_name, String not_flag, String spjangcd, Integer cboFactory) {
 		
 		MapSqlParameterSource dicParam = new MapSqlParameterSource();
@@ -357,6 +387,110 @@ public class ProdOrderEditService {
 
 		return items;
 	}
-	
-	
+
+
+    public JobRes makeParentProdOrder(
+            Integer sujuId,
+            String productionDate,
+            Integer materialId,
+            String cboShiftCode,
+            Integer cboWorcenter,
+            Integer cboEquiment,
+            Float txtOrderQty,
+            String spjangcd, User user
+    ) throws JsonProcessingException {
+
+        Material m = materialRepository.getMaterialById(materialId);
+        Timestamp prodDate = CommonUtil.tryTimestamp(productionDate);
+
+        JobRes header = new JobRes();
+
+        //부모 작업지시 생성.
+        header.set_audit(user);
+        header.setProductionDate(prodDate);
+        header.setProductionPlanDate(prodDate);
+        header.setMaterialId(materialId);
+        header.setOrderQty(txtOrderQty);
+        header.setStoreHouse_id(m.getStoreHouseId());
+        header.setLotCount(1);
+        header.setState("ordered");
+        header.setSourceDataPk(sujuId);
+        header.setSourceTableName("suju");
+        header.setSpjangcd(spjangcd);
+        header.setWorkCenter_id(cboWorcenter);
+        header.setFirstWorkCenter_id(cboWorcenter);
+        header.setEquipment_id(cboEquiment);
+        header.setShiftCode(cboShiftCode);
+
+        // 공정 판단 객체 생성
+        ProcessFlow flow = ProcessFlow.from(m);
+
+        header.setProcessCount(flow.cnt());
+
+        header = jobResRepository.save(header); //트리거가 번호 생성
+
+        //전략 선택
+        ProcessType type = flow.startType();
+        ProcessStartStrategy strategy = strategyMap.get(type);
+
+        if(strategy == null) throw new CustomException("공정 시작 전략이 존재하지 않습니다.");
+
+        //전체 bom 조회
+        List<Map<String, Object>> bomListByMat = getBomListByMat(materialId.toString());
+
+        //전체 bom -> json 형태로 보기쉽게 변환
+        BomTreeService bomTreeService = new BomTreeService();
+        Map<String, BomNode> bomTree =  bomTreeService.buildTree(bomListByMat);
+
+        ObjectMapper mapper = new ObjectMapper();
+        mapper.enable(SerializationFeature.INDENT_OUTPUT);
+
+        String json = mapper.writeValueAsString(bomTree);
+        System.out.println(json);
+
+        //처음 작업에 대한 품목 판별
+        BomNode firstProcessContext = bomTreeService.selectTargetMaterial(flow, bomTree, header.getOrderQty());
+
+        //자식 작업지시 생성 (1차 or 3차 단독이면 3차)
+        strategy.start(header, flow, firstProcessContext, user);
+
+        //TODO: 트랜잭션 처리는 문제가 없는지?
+
+        return header;
+    }
+
+    // 생산/작업지시 처리 과정에서만 사용하는 BOM 조회용 내부 메서드
+    // BOM 전용 서비스가 아니므로 외부에서 재사용되지 않도록 private으로 제한
+    public List<Map<String, Object>> getBomListByMat(String matPk){
+        MapSqlParameterSource dicParam = new MapSqlParameterSource();
+        dicParam.addValue("mat_pk", matPk);
+
+        String sql = """
+			select bom.b_level as level
+                , m."Name" as mat_name
+                , bom.bom_ratio
+                , (bom.quantity::numeric / bom.produced_qty::numeric) as bom_qty
+                , fn_code_name('mat_type',mg."MaterialType") as mat_type
+                , mat_pk, parent_mat_pk
+                , u."Name" as unit
+                , m."Code" as mat_code
+                , bom.mat_pk as my_key
+                , bom.parent_mat_pk as parent_key
+                , COALESCE(m."Class1", '') as class1
+                , COALESCE(m."Class2", '') as class2
+                , COALESCE(m."Class3", '') as class3
+                , m."StoreHouse_id" as storehouse_id
+	            from tbl_bom_detail(:mat_pk, to_char(now(),'yyyy-mm-dd')) as bom
+                inner join material m on m.id = bom.mat_pk
+                left join mat_grp mg on mg.id = m."MaterialGroup_id"
+                left join unit u on u.id = m."Unit_id"
+	            order by tot_order
+        """;
+
+
+        List<Map<String, Object>> items = this.sqlRunner.getRows(sql, dicParam);
+        return items;
+    }
+
+
 }

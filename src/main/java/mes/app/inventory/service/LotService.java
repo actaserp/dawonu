@@ -3,6 +3,7 @@ package mes.app.inventory.service;
 import java.sql.Timestamp;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -146,7 +147,38 @@ public class LotService {
 		
 		return lotNumber;
 	}
-	
+
+    //Lot 번호 만들기 (다중 Lot 생성)
+    public List<String> make_production_lotList_in_number(String type, int lotCnt){
+        Timestamp today = new Timestamp(System.currentTimeMillis());
+
+        LocalDate date = LocalDate.now();
+        DateTimeFormatter dateFormat = DateTimeFormatter.ofPattern("yyyyMMdd");
+
+        List<SeqMaker> sm = this.seqMakerRepository.findByCodeAndBaseDate("PROD_LOT_IN",date.format(dateFormat));
+        SeqMaker s = new SeqMaker();
+
+        List<String> lotList = new ArrayList<>();
+        int startNum = 0;
+
+        if(sm.size() > 0) s = sm.get(0);
+        else{
+            s.setCode("PROD_LOT_IN");
+            s.setBaseDate(date.format(dateFormat));
+            s.setCurrVal(0);
+            s.set_modified(today);
+            startNum = s.getCurrVal();
+        }
+        s.setCurrVal(s.getCurrVal() + lotCnt);
+        this.seqMakerRepository.save(s);
+
+        for(int i=1; i<= lotCnt; i++){
+            String lotNum = type + "-" + date.format(dateFormat) + "-" +String.format("%04d", startNum +i);
+            lotList.add(lotNum);
+        }
+        return lotList;
+    }
+
 	public List<Map<String, Object>> lotDetail(String lotNumber) {
 		
 		MapSqlParameterSource dicParam = new MapSqlParameterSource();

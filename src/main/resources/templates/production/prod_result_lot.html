@@ -329,7 +329,28 @@
                     </div>
 
                     <div class="button-wrap">
-                        <ul>
+
+                        <dl>
+                            <dt>
+                                <span>공정선택</span>
+                            </dt>
+                            <dd>
+                                <ul class="date-box">
+                                    <li>
+                                        <select id="job_proc" name="job_proc">
+                                            <option value="">전체</option>
+                                            <option value=1>1차 공정</option>
+                                            <option value=2>2차 공정</option>
+                                            <option value=3>3차 공정</option>
+                                        </select>
+                                    </li>
+                                    
+                                </ul>
+                            </dd>
+                        </dl>    
+
+
+                        <!-- <ul>
                             <li>
                                 <button type="button" class="btn" id="btnJobResPrint" data-labelCd="생산지시서 출력"
                                         disabled>생산지시서 출력
@@ -341,6 +362,7 @@
                                 </button>
                             </li>
                         </ul>
+                         -->
                     </div>
                 </div>
 
@@ -615,13 +637,13 @@
                                 <div id="consumed-grid" style="height: 20vh;"></div>
                             </div>
                         </div>
-                        <div style="display: none;">
+                        <div>
                             <label class="switch">
                                 <input type="checkbox" id="btnToggle"><span class="slider round"></span>
                             </label>투입로트 보기/감추기
                         </div>
                         <div>&nbsp;</div>
-                        <div class="grid_box" id="input_lot_div" style="display: none;">
+                        <div class="grid_box" id="input_lot_div">
                             <div class="button-wrap">
                                 <ul>
                                     <li>
@@ -1091,44 +1113,61 @@
                     ],
                     itemsSource: new wijmo.collections.CollectionView([]),
                     itemFormatter: function (panel, row, col, cell) {
-                        if (panel.cellType === wijmo.grid.CellType.Cell) {
-                            let column = panel.columns[col];
-                            let item = panel.rows[row].dataItem;
+                if (panel.cellType === wijmo.grid.CellType.Cell) {
+                    let column = panel.columns[col];
+                    let item = panel.rows[row].dataItem;
 
-                            cell.style.backgroundColor = '';
-                            cell.style.color = '';
-                            cell.style.borderBottom = '';
+                    // ===== 기존 초기화 =====
+                    cell.style.backgroundColor = '';
+                    cell.style.color = '';
+                    cell.style.borderBottom = '';
+                    cell.style.borderBottom = '';
+                    cell.style.borderTop = '';
 
-                            // 상태 값에 따라 스타일 적용
-                            if (column.binding === 'job_state') {
-                                if (item.state === 'working') {
-                                    cell.style.backgroundColor = '#00ff21';
-                                    cell.style.color = '#000'
-                                } else if (item.state === 'finished') {
-                                    cell.style.backgroundColor = '#0026ff';
-                                    cell.style.color = '#FFFFFF'
-                                    cell.style.borderBottom = '1px solid #FFFFFF'
-                                } else if (item.state === 'stopped') {
-                                    cell.style.backgroundColor = '#f8d2cb';
-                                    cell.style.color = '#000'
-                                } else {
-                                    // 명시적으로 초기화
-                                    cell.style.backgroundColor = '';
-                                    cell.style.color = '';
-                                    cell.style.borderBottom = '';
-                                }
-                            }
-                            if (column.binding === 'order_qty') {
-                                cell.style.backgroundColor = '#00ff21';
-                            }
-                            if (column.binding === 'good_qty') {
-                                cell.style.backgroundColor = '#dcf0f8';
-                            }
-                            if (column.binding === 'defect_qty') {
-                                cell.style.backgroundColor = '#f8d2cb';
-                            }
+                    // ===== 기존 상태 색상 로직 (그대로) =====
+                    if (column.binding === 'job_state') {
+                        if (item.state === 'working') {
+                            cell.style.backgroundColor = '#00ff21';
+                            cell.style.color = '#000';
+                        } else if (item.state === 'finished') {
+                            cell.style.backgroundColor = '#0026ff';
+                            cell.style.color = '#FFFFFF';
+                            cell.style.borderBottom = '1px solid #FFFFFF';
+                        } else if (item.state === 'stopped') {
+                            cell.style.backgroundColor = '#f8d2cb';
+                            cell.style.color = '#000';
                         }
-                    },
+                    }
+
+                    if (column.binding === 'order_qty') {
+                        cell.style.backgroundColor = '#00ff21';
+                    }
+                    if (column.binding === 'good_qty') {
+                        cell.style.backgroundColor = '#dcf0f8';
+                    }
+                    if (column.binding === 'defect_qty') {
+                        cell.style.backgroundColor = '#f8d2cb';
+                    }
+
+                    // ===============================
+                    // 🔹 여기부터 "작지번호 테두리" 추가
+                    // ===============================
+                    let rows = panel.rows;
+                    let currOrder = item.order_num;
+                    let prevOrder = row > 0 ? rows[row - 1].dataItem.order_num : null;
+                    let nextOrder = row < rows.length - 1 ? rows[row + 1].dataItem.order_num : null;
+
+                    // 그룹 시작
+                    if (row === 0 || currOrder !== prevOrder) {
+                        cell.style.borderTop = '2px solid #555';
+                    }
+
+                    // 그룹 끝
+                    if (row === rows.length - 1 || currOrder !== nextOrder) {
+                        cell.style.borderBottom = '2px solid #555';
+                    }
+                }
+            },
 
                 });
 
@@ -1879,16 +1918,20 @@
                 // 🔹 현재 선택된 작업지시 ID 저장
                 const prevJobId = _this.jobres?.id || null;
 
+                const v = $('#job_proc').val();
+
                 let param = {
                     'date_from': $('#date_from').val(),
                     'date_to': $('#date_to').val(),
                     'choMat': $('#choMat').val(),
                     'factory': $('#Factory_id').val(),
-                    'is_include_comp': $('#chxCompYn').is(':checked')
+                    'is_include_comp': $('#chxCompYn').is(':checked'),
+                    'job_proc' : v ? parseInt(v, 10) : null
                 };
 
                 let result = AjaxUtil.getSyncData(this.baseUrl + '/read', param);
                 if (result.data && _this.grid.itemsSource) {
+                    
                     let view = _this.grid.itemsSource;
                     view.sourceCollection.splice(0, view.sourceCollection.length, ...result.data);
                     view.refresh();

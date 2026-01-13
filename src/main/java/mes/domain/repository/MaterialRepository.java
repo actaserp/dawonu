@@ -36,4 +36,6 @@ public interface MaterialRepository extends JpaRepository<Material, Integer>{
 	Material findByNameTrimmed(@Param("materialName") String materialName);
 
 	boolean existsByCode(String s);
+
+    Integer findIdByCode(String code);
 }

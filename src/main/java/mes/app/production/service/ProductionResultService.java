@@ -255,7 +255,7 @@ public class ProductionResultService {
 		this.sqlRunner.execute(sql, dicParam);
 	}
 
-	public List<Map<String, Object>> getProdResult(String dateFrom, String dateTo, String isIncludeComp, String spjangcd, String choMat, Integer cboFactory) {
+	public List<Map<String, Object>> getProdResult(String dateFrom, String dateTo, String isIncludeComp, String spjangcd, String choMat, Integer cboFactory, Integer job_proc) {
 
 		MapSqlParameterSource dicParam = new MapSqlParameterSource();
 		dicParam.addValue("dateFrom", dateFrom);
@@ -263,10 +263,11 @@ public class ProductionResultService {
 		dicParam.addValue("isIncludeComp", isIncludeComp);
 		dicParam.addValue("spjangcd", spjangcd);
 		dicParam.addValue("cboFactory", cboFactory);
-		String pattern = (choMat == null || choMat.isBlank()) ? "%" : "%" + choMat + "%";
-		dicParam.addValue("choMat", pattern);
+		dicParam.addValue("matName", (choMat.isEmpty() || choMat == null) ? "%%": "%" + choMat  +"%");
+        dicParam.addValue("jobProc", job_proc);
 
-		String sql = """
+
+		/*String sql = """
 			WITH T AS (
 			  SELECT
 				  jr.id                              AS child_id,
@@ -359,13 +360,135 @@ public class ProductionResultService {
 			  LEFT JOIN unit          U  ON U.id = M."Unit_id"
 			  left join suju su on su.id = B."SourceDataPk" and B."SourceTableName" = 'suju'
 			  left join factory fa on M."Factory_id" = fa.id
-			  WHERE S.rn = 1
+			  --WHERE S.rn = 1
 			)
 			SELECT *
 			FROM F
 			where  1=1
 			and F.mat_name like :choMat
-			""";
+			""";*/
+
+        String sql = """
+                WITH T AS (
+                			  SELECT
+                				  jr.id                              AS child_id,
+                				  jr."Parent_id"                     AS parent_id,
+                				  jr."Description" 					 as memo ,
+                				  COALESCE(jr."Parent_id", jr.id)    AS base_id,
+                				  CASE WHEN jr."State"='working' THEN 1 ELSE 0 END AS is_working,
+                				  CASE WHEN jr."State"='stopped' THEN 1 ELSE 0 END AS is_stopped
+                			  FROM job_res jr
+                			  WHERE jr."ProductionDate" BETWEEN CAST(:dateFrom AS date) AND CAST(:dateTo AS date)
+                				AND jr.spjangcd = :spjangcd
+                			),
+                			S AS (
+                              SELECT
+                            	  T.*,
+                            	  -- 대표행 선택: working 우선, 다음 최근 id
+                            	  ROW_NUMBER() OVER (
+                            			PARTITION BY T.base_id
+                            			ORDER BY
+                            			  T.is_working DESC,                                  -- 1) working 우선
+                            			  CASE WHEN T.parent_id IS NULL THEN 1 ELSE 0 END DESC, -- 2) 그다음 부모 우선
+                            			  T.child_id DESC                                     -- 3) 마지막 타이브레이커: 최신 id
+                            		  ) AS rn,
+                            	  -- 체인에 working 있는지 (있으면 1)
+                            	  MAX(T.is_working) OVER (PARTITION BY T.base_id) AS any_working
+                            	  , MAX(T.is_stopped) OVER (PARTITION BY T.base_id) AS any_stopped
+                              FROM T
+                            ),
+                			F AS (
+                			SELECT
+                			S.child_id as id
+                			, C."WorkOrderNumber"                         AS order_num
+                			, TO_CHAR(C."ProductionDate",'yyyy-mm-dd')    AS prod_date  --생산일
+                			, TO_CHAR(su."DueDate",'yyyy-mm-dd')    AS due_date         --수주테이블의 마감기한
+                			, TO_CHAR(su."DueDate",'yyyy-mm-dd')    AS due_date         --수주테이블의 마감기한
+                			, C."LotNumber"                               AS lot_num    --lot 번호
+                			, TO_CHAR(C."StartTime",'hh24:mi')            AS start_time --작업 시작시간
+                			, TO_CHAR(C."EndTime",'hh24:mi')              AS end_time   --작업 종료시간
+                			, WC.id                                       AS workcenter_id --작업 워크센터 아이디
+                			, WC."Name"                                   AS workcenter    --작업 웨크센터 이름
+                			, C."ShiftCode"                                AS shift_code   --근무조 코드
+                			, SH."Name"                                    AS shift_name   --근무조 이름
+                			, C."WorkIndex"                                AS work_idx     --작업순서
+                            -- 파생 상태: working 있으면 working, 아니면 부모 상태
+                            , CASE
+                            		 WHEN S.is_working = 1 THEN 'working'
+                            		 WHEN S.is_working = 1 THEN 'stopped'
+                            		 ELSE C."State"
+                            	 END AS state
+                            	 , fn_code_name('job_state',
+                            		 CASE
+                            			 WHEN S.is_working = 1 THEN 'working'
+                            			 WHEN S.is_working = 1 THEN 'stopped'
+                            			 ELSE C."State"
+                            		 END
+                            ) AS job_state                 --작업상태 이름
+                			, C."WorkerCount"                              AS worker_count  --작업자수
+                			   , M.id                                         AS mat_pk        -- 품목아이디
+                			   , M."Code"                                     AS mat_code      -- 품목코드
+                			   , M."Name"                                     AS mat_name      -- 품목이름
+                			   , fn_code_name('mat_type', MG."MaterialType")  AS mat_type      --품목타입
+                			   , M."LotSize"                                  AS lot_size      --한 로트당 사이즈
+                			   , M."Weight"                                   AS weight        --품목무게
+                			   , U."Name"                                     AS unit          --단위이름
+                			   , E.id                                         AS equipment_id  --설비 아이디
+                			   , E."Name"                                     AS equipment     --설비이름
+                			   , C."Description"                              AS description   --설명
+                			   , ROUND(C."OrderQty"::numeric, 2)              AS order_qty     --작업 주문수량
+                			   , ROUND(C."GoodQty"::numeric, 2)              AS good_qty       --양품수량
+                			   , ROUND(C."DefectQty"::numeric, 2)             AS defect_qty    --불량품수량
+                			   , C."LossQty"                                  AS loss_qty      --손실수량
+                			   , C."ScrapQty"                                 AS scrap_qty     --잔여수량
+                			   , TO_CHAR(C."ProductionDate" + M."ValidDays", 'yyyy-mm-dd') AS "ValidDays" -- (생산일+사용기한)
+                			   , COALESCE(su."Standard", M."Standard1") as standard            -- 규격
+                			   , su."CompanyName" as company_name                              -- 거래처이름
+                			   , M."Factory_id" AS "Factory_id"                                -- 공장아이디
+                			   , fa."Name" as fac_name                                         -- 공장이름
+                			   , S.memo                                                        -- 메모
+                               , M."Class1" as class1                                         -- 1차공정
+                			   , M."Class2" as class2                                          -- 2차공정
+                			   , M."Class3" as class3                                          -- 3차공정
+                			FROM S
+                			JOIN job_res       C  ON C.id = S.child_id              -- child = 대표행
+                			left join suju su on su.id = C."SourceDataPk" and C."SourceTableName" = 'suju'
+                			LEFT JOIN work_center WC ON WC.id = C."WorkCenter_id"
+                			LEFT JOIN equ           E  ON E.id  = C."Equipment_id"
+                			LEFT JOIN shift         SH ON SH."Code" = C."ShiftCode"
+                			LEFT JOIN material      M  ON M.id = C."Material_id"
+                			LEFT JOIN mat_grp       MG ON MG.id = M."MaterialGroup_id"
+                			LEFT JOIN unit          U  ON U.id = M."Unit_id"
+                			left join factory fa on M."Factory_id" = fa.id
+                			--WHERE S.rn = 1
+                			)
+                			SELECT *
+                			FROM F
+                			WHERE 1=1
+                			AND F.mat_name like :matName
+                """;
+
+        if(job_proc != null){
+            sql += """
+                    AND (
+                        (:jobProc = 1
+                            AND COALESCE(F.class1,'') <> ''
+                            AND COALESCE(F.class2,'') = ''
+                            AND COALESCE(F.class3,'') = ''
+                        )
+                     OR (:jobProc = 2
+                            AND COALESCE(F.class1,'') <> ''
+                            AND COALESCE(F.class2,'') <> ''
+                            AND COALESCE(F.class3,'') = ''
+                        )
+                     OR (:jobProc = 3
+                            AND COALESCE(F.class1,'') <> ''
+                            AND COALESCE(F.class2,'') <> ''
+                            AND COALESCE(F.class3,'') <> ''
+                        )
+                    )
+                    """;
+        }
 
 		if ("false".equalsIgnoreCase(isIncludeComp)) {
 			// ★ 파생 상태(state) 기준으로 완료 제외
@@ -386,7 +509,7 @@ public class ProductionResultService {
 	public Map<String, Object> getProdResultDetail(Integer jrPk) {
 		MapSqlParameterSource p = new MapSqlParameterSource().addValue("jrPk", jrPk);
 
-		String sql = """
+		/*String sql = """
 			WITH target AS (
 				SELECT jr.id AS child_id, jr."Parent_id" AS parent_id
 				FROM job_res jr
@@ -451,7 +574,74 @@ public class ProductionResultService {
 			LEFT JOIN work_center child_wc   ON child_wc.id = c."WorkCenter_id"
 			LEFT JOIN process child_p        ON child_p.id = child_wc."Process_id"
 			LEFT JOIN equ e                  ON e.id = c."Equipment_id"
-			""";
+			""";*/
+
+        String sql = """
+                WITH target AS (
+                				SELECT jr.id AS child_id, jr."Parent_id" AS parent_id
+                				FROM job_res jr
+                				WHERE jr.id = :jrPk
+                			),
+                			base_pick AS (
+                				SELECT COALESCE(parent_id, child_id) AS base_id
+                				FROM target
+                			)
+                			SELECT
+                				-- PK들(프런트에서 쓰기 좋게 모두 내려줌)
+                				c.id                             AS id,              -- ★ child jr_pk (현재 상세의 주인공)
+                				t.parent_id                      AS parent_jr_pk,    -- 부모 있으면 부모 pk
+                				b.base_id                        AS base_jr_pk,      -- 부모가 있으면 부모, 없으면 자기 자신
+                
+                				-- 기본 정보는 base 기준(=부모 우선)
+                				c."WorkOrderNumber"              AS order_num,       -- 작업지시번호는 child/parent 동일하므로 child 써도 무방
+                				base_m.id                        AS mat_pk,
+                				base_m."Code"                    AS mat_code,
+                				base_m."Name"                    AS mat_name,
+                				base_m."LotSize"                 AS lot_size,
+                				u."Name"                         AS unit,
+                				ROUND(COALESCE(c."OrderQty", 0)::numeric, 2)   AS order_qty,
+                				 ROUND(COALESCE(c."GoodQty", 0)::numeric, 2)    AS good_qty,
+                				 ROUND(COALESCE(c."DefectQty", 0)::numeric, 2)  AS defect_qty,
+                				 ROUND(COALESCE(c."LossQty", 0)::numeric, 2)    AS loss_qty,
+                				 ROUND(COALESCE(c."ScrapQty", 0)::numeric, 2)   AS scrap_qty,
+                				to_char(c."ProductionDate",'yyyy-mm-dd') AS prod_date,
+                				to_char(c."StartTime",'hh24:mi')         AS start_time,
+                				c."EndDate"                               AS end_date,
+                				to_char(c."StartTime",'yyyy-mm-dd')       AS start_date,
+                				to_char(c."EndTime",'hh24:mi')            AS end_time,
+                				c."ShiftCode"                             AS shift_code,
+                				sh."Name"                                       AS shift_name,
+                				base_m."ValidDays",
+                				base_m."Routing_id"                             AS routing_id,
+                				base_m."Temperature" as mat_temp,
+                				base_m."Pressure" as mat_rpm,
+                
+                				-- 공정/워크센터/설비/상태는 child 기준(=현재 공정)
+                				c."State"                                       AS state,
+                				fn_code_name('job_state', c."State")            AS job_state,
+                				child_wc.id                                     AS workcenter_id,
+                				child_wc."Name"                                 AS workcenter_name,
+                				child_wc."Factory_id"                           AS wcfactory_id,
+                				e.id                                            AS equipment_id,
+                				e."Name"                                        AS equipment_name,
+                				child_p.id                                      AS process_id,
+                				child_p."Name"                                  AS process_nm,
+                
+                				-- 필요하면 정렬/표시용
+                				c."WorkIndex"                             AS work_idx,
+                				c."LotNumber"                                   AS lot_num
+                
+                			FROM target t
+                			JOIN base_pick b                 ON 1=1
+                			JOIN job_res c                   ON c.id = t.child_id              -- child
+                			--JOIN job_res base_jr             ON base_jr.id = b.base_id         -- base(부모 있으면 부모)
+                			LEFT JOIN material base_m        ON base_m.id = c."Material_id"
+                			LEFT JOIN unit u                 ON u.id = base_m."Unit_id"
+                			LEFT JOIN shift sh               ON sh."Code" = c."ShiftCode"
+                			LEFT JOIN work_center child_wc   ON child_wc.id = c."WorkCenter_id"
+                			LEFT JOIN process child_p        ON child_p.id = child_wc."Process_id"
+                			LEFT JOIN equ e                  ON e.id = c."Equipment_id"
+                """;
 
 		return this.sqlRunner.getRow(sql, p);
 	}
@@ -1338,8 +1528,8 @@ public class ProductionResultService {
                 select jr.id
                 	  ,coalesce(sum(mp."GoodQty"),0) as good_qty
                 	  ,coalesce(sum(mp."DefectQty"),0) as defect_qty
-                from job_res jr 
-                inner join mat_produce mp on mp."JobResponse_id" = jr.id 
+                from job_res jr
+                inner join mat_produce mp on mp."JobResponse_id" = jr.id
                 where jr.id = :jrPk
                 group by jr.id
                 """;
