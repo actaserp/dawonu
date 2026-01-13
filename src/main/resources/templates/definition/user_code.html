@@ -886,11 +886,12 @@
       data.status = $('#status1').is(':checked') ? 'y' : 'n';
       data.id = data.id1;
       data.code = data.code1;
+      data.name = data.name1;
       data.description = data.description1;
 
       data.parent_id = 330;
       // 필수 항목 확인
-      if (!data.code || !data.name) {
+      if (!data.code1 || !data.name1) {
         Alert.alert('', '필수항목을 입력해주세요');
         return;
       }
@@ -927,12 +928,13 @@
       data.id = data.id2;
       data.code = data.code2;
       data.parent_code = data.parent_id2
+      data.name = data.name2;
       data.description = data.description2;
 
       console.log('aid 값:', data.aid);
       console.log('parent_id 값:', data.parent_id2);
       // 필수 항목 확인
-      if (!data.code || !data.name || !data.parent_id2) {
+      if (!data.code2 || !data.name2 || !data.parent_id2) {
         Alert.alert('', '필수항목을 입력해주세요');
         return;
       }
