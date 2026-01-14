@@ -1118,7 +1118,10 @@
                         }
                     }
                     // 📌 폼이 다 채워진 후 다시 자동코드 생성 활성화해도 됨 (필요시)
-                    setTimeout(() => { isAutoCodeEnabled = true; }, 500);
+                    setTimeout(() => {
+                        formMode = 'create';
+                        isAutoCodeEnabled = true;
+                    }, 500);
                 });
 
                 this.grid.formatItem.addHandler((s, e) => {
