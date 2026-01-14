@@ -161,7 +161,10 @@ public class LotService {
         List<String> lotList = new ArrayList<>();
         int startNum = 0;
 
-        if(sm.size() > 0) s = sm.get(0);
+        if(sm.size() > 0){
+            s = sm.get(0);
+            startNum = s.getCurrVal();
+        }
         else{
             s.setCode("PROD_LOT_IN");
             s.setBaseDate(date.format(dateFormat));

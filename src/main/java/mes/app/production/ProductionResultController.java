@@ -1062,11 +1062,11 @@ public class ProductionResultController {
      *
      * 14. 작업지시의 양품량 합계 업데이트
      * **/
-    /*@PostMapping("/chasu_add")
+    @PostMapping("/chasu_add")
     @Transactional
     public AjaxResult chasuAdd(
             @RequestParam(value = "jr_pk", required = false) Integer jrPk,
-            @RequestParam(value = "good_qty", required = false) float goodQty,
+            @RequestParam(value = "good_qty", required = false) Float goodQty,
             @RequestParam("spjangcd") String spjangcd,
             HttpServletRequest request,
             Authentication auth) {
@@ -1098,17 +1098,16 @@ public class ProductionResultController {
         int totalLotCnt = (int) Math.ceil(jr.getOrderQty() / goodQty);
 
         //각 LOT별 수량
-        int orderQty =  jr.getOrderQty();
-        int lotQty = goodQty;
+        int orderQty =  jr.getOrderQty().intValue();
+        int lotQty = goodQty.intValue();
         List<Integer> lotQtyList = IntStream.rangeClosed(1, totalLotCnt)
-                .map(i -> i < totalLotCnt ? goodQty : orderQty)
+                .map(i -> i < totalLotCnt ? lotQty : orderQty - lotQty * (totalLotCnt - 1)).boxed().toList();
+
 
         // matprods 개수로
         List<MaterialProduce> mpList = this.matProduceRepository.findByJobResponseId(jr.getId());
         Integer startChasu = mpList.size() + 1;
-        List<Integer> lotChasuList = IntStream.rangeClosed(mpList.size() + 1, totalLotCnt).boxed().toList();
-
-
+        List<Integer> lotChasuList = IntStream.rangeClosed(startChasu, startChasu + totalLotCnt).boxed().toList();
 
 
         // lot_size = material.LotSize
@@ -1147,7 +1146,7 @@ public class ProductionResultController {
             mp.setShiftCode(jr.getShiftCode());
             mp.setWorkCenterId(jr.getWorkCenter_id());
             mp.setEquipmentId(jr.getEquipment_id());
-            mp.setGoodQty();
+            mp.setGoodQty(lotQtyList.get(i).floatValue());
             mp.setDescription("차수생산");
             mp.setActorId(user.getId());
             mp.set_audit(user);
@@ -1155,6 +1154,7 @@ public class ProductionResultController {
             mp.setLotNumber(lotNumberList.get(i));
             mp.setSpjangcd(spjangcd);
             mpEntityList.add(mp);
+            this.matProduceRepository.save(mp);
 
             MaterialLot ml = new MaterialLot();
             ml.setLotNumber(lotNumberList.get(i));
@@ -1169,9 +1169,9 @@ public class ProductionResultController {
             ml.set_audit(user);
             ml.setSpjangcd(spjangcd);
             mlEntityList.add(ml);
+
+            this.matLotRepository.save(ml);
         }
-        this.matProduceRepository.saveAll(mpEntityList);
-        this.matLotRepository.saveAll(mlEntityList); // 2.생산품 mat_lot 생성
 
         // 차수생산량 만큼 good_qty량 만큼 BOM 수량조회
         List<Map<String, Object>> bomMatItems = this.productionResultService.get_chasu_bom_mat_qty_list(mpEntityList.get(0).getId());
@@ -1182,6 +1182,8 @@ public class ProductionResultController {
             Map<String, Object> bomMap = bomMatItems.get(i);
 
             float chasuBomQty = Float.parseFloat(bomMap.get("chasu_bom_qty").toString());
+            Float bom_ratio   = bomMap.get("bom_ratio") == null ? null : Float.parseFloat(bomMap.get("bom_ratio").toString());
+            if(bom_ratio == null) throw new CustomException("bom 수량이 존재하지 않습니다.");
 
             int consumeMatPk = (int) bomMap.get("mat_pk");
             String matName = bomMap.get("mat_name").toString();
@@ -1189,11 +1191,11 @@ public class ProductionResultController {
             String lotUseYn = bomMap.get("lotUseYn").toString();
             float totalQty = 0f;
 
-            *//*
+            /*
 			 선입선출로 mat_lot 찾아서 차감
              차감하면서 mat_lot_cons 생성
              투입되어야할 수량보다 적으면 재고량 부족으로 return
-             *//*
+             */
 
             if ("Y".equals(lotUseYn)) { //lot 관리를 할 경우 //TODO
                 // 수정시작
@@ -1204,7 +1206,7 @@ public class ProductionResultController {
 
                 float remainQty = chasuBomQty; //남은 투입량
 
-                for (int j = 0; j < mpiList.size(); j++) {
+                /*for (int j = 0; j < mpiList.size(); j++) {
                     Map<String, Object> mpiMap = mpiList.get(j);
 
                     float reqQty = Float.parseFloat(mpiMap.get("req_qty").toString());
@@ -1237,7 +1239,7 @@ public class ProductionResultController {
                         remainQty = remainQty - reqQty;
                     }
 
-                }
+                }*/
 
 //                if (remainQty > 0) {
 //                    result.message = "로트 수량이 부족합니다.(" + matName + ")";
@@ -1270,12 +1272,15 @@ public class ProductionResultController {
                 mc.setJobResponseId(jr.getId());
                 mc.setMaterialId(consumeMatPk);
                 mc.setProcessOrder(1);
-                mc.setLotIndex(mpEntityList.get(i).getLotIndex());
+                mc.setLotIndex(mpEntityList.get(j).getLotIndex());
                 mc.setStartTime(now);
                 mc.setEndTime(now);
                 mc.setDescription("차수생산분");
                 mc.setBomQty(chasuBomQty); //TODO
-                mc.setConsumedQty(totalQty);        // 차수 생산분에 해당하는 BOM기준물량, lot 사용시 총 투입 수량  //TODO
+
+                Float goodQty1 = mpEntityList.get(j).getGoodQty();
+
+                mc.setConsumedQty(goodQty1 * bom_ratio);        // 차수 생산분에 해당하는 BOM기준물량, lot 마다 투입 수량  //TODO
                 mc.set_audit(user);
                 mc.setState("finished");
                 mc.set_status("a");
@@ -1288,12 +1293,12 @@ public class ProductionResultController {
                 mic.setMaterialInoutHeadId(null);
                 mic.setMaterialId(mc.getMaterialId());
                 mic.setStoreHouseId(consMat.getStoreHouseId());
-                mic.setLotNumber(mpEntityList.get(i).getLotNumber());
+                mic.setLotNumber(mpEntityList.get(j).getLotNumber());
                 mic.setInoutDate(LocalDate.parse(date.format(dateFormat)));
                 mic.setInoutTime(LocalTime.parse(time.format(timeFormat)));
                 mic.setInOut("out");
                 mic.setOutputType("consumed_out");
-                mic.setOutputQty(totalQty);
+                mic.setOutputQty(mc.getConsumedQty());
                 mic.setSourceDataPk(mc.getId());
                 mic.setSourceTableName("mat_consu");
                 mic.setState("confirmed");
@@ -1302,7 +1307,7 @@ public class ProductionResultController {
                 mic.set_audit(user);
                 mic.setSpjangcd(spjangcd);
 
-                mic = this.matInoutRepository.save(mic);
+                this.matInoutRepository.save(mic);
             }
 
         } // bom List 반목문 끝, for문 끝
@@ -1318,7 +1323,7 @@ public class ProductionResultController {
             mip.setInoutDate(LocalDate.parse(date.format(dateFormat)));
             mip.setInoutTime(LocalTime.parse(time.format(timeFormat)));
             mip.setInOut("in");
-            mip.setInputQty(mp.getGoodQty()); //TODO 얘는진짜주의
+            mip.setInputQty(lotQtyList.get(i).floatValue()); //TODO 얘는진짜주의
             mip.setInputType("produced_in");
             mip.setSourceDataPk(mpEntityList.get(i).getId());
             mip.setSourceTableName("mat_produce");
@@ -1354,7 +1359,9 @@ public class ProductionResultController {
         result.data = item;
 
         return result;
-    }*/
+
+        //TODO: mat_inout에 트리거 걸려있다 인지해라.
+    }
 
     //원본
     /*@PostMapping("/chasu_add")
@@ -1396,6 +1403,7 @@ public class ProductionResultController {
         // matprods 개수로
         List<MaterialProduce> mpList = this.matProduceRepository.findByJobResponseId(jr.getId());
         Integer startChasu = mpList.size() + 1;
+        Integer chasu = mpList.size() + 1;
         List<Integer> lotChasuList = new ArrayList<>();
         for(int i= startChasu; i <= totalLotCnt; i++){
             lotChasuList.add(i);
@@ -1473,11 +1481,10 @@ public class ProductionResultController {
             String lotUseYn = bomMap.get("lotUseYn").toString();
             float totalQty = 0f;
 
-            *//*
-			 선입선출로 mat_lot 찾아서 차감
+			 *//*선입선출로 mat_lot 찾아서 차감
              차감하면서 mat_lot_cons 생성
-             투입되어야할 수량보다 적으면 재고량 부족으로 return
-             *//*
+             투입되어야할 수량보다 적으면 재고량 부족으로 return*//*
+
 
             if ("Y".equals(lotUseYn)) { //lot 관리를 할 경우
                 // 수정시작
@@ -1639,6 +1646,124 @@ public class ProductionResultController {
     @Transactional
     public AjaxResult chasuDel(
             @RequestParam(value = "jr_pk", required = false) Integer jrPk,
+            @RequestBody List<Map<String, Object>> chasuList,
+            HttpServletRequest request,
+            Authentication auth) {
+
+        AjaxResult result = new AjaxResult();
+
+        jrPk = null; //TODO
+
+        if(1==1) throw new RuntimeException("asd");
+
+        User user = (User) auth.getPrincipal();
+
+        JobRes jr = this.jobResRepository.getJobResById(jrPk);
+
+        // mat_prod 마지막 차수 가져오기
+        List<MaterialProduce> mpList = this.matProduceRepository.findByJobResponseIdOrderByLotIndexDesc(jrPk);
+        Integer matProdCount = mpList.size();
+
+        if (matProdCount == 0) {
+            throw new CustomException("차수생산이력이 존재하지 않습니다.");
+        }
+
+        /*for(int i=0; i < chasuList.size(); i++){
+
+            //Lotindex 리스트
+            chasuList.stream().filter()
+
+            MaterialProduce mp = mpList.get(i);
+            String lotNumber = mp.getLotNumber();
+            float removedGoodQty = (mp.getGoodQty() != null) ? mp.getGoodQty() : 0;
+            float removedDefectQty = (mp.getDefectQty() != null) ? mp.getDefectQty() : 0;
+
+            List<MaterialConsume> mcList = this.matConsuRepository.findByJobResponseIdAndLotIndexIn(jr.getId(), chasuList);
+        }*/
+        MaterialProduce mp = mpList.get(0);
+        String lotNumber = mp.getLotNumber();
+        float removedGoodQty = (mp.getGoodQty() != null) ? mp.getGoodQty() : 0;
+        float removedDefectQty = (mp.getDefectQty() != null) ? mp.getDefectQty() : 0;
+
+
+        // mat_cons 가져오기
+        List<MaterialConsume> mcList = this.matConsuRepository.findByJobResponseIdAndProcessOrderAndLotIndex(jr.getId(), mp.getProcessOrder(), mp.getLotIndex());
+
+        // Integer matConsumeCount = mcList.size();
+
+        // 생산된차수LOT의 mat_lot_consu 존재 확인
+        MaterialLot ml = this.matLotRepository.getByLotNumber(lotNumber);
+
+        List<MatProcInput> mpiList = this.matProcInputRepository.findByMaterialLotId(ml.getId());
+
+        List<MatLotCons> mlcList = this.matLotConsRepository.findByMaterialLotId(ml.getId());
+
+        if (mpiList.size() > 0) {
+            result.message = "생산LOT(" + lotNumber + ")이 투입요청 중에 있어 차수 삭제가 불가능합니다.";
+            result.success = false;
+            return result;
+        }
+        // 차수 생산으로 발행된 로트가 mat_lot_consu에 존재하는지
+        if (mlcList.size() > 0) {
+            // 1. 생산된 차수의 생산로트가 다론곳에서 사용되었으면 돌이킬 수 없다.
+            result.message = "생산LOT(" + lotNumber + ")이 사용중에 있어 차수 삭제가 불가능합니다.";
+            result.success = false;
+            return result;
+        }
+
+        // 2. mat_lot 삭제
+        this.matLotRepository.deleteById(ml.getId());
+
+        // mat_lot_cons 삭제
+        this.matLotConsRepository.deleteBySourceTableNameAndSourceDataPk("mat_produce", mp.getId());
+
+        // mat_inout 삭제
+        this.matInoutRepository.deleteBySourceTableNameAndSourceDataPkAndInOutAndInputType("mat_produce", mp.getId(), "in", "produced_in");
+
+        // 5. mat_inout 생산 재고 차감 이력 삭제 (재고원복), mat_cons삭제
+        // mat_cons 삭제(투입 자재별로 등록된 mat_consu)
+        for (int i = 0; i < mcList.size(); i++) {
+            this.matInoutRepository.deleteBySourceTableNameAndSourceDataPkAndInOutAndOutputType("mat_consu", mcList.get(i).getId(), "out", "consumed_out");
+            this.matConsuRepository.deleteById(mcList.get(i).getId());
+        }
+
+        // 6.해당 차수 mat_prod 삭제
+        this.matProduceRepository.deleteById(mp.getId());
+
+        this.productionResultService.calculate_balance_mat_lot_with_job_res(jr.getId());
+
+        // 양품량 합계 업데이트
+        Map<String, Object> mapSum = this.productionResultService.getJobResponseGoodDefectQty(jrPk);
+
+        float goodQtySum = Float.parseFloat(mapSum.get("good_qty").toString());
+        float defectQtySum = Float.parseFloat(mapSum.get("defect_qty").toString());
+
+        goodQtySum -= removedGoodQty;
+        defectQtySum -= removedDefectQty;
+
+        // 음수가 되지 않도록 보정
+        if (goodQtySum < 0) goodQtySum = 0;
+        if (defectQtySum < 0) defectQtySum = 0;
+
+        jr.setGoodQty(goodQtySum);
+        jr.setDefectQty(defectQtySum);
+        jr.set_audit(user);
+        jr = this.jobResRepository.save(jr);
+
+        Map<String, Object> item = new HashMap<String, Object>();
+        item.put("jr_pk", jrPk);
+        item.put("good_qty_sum", goodQtySum);
+        item.put("defect_qty_sum", defectQtySum);
+
+        result.data = item;
+
+        return result;
+    }
+
+    /*@PostMapping("/chasu_del")
+    @Transactional
+    public AjaxResult chasuDel(
+            @RequestParam(value = "jr_pk", required = false) Integer jrPk,
             HttpServletRequest request,
             Authentication auth) {
 
@@ -1735,7 +1860,7 @@ public class ProductionResultController {
         result.data = item;
 
         return result;
-    }
+    }*/
 
     @PostMapping("/chasu_save")
     @Transactional(isolation = Isolation.READ_UNCOMMITTED)

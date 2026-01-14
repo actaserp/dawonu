@@ -600,11 +600,13 @@
                             </div>
                             <div class="content-wrap">
                                 <div>
-                                    <div id="chasu-grid" style="height: 130px;"></div>
+                                    <div id="chasu-grid" style="height: 500px;"></div>
                                 </div>
                                 <div style="flex: 1; display: flex; flex-direction: column; margin-top: 10px;">
-                                    <span>지시 상세 내역</span>
-                                    <div id="detail-grid" style="flex: 1; min-height: 0;"></div>
+                                    <div style="display: none;">
+                                            <span>지시 상세 내역</span>
+                                            <div id="detail-grid" style="flex: 1; min-height: 0;"></div>
+                                    </div>
                                 </div>
                             </div>
 
@@ -1268,6 +1270,15 @@
                             cssClass: 'background-blue'
                         },
                         {
+                            binding: 'source_good_qty',
+                            header: '양품량_원본',
+                            width: 100,
+                            align: 'right',
+                            format: 'n2',
+                            isReadOnly: false,
+                            visible: false,
+                        },
+                        {
                             binding: 'defect_qty',
                             header: '부적합량',
                             width: 100,
@@ -1275,6 +1286,15 @@
                             format: 'n2',
                             isReadOnly: false,
                             cssClass: 'background-defect'
+                        },
+                        {
+                            binding: 'source_defect_qty',
+                            header: '부적합량_원본',
+                            width: 0,
+                            align: 'right',
+                            format: 'n2',
+                            isReadOnly: false,
+                            visible: false,
                         },
                         // {binding: 'start_time', header: '시작시간', width: 150, align: 'center', isReadOnly: true},
                         // {binding: 'end_time', header: '종료시간', width: 150, align: 'center', isReadOnly: true},
@@ -1351,6 +1371,7 @@
                         s.collectionView.commitEdit();
                         s.invalidate();
                     }
+
                 });
 
                 // Context Menu 추가
@@ -2638,8 +2659,24 @@
                 let _this = this;
                 let url = this.baseUrl + '/chasu_del';
                 let jr_pk = this.$tabBasic.find('#id').val();
+                
                 let selectedItems = this.chasuGrid.selectedItems; // 체크된 항목 가져오기
 
+                let chasuList = [];
+                
+                for(let item of selectedItems){
+                    chasuList.push({
+                        chasu : item.chasu,
+                        good_qty : item.good_qty,
+                        defect_qty : item.defect_qty,
+                        id : item.id,
+                        lot_no : item.lot_no,
+                        jrPk : jr_pk
+                    });
+                }
+
+
+                console.log('selected', selectedItems);
                 if (selectedItems.length === 0) {
                     Alert.alert('차수 삭제오류', '선택된 차수가 없습니다.');
                     return;
@@ -2682,8 +2719,8 @@
                         '차수 삭제',
                         `마지막 차수(${lastChasu}차수) ${lastItem.lot_no}를 삭제하시겠습니까?`,
                         function () {
-                            let data = {'jr_pk': jr_pk};
-                            AjaxUtil.postAsyncData(url, data, fnSuccess);
+                            //let data = {'jr_pk': jr_pk, 'chasuList' : chasuList};
+                            AjaxUtil.postJsonAsyncData(url, chasuList, fnSuccess);
                         }
                     );
                 }
@@ -2693,7 +2730,11 @@
             // 차수 수량 변경 저장, 선택된 차수만 업데이트
             saveChasu() {
                 let _this = this;
-                let items = this.chasuGrid.selectedItems;
+                //let items = this.chasuGrid.selectedItems;
+
+                let items = this.chasuGrid.collectionView.items;
+
+                console.log('items', items);
 
                 if (items.length === 0) {
                     return;
@@ -2702,22 +2743,33 @@
                 let jr_pk = _this.$tabBasic.find('#id').val();
 
                 let chasuList = [];
+                
                 for (let item of items) {
-                    let mp_id = item.id;
-                    let good_qty = item.good_qty;
-                    let defect_qty = item.defect_qty;
 
-                    if (good_qty === "0" || good_qty === "") {
+                    let mp_id = item.id;
+                    
+                    let good_qty = Number(item.good_qty);
+                    let defect_qty = Number(item.defect_qty);
+
+                    if (Number.isNaN(good_qty) || good_qty < 0) {
+                        console.log(good_qty);
                         Alert.alert('차수 양품량 수정', '잘못된 수량이 포함되어 있습니다.');
                         return;
                     }
 
-                    chasuList.push({
+                    let original_data_good_qty = Number(item.source_good_qty);
+                    let original_data_defect_qty = Number(item.source_defect_qty);
+
+                    if(original_data_good_qty !== good_qty || original_data_defect_qty !== defect_qty)
+                    {
+                        chasuList.push({
                         jr_pk: jr_pk,
                         mp_id: mp_id,
                         good_qty: good_qty,
                         defect_qty: defect_qty
-                    });
+                    });     
+                    }
+                    
                 }
 
                 let fnSuccess = function (res) {

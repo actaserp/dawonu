@@ -18,6 +18,8 @@ public interface MatConsuRepository extends JpaRepository<MaterialConsume, Integ
 
 	List<MaterialConsume> findByJobResponseIdAndProcessOrderAndLotIndex(int id, Integer processOrder, Integer lotIndex);
 
+    List<MaterialConsume> findByJobResponseIdAndLotIndexIn(Integer jobResponseId, List<Integer> lotIndex);
+
 	MaterialConsume getByJobResponseIdAndProcessOrderAndLotIndexAndMaterialId(int id, Integer processOrder, Integer lotIndex,
 			int consumeMatPk);
 

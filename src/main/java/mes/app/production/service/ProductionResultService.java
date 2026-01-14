@@ -832,6 +832,8 @@ public class ProductionResultService {
 				  , "LotNumber" as lot_no
 				  , ROUND("GoodQty"::numeric, 2) as good_qty
 				  , ROUND("DefectQty"::numeric, 2) as defect_qty
+				  , ROUND("GoodQty"::numeric, 2) as source_good_qty
+				  , ROUND("DefectQty"::numeric, 2) as source_defect_qty
 				  , "LossQty" as loss_qty
 				  , "ScrapQty" as scrap_qty
 				  , to_char("EndTime", 'YYYY-MM-DD HH24:MI') as end_time
