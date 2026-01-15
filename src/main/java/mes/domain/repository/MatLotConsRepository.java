@@ -3,6 +3,7 @@ package mes.domain.repository;
 import java.util.List;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -22,4 +23,17 @@ public interface MatLotConsRepository extends JpaRepository<MatLotCons, Integer>
 
 	@Query("SELECT m FROM MatLotCons m WHERE m.sourceTableName = 'shipment' AND m.sourceDataPk IN :shipmentIds")
 	List<MatLotCons> findByShipmentIds(@Param("shipmentIds") List<Integer> shipmentIds);
+
+    List<MatLotCons> findByMaterialLotIdIn(List<Integer> list);
+
+    @Modifying
+    @Query("""
+    delete from MatLotCons m
+    where m.sourceTableName = :tableName
+      and m.sourceDataPk IN (:lotIds)
+""")
+    void deleteBySourceTableNameAndSourceDataPkIn(
+            @Param("tableName") String tableName,
+            @Param("lotIds") List<Integer> lotIds
+    );
 }

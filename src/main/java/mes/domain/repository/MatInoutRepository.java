@@ -3,6 +3,9 @@ package mes.domain.repository;
 import java.util.List;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import mes.domain.entity.MaterialInout;
@@ -29,4 +32,19 @@ public interface MatInoutRepository extends JpaRepository<MaterialInout, Integer
 
 	void deleteBySourceTableNameAndSourceDataPkAndInOutAndOutputType(String string, int id, String string2,
 			String string3);
+
+    @Modifying
+    @Query("""
+    delete from MaterialInout m
+    where m.sourceTableName = :sourceTableName
+      and m.sourceDataPk IN (:lotIds)
+      and m.inOut = :inOut
+      and m.inputType = :inputType
+""")
+    void deleteBySourceTableNameAndSourceDataPksAndInOutAndInputType(
+            @Param("sourceTableName") String sourceTableName,
+            @Param("lotIds") List<Integer> lotIds,
+            @Param("inOut") String inOut,
+            @Param("inputType") String inputType
+    );
 }

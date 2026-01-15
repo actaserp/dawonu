@@ -1652,83 +1652,63 @@ public class ProductionResultController {
 
         AjaxResult result = new AjaxResult();
 
-        jrPk = null; //TODO
-
-        if(1==1) throw new RuntimeException("asd");
+        jrPk = Integer.parseInt(chasuList.get(0).get("jrPk").toString()); //그냥 아무 인덱스에서 뽑아와도됨 다 같은값
 
         User user = (User) auth.getPrincipal();
 
         JobRes jr = this.jobResRepository.getJobResById(jrPk);
 
         // mat_prod 마지막 차수 가져오기
-        List<MaterialProduce> mpList = this.matProduceRepository.findByJobResponseIdOrderByLotIndexDesc(jrPk);
-        Integer matProdCount = mpList.size();
-
-        if (matProdCount == 0) {
+        List<MaterialProduce> mpList = this.matProduceRepository.findByJobResponseIdAndLotNumberIn(jrPk, chasuList.stream().map(t -> (String) t.get("lot_no")).toList());
+        if (mpList.isEmpty()) {
             throw new CustomException("차수생산이력이 존재하지 않습니다.");
         }
 
-        /*for(int i=0; i < chasuList.size(); i++){
-
-            //Lotindex 리스트
-            chasuList.stream().filter()
-
-            MaterialProduce mp = mpList.get(i);
-            String lotNumber = mp.getLotNumber();
-            float removedGoodQty = (mp.getGoodQty() != null) ? mp.getGoodQty() : 0;
-            float removedDefectQty = (mp.getDefectQty() != null) ? mp.getDefectQty() : 0;
-
-            List<MaterialConsume> mcList = this.matConsuRepository.findByJobResponseIdAndLotIndexIn(jr.getId(), chasuList);
-        }*/
-        MaterialProduce mp = mpList.get(0);
-        String lotNumber = mp.getLotNumber();
-        float removedGoodQty = (mp.getGoodQty() != null) ? mp.getGoodQty() : 0;
-        float removedDefectQty = (mp.getDefectQty() != null) ? mp.getDefectQty() : 0;
+        List<Integer> LotIndexList = chasuList.stream()
+                .map(t -> (Integer) t.get("chasu"))
+                .toList();
 
 
         // mat_cons 가져오기
-        List<MaterialConsume> mcList = this.matConsuRepository.findByJobResponseIdAndProcessOrderAndLotIndex(jr.getId(), mp.getProcessOrder(), mp.getLotIndex());
+        List<MaterialConsume> mcList = this.matConsuRepository.findByJobResponseIdAndLotIndexIn(jr.getId(), LotIndexList);
 
-        // Integer matConsumeCount = mcList.size();
+        List<String> lotNumbers = mpList.stream().map(MaterialProduce::getLotNumber).toList();
 
-        // 생산된차수LOT의 mat_lot_consu 존재 확인
-        MaterialLot ml = this.matLotRepository.getByLotNumber(lotNumber);
+        //생산된 차수 LOT의 mat_lot_consu 존재 확인
+        List<MaterialLot> ml = this.matLotRepository.getByLotNumberIn(lotNumbers);
 
-        List<MatProcInput> mpiList = this.matProcInputRepository.findByMaterialLotId(ml.getId());
+        List<Integer> lotIds = ml.stream().map(MaterialLot::getId).toList();
 
-        List<MatLotCons> mlcList = this.matLotConsRepository.findByMaterialLotId(ml.getId());
+        //얘는 없어야함 --> 투입된 흔적이 없어야 삭제가능하므로
+        List<MatProcInput> mpiList = this.matProcInputRepository.findByMaterialLotIdIn(lotIds); //TODO: check
+        //얘도 없어야함 --> 생산한 완제품 lot가 소모 목록에 있으면 투입된 중이므로
+        List<MatLotCons> mlcList = this.matLotConsRepository.findByMaterialLotIdIn(lotIds);  //TODO : check
 
-        if (mpiList.size() > 0) {
-            result.message = "생산LOT(" + lotNumber + ")이 투입요청 중에 있어 차수 삭제가 불가능합니다.";
-            result.success = false;
-            return result;
+        if(!mpiList.isEmpty()){
+            throw new CustomException("생산LOT에 투입요청 중에 있는 LOT가 있어 삭제가 불가능합니다.");
         }
-        // 차수 생산으로 발행된 로트가 mat_lot_consu에 존재하는지
-        if (mlcList.size() > 0) {
-            // 1. 생산된 차수의 생산로트가 다론곳에서 사용되었으면 돌이킬 수 없다.
-            result.message = "생산LOT(" + lotNumber + ")이 사용중에 있어 차수 삭제가 불가능합니다.";
-            result.success = false;
-            return result;
+        //차수 생산으로 발행된 로트가 mat_lot_consu에 존재하는지
+        if(!mlcList.isEmpty()){
+            throw new CustomException("생산LOT에 투입요청 중에 있는 LOT가 있어 삭제가 불가능합니다.");
         }
 
-        // 2. mat_lot 삭제
-        this.matLotRepository.deleteById(ml.getId());
+        // mat_lot 삭제
+        this.matLotRepository.deleteAllByIdIn(lotIds);
 
         // mat_lot_cons 삭제
-        this.matLotConsRepository.deleteBySourceTableNameAndSourceDataPk("mat_produce", mp.getId());
+        this.matLotConsRepository.deleteBySourceTableNameAndSourceDataPkIn("mat_produce", lotIds);
 
         // mat_inout 삭제
-        this.matInoutRepository.deleteBySourceTableNameAndSourceDataPkAndInOutAndInputType("mat_produce", mp.getId(), "in", "produced_in");
+        this.matInoutRepository.deleteBySourceTableNameAndSourceDataPksAndInOutAndInputType("mat_produce", lotIds, "in", "produced_in");
 
-        // 5. mat_inout 생산 재고 차감 이력 삭제 (재고원복), mat_cons삭제
-        // mat_cons 삭제(투입 자재별로 등록된 mat_consu)
-        for (int i = 0; i < mcList.size(); i++) {
+        // 5.mat_inout 생산 재고 차감 이력 삭제 (자재원복), mat_cons 삭제
+        for(int i=0; i < mcList.size(); i++){ //TODO: 이거 반복문 보다는 한번에 하는게 나을듯? 일단은 이렇게 하고
             this.matInoutRepository.deleteBySourceTableNameAndSourceDataPkAndInOutAndOutputType("mat_consu", mcList.get(i).getId(), "out", "consumed_out");
             this.matConsuRepository.deleteById(mcList.get(i).getId());
         }
 
-        // 6.해당 차수 mat_prod 삭제
-        this.matProduceRepository.deleteById(mp.getId());
+        //6.해당 차수 mat_prod 삭제
+        this.matProduceRepository.deleteByIdIn(mpList.stream().map(t -> t.getId()).toList());
 
         this.productionResultService.calculate_balance_mat_lot_with_job_res(jr.getId());
 
@@ -1737,6 +1717,9 @@ public class ProductionResultController {
 
         float goodQtySum = Float.parseFloat(mapSum.get("good_qty").toString());
         float defectQtySum = Float.parseFloat(mapSum.get("defect_qty").toString());
+
+        float removedGoodQty = mpList.stream().map(MaterialProduce::getGoodQty).filter(Objects::nonNull).reduce(0f, Float::sum);
+        float removedDefectQty = mpList.stream().map(MaterialProduce::getDefectQty).filter(Objects::nonNull).reduce(0f, Float::sum);
 
         goodQtySum -= removedGoodQty;
         defectQtySum -= removedDefectQty;
@@ -1758,6 +1741,7 @@ public class ProductionResultController {
         result.data = item;
 
         return result;
+
     }
 
     /*@PostMapping("/chasu_del")
