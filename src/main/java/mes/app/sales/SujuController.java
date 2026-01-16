@@ -187,6 +187,7 @@ public class SujuController {
     Date dueDate = CommonUtil.trySqlDate(dueDateStr);
 
     String companyName = (String) payload.get("CompanyName");
+    String DeliveryName = (String) payload.get("DeliveryName");
     Integer companyId = Integer.parseInt(payload.get("Company_id").toString());
     String sujuType = (String) payload.get("SujuType");
     String description = (String) payload.get("Description");
@@ -217,6 +218,7 @@ public class SujuController {
     head.setJumunDate(jumunDate);
     head.setDeliveryDate(dueDate);
     head.setCompany_id(companyId);
+    head.setDeliveryName(DeliveryName);
     head.setSpjangcd(spjangcd);
     head.set_audit(user);
     head.setSujuType(sujuType);
@@ -1110,13 +1112,13 @@ public class SujuController {
                                  @RequestParam("cboMaterialMid") Integer cboMaterialMid,
                                  @RequestParam("Name") String Name,
                                  @RequestParam("Unit_id") Integer Unit_id,
-                                 @RequestParam(value = "Standard", required = false) String Standard,
                                  @RequestParam("Factory_id") Integer Factory_id,
-                                 @RequestParam(value = "Thickness",required = false) Float Thickness,
-                                 @RequestParam(value = "Width",  required = false) Float Width,
-                                 @RequestParam(value = "Color",  required = false) String Color,
                                  @RequestParam("WorkCenter_id") Integer WorkCenter_id,
                                  @RequestParam("spjangcd") String spjangcd,
+                                 @RequestParam("Code") String Code,
+                                 @RequestParam("Class1") String Class1,
+                                 @RequestParam("Class2") String Class2,
+                                 @RequestParam("Class3") String Class3,
                                  Authentication auth
   ) {
     AjaxResult result = new AjaxResult();
@@ -1125,43 +1127,20 @@ public class SujuController {
 
       Material material;
 
-      if (id == null) {
-        material = new Material();
-        // 코드가 비어있으면 신규 코드 부여
-        String matCode = sujuService.getNextMatCode();
-        material.setCode(matCode);
-      } else {
-        material = this.materialRepository.getMaterialById(id);
-        if (material == null) {
-          result.success = false;
-          result.message = "대상 품목이 존재하지 않습니다.";
-          return result;
-        }
-        if (material.getCode() == null || material.getCode().isEmpty()) {
-          material.setCode(sujuService.getNextMatCode());
-        }
-      }
+      material = new Material();
 
+      material.setCode(Code);     //품목코드
+      material.setClass1(Class1); //1차공정
+      material.setClass2(Class2); //2차공정
+      material.setClass3(Class3); //3차공정
       material.setFactory_id(Factory_id);
       material.setName(Name);
       material.setMaterialGroupId(MaterialGroup_id);
       material.setUnitId(Unit_id);
-      material.setStandard1(Standard);
       material.setSpjangcd(spjangcd);
-      material.setThickness(Thickness); //폭
-      material.setWidth(Width);
-      material.setColor(Color);
       material.setUseyn("0");
       material.setWorkCenterId(WorkCenter_id);
-//      if (Standard != null && !Standard.trim().isEmpty()) {
-//        material.setRoutingId(11);
-//      } else {
-//        material.setRoutingId(10);
-//      }
-//      if (Objects.equals(WorkCenter_id, 46)) {
-//        material.setRoutingId(11);
-//      }
-      material.setStoreHouseId(3);  // 자재창고가 기본으로
+      material.setStoreHouseId(4);  // 제품창고가 기본으로
       material.setMatUserCode(cboMaterialMid);
       material.setPurchaseOrderStandard("mrp");
       material.setValidDays(1);
@@ -1170,7 +1149,7 @@ public class SujuController {
       // 저장
       Material saved = materialRepository.save(material);
 
-      createOrReuseDefaultBom(saved, spjangcd, user);
+      createOrReuseDefaultBom(saved, spjangcd, user); // bom 자동 등록 기본 원재료로
 
       String unitName = unitRepository.findById(Unit_id)
           .map(Unit::getName)
@@ -1181,7 +1160,6 @@ public class SujuController {
       data.put("id", saved.getId());
       data.put("Code", saved.getCode());
       data.put("name", saved.getName());
-      data.put("standard", saved.getStandard1());
       data.put("unit_name", unitName);
       data.put("GroupId", saved.getMaterialGroupId());
 

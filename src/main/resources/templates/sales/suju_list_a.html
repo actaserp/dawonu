@@ -53,6 +53,7 @@
                   <input type="date" id="srchStartDt" name="srchStartDt">
                   <label for="srchStartDt" class="hide">시작일</label>
                 </li>
+                ~
                 <li>
                   <input type="date" id="srchEndDt" name="srchEndDt">
                   <label for="srchEndDt" class="hide">종료일</label>
@@ -298,6 +299,14 @@
                         </td>
                     </tr>
                     <tr>
+                     <th style="text-align: center">
+                      현장명
+                     </th>
+                     <td colspan="5">
+                     <input id="DeliveryName" name="DeliveryName" placeholder="현장명" style="width: 100%;">
+                     </td>
+                    </tr>
+                    <tr>
                         <th style="text-align: center">
                             <label for="Description">비고</label>
                         </th>
@@ -366,9 +375,6 @@
                             <input type="hidden" name="MaterialGroupName" />
                             <input type="hidden" name="Material_id" />
                             <input type="hidden" name="standard_locked">
-                            <a class="btn in_btn" title="품목 신규등록" id="btnProductSave">
-                                <img src="/images/icon/ico-plus.svg" alt="등록 아이콘" />
-                            </a>
                         </div>
                     </td>
                     <td><input type="text" style="text-align:center;" name="unit" placeholder="단위" readonly/></td>
@@ -462,7 +468,6 @@
 <!--  <th:block th:replace="/common/popup_company :: popup_company"></th:block>-->
   <th:block th:replace="/sales/popup_suju_company :: popup_suju_company"></th:block>
   <th:block th:replace="/sales/popup_company_new_save :: popup_company_new_save"></th:block>
-  <th:block th:replace="/sales/popup_material_save :: popup_material_new_save"></th:block>
   <th:block th:replace="/sales/print_estimate :: print_estimate"></th:block>
   <script type="text/javascript">
 
@@ -712,36 +717,6 @@
           poppage.show(searchcallback);
         });
 
-        $content.find('#btnOrderSearch').click(function () {
-          let poppage = new PopCompSuJuComponent();
-          let $poppage = $(poppage);
-          let searchcallback = function (items) {
-            $content.find('#SuJuOrderId').val(items.id);
-            $content.find('#SuJuOrderName').val(items.compname);
-
-            $content.find('#cboCompany').val(items.id);
-            $content.find('#CompanyName').val(items.compname);
-
-            setTimeout(() => {
-              const $delivery = $content.find('#DeliveryName');
-              if ($delivery.length) {
-                $delivery.focus();
-                // 커서를 맨 뒤로 이동(선택 범위 = 길이,길이)
-                const el = $delivery.get(0);
-                if (el && el.setSelectionRange) {
-                  const v = $delivery.val() || '';
-                  el.setSelectionRange(v.length, v.length);
-                }
-              } else {
-                const $fallback = $('#DeliveryName');
-                if ($fallback.length) $fallback.focus();
-              }
-            }, 120);
-          };
-
-          poppage.show(searchcallback);
-        });
-
         //거래처 신규등록 팝업
         $content.on('click', '#plusCompany', function () {
           const popup = new PopCompSaveComponent(); // 필요 시 { saveUrl: '/api/sales/suju/save_Comp' }로 교체
@@ -954,6 +929,7 @@
               DueDate: data.DueDate,
               Company_id: data.Company_id,
               CompanyName: data.CompanyName,
+             DeliveryName: data.DeliveryName,
               SujuType: data.SujuType,
               spjangcd: data.spjangcd,
               totalAmountSum: data.totalAmountSum,
@@ -1424,55 +1400,6 @@
             }
           });
 
-        // 검색 버튼 클릭 시 팝업
-        $content.on('click', 'a[title="품목 신규등록"]', function () {
-          //현재 클릭한 버튼이 속한 행을 기준 컨텍스트로 사용
-          const $row = $(this).closest('tr');
-
-          const pop = new PopMatSaveComponent();
-          pop.show({
-            onSaved: (saved) => {
-              if (typeof window.searchMatList === 'function') searchMatList();
-              if (!saved) return;
-
-              //prefix로 찾는 헬퍼 (보이는 텍스트/셀렉트만 타겟)
-              const setByPrefix = (prefix, val) => {
-                const $target = $row.find(
-                  `input[type="text"][name^="${prefix}"]:visible,
-                     textarea[name^="${prefix}"]:visible,
-                     select[name^="${prefix}"]:visible`
-                ).first();
-
-                if ($target.length) {
-                  $target.val(val ?? '').trigger('input').trigger('change');
-                } else {
-                  // 숨김 필드만 있는 경우 대비해 한 번 더 시도(텍스트 우선)
-                  const $fallback = $row.find(`[name^="${prefix}"]`).filter(':input').first();
-                  if ($fallback.length) {
-                    $fallback.val(val ?? '').trigger('input').trigger('change');
-                  } else {
-                    console.warn(`No target found for prefix: ${prefix}`);
-                  }
-                }
-              };
-
-              setByPrefix('product_code_',   saved.Code);
-              setByPrefix('Material_id_',    saved.id);
-              setByPrefix('txtProductName_', saved.name);
-              setByPrefix('standard_',       saved.standard);
-              setByPrefix('unit_',       saved.unit_name);
-
-              // 읽기전용 토글
-              const $std = $row.find('input[type="text"][name^="standard_"]:visible').first();
-              const hasStd = !!(saved.standard && String(saved.standard).trim().length);
-              if ($std.length) $std.prop('readonly', hasStd);
-            },
-
-            // 포커스 복귀
-            focusAfterClose: this
-          });
-        });
-
         $content.on('keydown', 'input[name^="txtProductName_"]', function (e) {
           if (e.key !== 'Enter' && e.keyCode !== 13) return;
 
@@ -1491,17 +1418,21 @@
           const pop = new PopMatComponent();
           pop.material_type = 'product,sangpum';
 
-          const callback = function (item) {
-            $productId.val(item.id || '');
-            $productInput.val(item.Name || '');
-            $productCode.val(item.Code || '');
-            $unit_name.val(item.unit_name || '').trigger('input');
-            $Standard.val(item.Spec || '');
+         const callback = function (item) {
+          $productId.val(item.id || '');
+          $productInput.val(item.Name || '');
+          $productCode.val(item.Code || '');
+          $unit_name.val(item.unit_name || '').trigger('input');
 
-            tryShowPrice($row);
-          };
+          const parsedStd = parseStandardFromProductCode(item.Code);
 
-          if (!keyword) {
+          // ✅ Spec 안 씀. 규칙 없는 코드는 빈값(또는 '미정')
+          $Standard.val(parsedStd || '');
+
+          tryShowPrice($row);
+         };
+
+         if (!keyword) {
             pop.focusAfterClose = $field[0];
             pop.show(callback);
             return;
@@ -1526,7 +1457,46 @@
           }
         });
 
-        // 품목명 지우면 코드들도 같이 지워지게
+       function parseStandardFromProductCode(code) {
+        if (!code) return '';
+
+        // ✅ ZL 규칙만 확정 적용
+        const mZL = String(code).match(/ZL(\d+)/i);
+        if (mZL) {
+         return parseFromZL(mZL[1]);
+        }
+
+        // ⚠️ ZM 등 다른 타입은 아직 규칙 미확정 → 빈값
+        return '';
+       }
+
+       function parseFromZL(zlNum) {
+        const fixed = 1000;
+
+        // 세로코드(확정된 것만)
+        const heightMap = { '0': 1000, '8': 800, '9': 900 };
+
+        let thickT = null;
+        let height = null;
+
+        if (zlNum.length >= 3) {
+         thickT = parseInt(zlNum.slice(0, 2), 10);      // 259 -> 25
+         height = heightMap[zlNum.slice(2, 3)] ?? null; // 9 -> 900
+        } else if (zlNum.length === 2) {
+         thickT = parseInt(zlNum.slice(0, 1), 10) * 10; // 49 -> 40
+         height = heightMap[zlNum.slice(1, 2)] ?? null; // 9 -> 900
+        }
+
+        // 조합
+        const sizeStr  = (height != null) ? `${fixed}*${height}` : '';
+        const thickStr = (thickT != null) ? `${thickT}T` : '';
+
+      // ✅ 지금은 sizeStr만 필요
+        return sizeStr || '';
+
+       }
+
+       // 품목명 지우면 코드들도 같이 지워지게
         $content.on('input', 'input[name^="txtProductName_"]', function () {
           const $field = $(this);
           const $row = $field.closest('tr');

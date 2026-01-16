@@ -41,36 +41,41 @@ public class PopupController {
 		AjaxResult result = new AjaxResult();
 
 		String sql ="""
-	           select
-								m.id
-							, m."Code"
-							, m."Name"
-							, m."MaterialGroup_id"
-							, mg."Name" as group_name
-							, mg."MaterialType"
-							, sc."Value" as "MaterialTypeName"
-							, sc."Code"  as "MaterialTypeCode"
-							, u."Name"   as unit_name
-							, m."Mtyn"   as mtyn
-							, m."WorkCenter_id"
-							, m."Equipment_id"
-							, m."VatExemptionYN"
-							, m."Standard1" as "Spec"
-							, uc."Value"    as mat_user_name
-							, COALESCE(s.sum_cur_stock, 0) as cur_stock
-						from material m
-						left join (
-							select "Material_id", sum("CurrentStock") as sum_cur_stock
-							from mat_in_house
-							group by "Material_id"
-						) s on s."Material_id" = m.id
-						left join unit u  on m."Unit_id" = u.id
-						left join mat_grp mg on m."MaterialGroup_id" = mg.id
-						left join sys_code sc on mg."MaterialType" = sc."Code" and sc."CodeType" ='mat_type'
-						left join user_code uc on uc.id = m."mat_user_code"
-						where 1=1
-							and m."Useyn" = '0'
-							and m."spjangcd" = :spjangcd
+			select
+					m.id
+				, m."Code"
+				, m."Name"
+				, uc."Value"  as process_step1_nm
+			  , uc2."Value" as process_step2_nm
+			  , uc3."Value" as process_step3_nm
+				, m."MaterialGroup_id"
+				, mg."Name" as group_name
+				, mg."MaterialType"
+				, sc."Value" as "MaterialTypeName"
+				, sc."Code"  as "MaterialTypeCode"
+				, u."Name"   as unit_name
+				, m."Mtyn"   as mtyn
+				, m."WorkCenter_id"
+				, m."Equipment_id"
+				, m."VatExemptionYN"
+				, m."Standard1" as "Spec"
+				, uc."Value"    as mat_user_name
+				, COALESCE(s.sum_cur_stock, 0) as cur_stock
+				from material m
+				left join (
+					select "Material_id", sum("CurrentStock") as sum_cur_stock
+				from mat_in_house
+				group by "Material_id"
+				) s on s."Material_id" = m.id
+				left join unit u  on m."Unit_id" = u.id
+				left join mat_grp mg on m."MaterialGroup_id" = mg.id
+				left join sys_code sc on mg."MaterialType" = sc."Code" and sc."CodeType" ='mat_type'
+				left join user_code uc on uc."Code"  = m."Class1"
+				left join user_code uc2 on uc2."Code"  = m."Class2"
+				left join user_code uc3 on uc3."Code"  = m."Class3"
+				where 1=1
+					and m."Useyn" = '0'
+				and m."spjangcd" = :spjangcd
 	    """;
 
 		if (StringUtils.hasText(material_type)){
@@ -86,11 +91,13 @@ public class PopupController {
 		}
 
 		if(StringUtils.hasText(keyword)){
-            sql+="""
-            and (m."Name" ilike concat('%%',:keyword,'%%') or m."Code" ilike concat('%%',:keyword,'%%'))
-            """;
+				sql+="""
+					and (
+						 replace(m."Name", ' ', '') ilike concat('%', replace(:keyword, ' ', ''), '%')
+						 or replace(m."Code", ' ', '') ilike concat('%', replace(:keyword, ' ', ''), '%')
+					 )
+				""";
 		}
-		;
 		sql += "order by mg.\"Name\" , m.\"Name\" ";
 
 		MapSqlParameterSource paramMap = new MapSqlParameterSource();
