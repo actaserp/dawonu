@@ -49,5 +49,12 @@ public class EquRun extends AbstractAuditModel {
 	@Column(name = "\"StopCause_id\"")
 	Integer stopCauseId;
 
-	String spjangcd;
+    @Column(name = "\"SourceDataPk\"")
+    Integer sourceDataPk;
+
+    @Column(name = "\"SourceTableName\"")
+    String sourceTableName;
+
+
+    String spjangcd;
 }

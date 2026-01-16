@@ -157,42 +157,6 @@ public class ProdOrderEditController {
         AjaxResult result = new AjaxResult();
         User user = (User)auth.getPrincipal();
 
-        //List<Map<String, Object>> bomListByMat = prodOrderEditService.getBomListByMat("11801");
-
-        /*Map<Integer, BomNode> nodeMap = new HashMap<>();
-
-        for(Map<String, Object> row : bomListByMat){
-            BomNode node = new BomNode(row);
-            nodeMap.put(node.myKey, node);
-        }
-
-        Map<String, BomNode> rootMap = new HashMap<>();
-
-        for(BomNode node : nodeMap.values()){
-            if(node.parentKey == null) {
-                boolean hasFirstProcess = !node.class1.isEmpty();
-                String key = hasFirstProcess ? "FIRST" : "SINGLE";
-
-                rootMap.put(key, node);
-            }
-            else{
-                BomNode parent = nodeMap.get(node.parentKey);
-                if (parent != null) parent.children.add(node);
-            }
-        }
-
-        ObjectMapper mapper = new ObjectMapper();
-        mapper.enable(SerializationFeature.INDENT_OUTPUT);
-
-        String json = mapper.writeValueAsString(rootMap);
-        System.out.println(json);
-
-        if(1==1){
-            Toolkit defaultToolkit = Toolkit.getDefaultToolkit();
-            defaultToolkit.beep();
-            throw new CustomException("hh");
-        }*/
-
         try{
             //작업지시 생성 (제품)
             JobRes header = prodOrderEditService.makeParentProdOrder(
@@ -214,47 +178,6 @@ public class ProdOrderEditController {
         }catch(Exception e){
             throw new CustomException("예상치 못한 에러가 발생하였습니다.", e);
         }
-
-        /*Integer matPk = cboMaterial;
-        Material m = materialRepository.getMaterialById(matPk);
-        Integer locPk = m.getStoreHouseId();
-        Timestamp prodDate = CommonUtil.tryTimestamp(productionDate);
-
-        // 신규 or 수정 검증
-        JobRes header = new JobRes();
-
-        // ===== 헤더 저장 =====
-        header.set_audit(user);
-        header.setProductionDate(prodDate);
-        header.setProductionPlanDate(prodDate);
-        header.setMaterialId(matPk);
-        header.setOrderQty((float) txtOrderQty);
-        header.setStoreHouse_id(locPk);
-        header.setLotCount(1);
-        header.setState("ordered");
-        header.setSourceDataPk(sujuId);
-        header.setSourceTableName("suju");
-        header.setSpjangcd(spjangcd);
-
-        //해당 수주 제품을 만들기 위한 공정들 구하기
-        List<String> processCodes =  Stream.of(
-                m.getClass1(), m.getClass2(), m.getClass3()
-        ).filter(v -> v != null && !v.trim().isEmpty()).toList();
-
-        if(processCodes.isEmpty()) throw new CustomException("해당 제품에 대한 등록된 공정이 없습니다.");
-
-        header.setRouting_id(null);
-        header.setProcessCount(processCodes.size());
-        header.setWorkCenter_id(cboWorcenter);
-        header.setFirstWorkCenter_id(cboWorcenter);
-        header.setEquipment_id(cboEquipment);
-        header.setShiftCode(cboShiftCode);
-        header = jobResRepository.save(header); // 트리거가 번호 생성*/
-
-        /*result.success = true;
-        result.data = header;
-        return result;
-        */
     }
 
     // 작업 지시 수정 (모달 저장)

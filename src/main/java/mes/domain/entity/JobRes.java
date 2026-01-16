@@ -13,6 +13,7 @@ import javax.persistence.Table;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.ColumnTransformer;
 
 @Entity
 @Table(name="job_res")
@@ -119,4 +120,9 @@ public class JobRes extends AbstractAuditModel {
 	Date endDate;
 
 	String spjangcd;
+
+    @Column(name = "\"ProcessTree\"", columnDefinition = "jsonb")
+    @ColumnTransformer(write = "?::json")
+    private String processTree;
+
 }

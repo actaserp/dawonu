@@ -1,17 +1,22 @@
 package mes.app.production.service;
 
 import java.math.BigDecimal;
+import java.sql.Timestamp;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
 
+import mes.Exception.CustomException;
+import mes.app.production.ProductuibResult_validation.ProductionResultValidator;
+import mes.app.production.production_package.BomNode;
+import mes.app.util.UtilClass;
+import mes.domain.entity.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.stereotype.Service;
 
 import io.micrometer.core.instrument.util.StringUtils;
-import mes.domain.entity.MaterialLot;
-import mes.domain.entity.MatLotCons;
-import mes.domain.entity.StoreHouse;
 import mes.domain.repository.MatLotConsRepository;
 import mes.domain.repository.MatLotRepository;
 import mes.domain.repository.StorehouseRepository;
@@ -32,6 +37,8 @@ public class ProductionResultService {
 	@Autowired
 	MatLotRepository matLotRepository;
 
+    @Autowired
+    ProductionResultValidator validator;
 
     /**
      * 작업지시에서 발생한 불량 수량을
@@ -1558,5 +1565,58 @@ public class ProductionResultService {
 
 		return qty;
 	}
+
+    //SRP에 위배됨. 근데 그냥 검증 + 부수 로직 한군데 모은것
+    public Timestamp workFinish_validation(JobRes jr, Map<String, Object> dateParam, List<MaterialConsume> mcList, List<MaterialProduce> mp){
+
+        String endDate = UtilClass.getStringSafe(dateParam.get("endDate"));
+        String endTime = UtilClass.getStringSafe(dateParam.get("endTime"));
+        String prodDate = UtilClass.getStringSafe(dateParam.get("prodDate"));
+        String startTime = UtilClass.getStringSafe(dateParam.get("startTime"));
+
+        validator.validateJobResExists(jr, "작업지를 찾을 수 없습니다."); //작업지시 존재하는지 체크
+        validator.workFinish_Exists_endDate(endDate, endTime, "종료일/종료시간이 필요합니다."); //종료일자 및 종료시간 있는지 체크
+
+        DateTimeFormatter dtm = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+
+        int sec = 0;
+        if(jr.getStartTime() != null){
+            sec = jr.getStartTime().toLocalDateTime().getSecond();
+        }
+
+        // 3) end_time = end_date + end_time (+ sec)
+
+        LocalDateTime endDt = LocalDateTime.parse(endDate + " " + endTime, dtm).withSecond(sec);
+        Timestamp end_time = Timestamp.valueOf(endDt);
+
+        // 4) startDt : DB값 우선. (없다면 form 값으로 보정, 그래도 없으면 오류)
+        LocalDateTime startDt = null;
+        if(jr.getStartTime() != null){
+            startDt = jr.getStartTime().toLocalDateTime();
+        } else if(prodDate != null && !prodDate.isBlank() && startTime != null && !startTime.isBlank()){
+            startDt = LocalDateTime.parse(prodDate + " " + startTime, dtm).withSecond(sec);
+        } else {
+            throw new CustomException("시작시간이 없습니다. (작업시작 후 완료해주세요)");
+        }
+
+        // 5) 백엔드에서도 시간 역전 검증
+        validator.reverseTimeValidator(endDt, startDt, "작업시간이 잘못되었습니다. (종료 < 시작)");
+
+        // 6) 생산/차수/투입 체크
+        validator.assertNotEmpty(mcList, "저장된 투입내역이 없습니다.\n투입내역을 저장해주세요.");
+
+        validator.assertNotEmpty(mp, "저장된 차수내역이 없습니다.\n차수내역을 저장해주세요.");
+
+        return end_time;
+    }
+
+    //다음 공정 알아내기
+    public Object nextProcessOf(Map<String, ?> bomTree){
+
+        UtilClass.mapToJson(bomTree);
+
+        return null;
+    }
+
 
 }

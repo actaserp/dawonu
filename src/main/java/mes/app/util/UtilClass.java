@@ -1,14 +1,14 @@
 package mes.app.util;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
 import lombok.extern.slf4j.Slf4j;
 import mes.Encryption.EncryptionKeyProvider;
 import mes.Encryption.EncryptionUtil;
-import mes.domain.model.AjaxResult;
-import org.apache.commons.lang3.StringUtils;
+import mes.app.production.production_package.BomNode;
 
 import javax.servlet.http.HttpSession;
 import java.io.IOException;
-import java.sql.Date;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -17,7 +17,6 @@ import java.time.format.DateTimeParseException;
 
 import java.util.Map;
 import java.util.List;
-import java.util.Optional;
 
 @Slf4j
 public class UtilClass {
@@ -344,6 +343,25 @@ public class UtilClass {
         }
 
         return accnum;
+    }
+
+    /**
+     * Map -> Json 결과물을 보기 좋게 print 찍기
+     * **/
+    public static String mapToJson(Map<String, ?> item){
+
+        try{
+            ObjectMapper mapper = new ObjectMapper();
+            mapper.enable(SerializationFeature.INDENT_OUTPUT);
+
+            String json = mapper.writeValueAsString(item);
+            log.info(json);
+            return json;
+
+        }catch(Exception e){
+            log.error("json으로 변환하지 못함.");
+            return null;
+        }
     }
 
 }

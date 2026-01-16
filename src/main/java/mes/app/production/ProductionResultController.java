@@ -16,9 +16,14 @@ import java.util.stream.IntStream;
 import javax.servlet.http.HttpServletRequest;
 
 import mes.Exception.CustomException;
+import mes.app.definition.service.BomService;
 import mes.app.definition.service.EquipmentService;
 import mes.app.production.ProductuibResult_validation.ProductionResultValidator;
+import mes.app.production.production_package.BomNode;
+import mes.app.production.production_package.BomTreeService;
+import mes.app.production.production_package.ProcessFlow;
 import mes.app.production.service.EquipmentRunChartService;
+import mes.app.util.UtilClass;
 import mes.domain.entity.*;
 import mes.domain.repository.*;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -110,6 +115,9 @@ public class ProductionResultController {
 
     @Autowired
     EquRunRepository equRunRepository;
+
+    @Autowired
+    BomService bomService;
 
     @GetMapping("/read")
     public AjaxResult getProdResult(
@@ -525,6 +533,8 @@ public class ProductionResultController {
         er.setStartDate(start_ts);
         er.setWorkOrderNumber(orderNum != null ? orderNum : target.getWorkOrderNumber());
         er.setRunState("run");
+        er.setSourceTableName("job_res");
+        er.setSourceDataPk(jrPk);
         er.set_audit(user);
         er.setSpjangcd(spjangcd);
         this.equRunRepository.save(er);
@@ -646,51 +656,29 @@ public class ProductionResultController {
             HttpServletRequest request,
             Authentication auth) {
 
-        AjaxResult result = new AjaxResult();
         User user = (User) auth.getPrincipal();
 
+        Map<String, Object> validation_param = new HashMap<>();
+        validation_param.put("endDate", endDate);
+        validation_param.put("endTime", endTime);
+        validation_param.put("prodDate", prodDate);
+        validation_param.put("startTime", startTime);
 
         JobRes jr = this.jobResRepository.getJobResById(jrPk);
 
-        validator.validateJobResExists(jr, "작업지를 찾을 수 없습니다."); //작업지시 존재하는지 체크
-        validator.workFinish_Exists_endDate(endDate, endTime, "종료일/종료시간이 필요합니다."); //종료일자 및 종료시간 있는지 체크
-
-        // 1) 포맷터
-        DateTimeFormatter dtm = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
-
-        // 2) DB에 저장된 startTime을 기준으로 초(second) 확보 (없으면 0)
-        int sec = 0;
-        if (jr.getStartTime() != null) {
-            sec = jr.getStartTime().toLocalDateTime().getSecond();
-        }
-
-        // 3) end_time = end_date + end_time (+ sec)
-
-        LocalDateTime endDt = LocalDateTime.parse(endDate + " " + endTime, dtm).withSecond(sec);
-        Timestamp end_time = Timestamp.valueOf(endDt);
-
-        // 4) startDt : DB값 우선. (없다면 form 값으로 보정, 그래도 없으면 오류)
-        LocalDateTime startDt = null;
-        if (jr.getStartTime() != null) {
-            startDt = jr.getStartTime().toLocalDateTime();
-        } else if (prodDate != null && !prodDate.isBlank() && startTime != null && !startTime.isBlank()) {
-            startDt = LocalDateTime.parse(prodDate + " " + startTime, dtm).withSecond(sec);
-        } else {
-            throw new CustomException("시작시간이 없습니다. (작업시작 후 완료해주세요)");
-        }
-
-        // 5) 백엔드에서도 시간 역전 검증
-        validator.reverseTimeValidator(endDt, startDt, "작업시간이 잘못되었습니다. (종료 < 시작)");
-
         // 6) 생산/차수/투입 체크
         List<MaterialConsume> mcList = this.matConsuRepository.findByJobResponseId(jrPk);
-        validator.assertNotEmpty(mcList, "저장된 투입내역이 없습니다.\n투입내역을 저장해주세요.");
 
         List<MaterialProduce> mp = this.matProduceRepository.findByJobResponseId(jrPk);
-        validator.assertNotEmpty(mp, "저장된 차수내역이 없습니다.\n차수내역을 저장해주세요.");
 
-        // 7) JR 업데이트 (start_time 은 건드리지 않음!)
+        //타당성 검증 로직
+        Timestamp end_time = productionResultService.workFinish_validation(jr, validation_param, mcList, mp);
+
         Timestamp prod_date = CommonUtil.tryTimestamp(prodDate);
+
+        //region : 비지니스 로직 작업지시 (job_res) 저장
+        //바지니스 : 작업지시 (job_res) 저장 로직
+        // 7) JR 업데이트 (start_time 은 건드리지 않음!)
         jr.set_audit(user);
         jr.setLotNumber(lotNum);
         jr.setGoodQty(goodQty);
@@ -710,7 +698,27 @@ public class ProductionResultController {
         //불량창고에 불량품 등록
         this.productionResultService.add_jobres_defectqty_inout(jrPk, user.getId());
         jr = this.jobResRepository.save(jr);
+        //#endregion : 종료
 
+
+        //region : 다음작업 시작
+        //해당 품목에 대한 다음 작업에 대해 작업지시 생성해줘야 함
+
+        //우선 bomList 조회
+        List<Map<String, Object>> bomListByMat = bomService.getBomListByMat(UtilClass.getStringSafe(jr.getMaterialId()));
+
+
+
+        BomTreeService bomTreeService = new BomTreeService();
+        Map<String, BomNode> bomTree = bomTreeService.buildTree(bomListByMat);
+
+        productionResultService.nextProcessOf(bomTree);
+
+
+        //endregion
+
+
+        //region : 설비 종료
         // 8) EquRun 종료 (가능하면 jr_pk로 귀속하여 조회/종료 권장)
         Optional<EquRun> runningRunOpt =
                 equRunRepository.findLatestRunningByEquipmentAndOrder(equipmentId, orderNum);
@@ -718,15 +726,18 @@ public class ProductionResultController {
             EquRun equ = runningRunOpt.get();
             equ.setEndDate(end_time);
             equ.setRunState("complete");
+            equ.setSourceTableName("job_res");
+            equ.setSourceDataPk(jrPk);
             equ.set_audit(user);
             equRunRepository.save(equ);
         }
+        //endregion
+
+        if(1==1) throw new CustomException("asda");
 
         Map<String, Object> item = new HashMap<>();
         item.put("jr_pk", jrPk);
-        result.success = true;
-        result.data = item;
-        return result;
+        return AjaxResult.success(null, item);
     }
 
     /**
@@ -739,12 +750,19 @@ public class ProductionResultController {
     public AjaxResult finishCancel(
             @RequestParam(value = "jr_pk", required = false) Integer jrPk,
             @RequestParam(value = "spjangcd", required = false) String spjangcd,
+            @RequestParam(value = "Equipment_id", required = false) Integer Equipment_id,
             HttpServletRequest request,
             Authentication auth) {
 
         AjaxResult result = new AjaxResult();
 
         User user = (User) auth.getPrincipal();
+
+        long runningCount = equRunRepository.countByEquipmentIdAndRunState(Equipment_id, "run");
+
+        if (runningCount > 0) {
+            throw new CustomException("해당 설비는 이미 작업 중입니다. 재가동할 수 없습니다.");
+        }
 
         JobRes jr = this.jobResRepository.getJobResById(jrPk);
 
@@ -765,6 +783,8 @@ public class ProductionResultController {
             equ.set_audit(user);
             equ.setDescription("완료 취소");
             equ.setSpjangcd(spjangcd);
+            equ.setSourceTableName("job_res");
+            equ.setSourceDataPk(jrPk);
             equRunRepository.save(equ);
 
             Timestamp nowWithCurrentSecond = Timestamp.valueOf(LocalDateTime.now());
@@ -778,6 +798,9 @@ public class ProductionResultController {
             newRun.setRunState("run");
             newRun.setSpjangcd(spjangcd);
             newRun.set_audit(user);
+
+            newRun.setSourceTableName("job_res");
+            newRun.setSourceDataPk(jrPk);
 
             equRunRepository.save(newRun);
         }
@@ -1739,9 +1762,7 @@ public class ProductionResultController {
         item.put("defect_qty_sum", defectQtySum);
 
         result.data = item;
-
         return result;
-
     }
 
     /*@PostMapping("/chasu_del")
@@ -1898,10 +1919,8 @@ public class ProductionResultController {
 
         List<MatLotCons> prodMatLotConsCount = this.matLotConsRepository.findByMaterialLotId(prodMatLot.getId());
 
-        if (prodMatLotConsCount.size() > 0) {
-            result.message = "해당차수의 로트가 이미 사용되어 수정할 수 없습니다.";
-            result.success = false;
-            return result;
+        if (!prodMatLotConsCount.isEmpty()) {
+           throw new CustomException("해당차수의 로트가 이미 사용되어 수정할 수 없습니다.");
         }
 
         float mpGoodQty = mpe.getGoodQty() != null ? mpe.getGoodQty() : 0;
@@ -2017,10 +2036,7 @@ public class ProductionResultController {
                 }
 
                 if (totalLotQty < chasuBomQty) {
-                    result.message = "가용한 LOT 재고가 없습니다.(" + matName + ")\n 투입 내역에서 가용 재고를 추가해주세요. ";
-                    result.success = false;
-                    TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
-                    return result;
+                    throw new CustomException("가용한 LOT 재고가 없습니다.(" + matName + ")\n 투입 내역에서 가용 재고를 추가해주세요. ");
                 }
 
                 // 작업준비에 설정된 lot 투입 품목이면
@@ -2067,10 +2083,7 @@ public class ProductionResultController {
 //                }
             } else {
                 if ("1".equals(consMat.getUseyn())) {
-                    result.message = "사용 불가능한 품목이 BOM에 등록되어 있습니다.(" + matName + ")";
-                    result.success = false;
-                    TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
-                    return result;
+                    throw new CustomException("\"사용 불가능한 품목이 BOM에 등록되어 있습니다.(\" + matName + \")\"");
                 }
 
                 // mtyn이 0일 때는 재고 체크하지 않음
@@ -2334,7 +2347,7 @@ public class ProductionResultController {
         return result;
     }
 
-    // 중지 시작 (재가동)
+    // 중지 시작 (재가동) 일시중지, 재가동
     /**
      * 1. equ_run 데이터 조작
      * 2. jobRes에서 동작 상태 변경
@@ -2369,7 +2382,7 @@ public class ProductionResultController {
 
         Timestamp now = DateUtil.getNowTimeStamp();
 
-        Optional<EquRun> runningRunOpt = equRunRepository.findLatestRunningByEquipmentAndOrder(Equipment_id, WorkOrderNumber);
+        Optional<EquRun> runningRunOpt = equRunRepository.findLatestRunningByEquipmentAndJobResId(Equipment_id, jr_pk);
 
         if (runningRunOpt.isPresent()) {
             EquRun equ = runningRunOpt.get();
@@ -2378,6 +2391,8 @@ public class ProductionResultController {
             equ.setStopCauseId(StopCause_id);
             equ.setDescription(Description);
             equ.set_audit(user);
+            equ.setSourceTableName("job_res");
+            equ.setSourceDataPk(jr_pk);
             equ.setSpjangcd(spjangcd);
 
             equRunRepository.save(equ);
@@ -2385,11 +2400,14 @@ public class ProductionResultController {
             jobResRepository.updateStateById(jr_pk, "stopped");
             return result;
         } else {
+
+
+
             long runningCount = equRunRepository.countByEquipmentIdAndRunState(Equipment_id, "run");
+
+
             if (runningCount > 0) {
-                result.success = false;
-                result.message = "해당 설비는 이미 작업 중입니다. 재가동할 수 없습니다.";
-                return result;
+                throw new CustomException("해당 설비는 이미 작업 중입니다. 재가동할 수 없습니다.");
             }
 
             EquRun er = new EquRun();
@@ -2398,6 +2416,8 @@ public class ProductionResultController {
             er.setWorkOrderNumber(WorkOrderNumber);
             er.setRunState("run");
             er.set_audit(user);
+            er.setSourceTableName("job_res");
+            er.setSourceDataPk(jr_pk);
             er.setSpjangcd(spjangcd);
 
             this.equRunRepository.save(er);

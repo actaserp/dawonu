@@ -2408,6 +2408,7 @@
 
                 const url = this.baseUrl + '/work_finish';
                 const data = FormUtil.extractForm($('#basicForm'));
+
                 const previousIndex = _this.selectedIndex;
 
                 const childId = $('#tabBasic #id').val();
@@ -2530,7 +2531,7 @@
 
 
                 let childId = $('#tabBasic').find('#id').val();
-                const data = { jr_pk: childId };
+                const data = { jr_pk: childId, Equipment_id : $('#equipment_id').val() };
 
                 let fnSuccess = function (res) {
                     if (res.success) {
@@ -2541,6 +2542,8 @@
                         setTimeout(() => {
                             _this.grid.select(previousIndex, 0);
                         }, 100);
+                    }else{
+                        Alert.alert('', res.message);
                     }
                 }
 
@@ -3958,7 +3961,8 @@
                             }, 100);
 
                         } else {
-                            Notify.error('에러가 발생했습니다.');
+                            Alert.alert('', result.message)
+                            return;
                         }
                     };
                     AjaxUtil.postAsyncData(url, sendData, stopSaveCallback);

@@ -12,7 +12,9 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import mes.Exception.CustomException;
+import mes.app.definition.service.BomService;
 import mes.app.production.production_package.*;
+import mes.app.util.UtilClass;
 import mes.domain.entity.JobRes;
 import mes.domain.entity.Material;
 import mes.domain.entity.User;
@@ -34,8 +36,9 @@ public class ProdOrderEditService {
     private final MaterialRepository materialRepository;
     private final JobResRepository jobResRepository;
     private final Map<ProcessType, ProcessStartStrategy> strategyMap;
+    private final BomService bomService;
 
-    public ProdOrderEditService(SqlRunner sqlRunner, MaterialRepository materialRepository, JobResRepository jobResRepository, List<ProcessStartStrategy> strategies) {
+    public ProdOrderEditService(SqlRunner sqlRunner, MaterialRepository materialRepository, JobResRepository jobResRepository, List<ProcessStartStrategy> strategies, BomService bomService) {
         this.sqlRunner = sqlRunner;
         this.materialRepository = materialRepository;
         this.jobResRepository = jobResRepository;
@@ -44,6 +47,7 @@ public class ProdOrderEditService {
                         ProcessStartStrategy::getType,
                         Function.identity()
                 ));
+        this.bomService = bomService;
     }
 
 
@@ -398,7 +402,7 @@ public class ProdOrderEditService {
             Integer cboEquiment,
             Float txtOrderQty,
             String spjangcd, User user
-    ) throws JsonProcessingException {
+    ){
 
         Material m = materialRepository.getMaterialById(materialId);
         Timestamp prodDate = CommonUtil.tryTimestamp(productionDate);
@@ -427,7 +431,6 @@ public class ProdOrderEditService {
 
         header.setProcessCount(flow.cnt());
 
-        header = jobResRepository.save(header); //트리거가 번호 생성
 
         //전략 선택
         ProcessType type = flow.startType();
@@ -436,17 +439,14 @@ public class ProdOrderEditService {
         if(strategy == null) throw new CustomException("공정 시작 전략이 존재하지 않습니다.");
 
         //전체 bom 조회
-        List<Map<String, Object>> bomListByMat = getBomListByMat(materialId.toString());
+        List<Map<String, Object>> bomListByMat = bomService.getBomListByMat(materialId.toString());
 
         //전체 bom -> json 형태로 보기쉽게 변환
         BomTreeService bomTreeService = new BomTreeService();
         Map<String, BomNode> bomTree =  bomTreeService.buildTree(bomListByMat);
 
-        ObjectMapper mapper = new ObjectMapper();
-        mapper.enable(SerializationFeature.INDENT_OUTPUT);
-
-        String json = mapper.writeValueAsString(bomTree);
-        System.out.println(json);
+        header.setProcessTree(UtilClass.mapToJson(bomTree));
+        header = jobResRepository.save(header); //트리거가 번호 생성
 
         //처음 작업에 대한 품목 판별
         BomNode firstProcessContext = bomTreeService.selectTargetMaterial(flow, bomTree, header.getOrderQty());
@@ -459,38 +459,7 @@ public class ProdOrderEditService {
         return header;
     }
 
-    // 생산/작업지시 처리 과정에서만 사용하는 BOM 조회용 내부 메서드
-    // BOM 전용 서비스가 아니므로 외부에서 재사용되지 않도록 private으로 제한
-    public List<Map<String, Object>> getBomListByMat(String matPk){
-        MapSqlParameterSource dicParam = new MapSqlParameterSource();
-        dicParam.addValue("mat_pk", matPk);
 
-        String sql = """
-			select bom.b_level as level
-                , m."Name" as mat_name
-                , bom.bom_ratio
-                , (bom.quantity::numeric / bom.produced_qty::numeric) as bom_qty
-                , fn_code_name('mat_type',mg."MaterialType") as mat_type
-                , mat_pk, parent_mat_pk
-                , u."Name" as unit
-                , m."Code" as mat_code
-                , bom.mat_pk as my_key
-                , bom.parent_mat_pk as parent_key
-                , COALESCE(m."Class1", '') as class1
-                , COALESCE(m."Class2", '') as class2
-                , COALESCE(m."Class3", '') as class3
-                , m."StoreHouse_id" as storehouse_id
-	            from tbl_bom_detail(:mat_pk, to_char(now(),'yyyy-mm-dd')) as bom
-                inner join material m on m.id = bom.mat_pk
-                left join mat_grp mg on mg.id = m."MaterialGroup_id"
-                left join unit u on u.id = m."Unit_id"
-	            order by tot_order
-        """;
-
-
-        List<Map<String, Object>> items = this.sqlRunner.getRows(sql, dicParam);
-        return items;
-    }
 
 
 }

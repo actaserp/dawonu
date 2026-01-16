@@ -536,4 +536,36 @@ public class BomService {
 		List<Map<String, Object>> items = this.sqlRunner.getRows(sql, dicParam);
 		return items;
 	}
+
+    // 생산/작업지시 처리 과정에서만 사용하는 BOM 조회용 내부 메서드
+    public List<Map<String, Object>> getBomListByMat(String matPk){
+        MapSqlParameterSource dicParam = new MapSqlParameterSource();
+        dicParam.addValue("mat_pk", matPk);
+
+        String sql = """
+			select bom.b_level as level
+                , m."Name" as mat_name
+                , bom.bom_ratio
+                , (bom.quantity::numeric / bom.produced_qty::numeric) as bom_qty
+                , fn_code_name('mat_type',mg."MaterialType") as mat_type
+                , mat_pk, parent_mat_pk
+                , u."Name" as unit
+                , m."Code" as mat_code
+                , bom.mat_pk as my_key
+                , bom.parent_mat_pk as parent_key
+                , COALESCE(m."Class1", '') as class1
+                , COALESCE(m."Class2", '') as class2
+                , COALESCE(m."Class3", '') as class3
+                , m."StoreHouse_id" as storehouse_id
+	            from tbl_bom_detail(:mat_pk, to_char(now(),'yyyy-mm-dd')) as bom
+                inner join material m on m.id = bom.mat_pk
+                left join mat_grp mg on mg.id = m."MaterialGroup_id"
+                left join unit u on u.id = m."Unit_id"
+	            order by tot_order
+        """;
+
+
+        List<Map<String, Object>> items = this.sqlRunner.getRows(sql, dicParam);
+        return items;
+    }
 }
