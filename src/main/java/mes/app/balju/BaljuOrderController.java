@@ -630,9 +630,6 @@ public class BaljuOrderController {
                                  @RequestParam("Unit_id") Integer Unit_id,
                                  @RequestParam(value = "Standard", required = false) String Standard,
                                  @RequestParam("Factory_id") Integer Factory_id,
-                                 @RequestParam(value = "Thickness",required = false) Float Thickness,
-                                 @RequestParam(value = "Width",  required = false) Float Width,
-                                 @RequestParam(value = "Color",  required = false) String Color,
                                  @RequestParam("WorkCenter_id") Integer WorkCenter_id,
                                  @RequestParam("spjangcd") String spjangcd,
                                  Authentication auth
@@ -666,19 +663,8 @@ public class BaljuOrderController {
       material.setUnitId(Unit_id);
       material.setStandard1(Standard);
       material.setSpjangcd(spjangcd);
-      material.setThickness(Thickness); //폭
-      material.setWidth(Width);
-      material.setColor(Color);
       material.setUseyn("0");
       material.setWorkCenterId(WorkCenter_id);
-//      if (Standard != null && !Standard.trim().isEmpty()) {
-//        material.setRoutingId(11);
-//      } else {
-//        material.setRoutingId(10);
-//      }
-//      if (Objects.equals(WorkCenter_id, 46)) {
-//        material.setRoutingId(11);
-//      }
       material.setStoreHouseId(3);  // 자재창고가 기본으로
       material.setMatUserCode(cboMaterialMid);
       material.setPurchaseOrderStandard("mrp");

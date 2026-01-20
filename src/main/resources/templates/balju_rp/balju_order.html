@@ -338,9 +338,6 @@
                  <!-- <a class="btn in_btn" title="품목 검색" id="btnProductSearch" >
                     <img src="/images/icon/btn-srch-black.svg" alt="검색 아이콘" />
                   </a>-->
-                  <a class="btn in_btn" title="품목 신규등록" id="btnProductSave">
-                                <img src="/images/icon/ico-plus.svg" alt="등록 아이콘" />
-                            </a>
                 </div>
               </td>
               <td><input type="text" name="Standard" placeholder="규격" autocomplete="off"/></td>
@@ -499,7 +496,6 @@
   <th:block th:replace="/common/multiform_material :: multiform_material"></th:block>
 <!--  <th:block th:replace="/sales/popup_suju_company :: popup_suju_company"></th:block>-->
   <th:block th:replace="/common/popup_company_purchase :: popup_company_Purchase"></th:block>
-  <th:block th:replace="/balju_rp/popup_balju_material_save :: popup_balju_material_new_save"></th:block>
   <script type="text/javascript">
     const ProductInputHandler = {
       bind: function ({rowSelector, $content, tryShowBaljuPrice}) {
@@ -598,8 +594,8 @@
         });
 
        function set(item) {
-        // fillProductRow({ $row, item, tryShowBaljuPrice });
-        applyItemTo3Rows(item);
+        fillProductRow({ $row, item, tryShowBaljuPrice });
+        // applyItemTo3Rows(item);
        }
 
         /*function set(item) {
@@ -1421,70 +1417,6 @@
         }
        });
 
-       // 품목 신규등록 버튼 클릭
-       $content.on('click', 'a[title="품목 신규등록"]', function () {
-        // 현재 클릭한 버튼이 속한 행
-        const $row = $(this).closest('tr');
-
-        const pop = new PopBalJuMatSaveComponent();
-        pop.show({
-         onSaved: (saved) => {
-          if (typeof window.searchMatList === 'function') searchMatList();
-          if (!saved) return;
-
-          // ✅ 이 행에서 사용할 input들 캐싱
-          const $productInput    = $row.find('input[name^="txtProductName_"]');     // 품목명
-          const $productId       = $row.find('input[name^="Material_id_"]');        // 품목 ID (hidden)
-          const $productCode     = $row.find('input[name^="product_code_"]');       // 품목 코드 (text/hidden 모두)
-          const $materialGroup   = $row.find('input[name^="MaterialGroupName_"]');  // 품목 그룹명
-          const $standard        = $row.find('input[name^="Standard_"]');           // 규격
-          const $unit            = $row.find('input[name^="unit_"]');               // 단위(있으면)
-
-          // 값 세팅 (+ 이벤트 트리거)
-          if ($productInput.length) {
-           $productInput.val(saved.name ?? '')
-           .trigger('input').trigger('change');
-          }
-
-          if ($productId.length) {
-           $productId.val(saved.id ?? '')
-           .trigger('input').trigger('change');
-          }
-
-          if ($productCode.length) {
-           // text + hidden 둘 다 name^="product_code_" 이면 전부 세팅됨
-           $productCode.val(saved.Code ?? '')
-           .trigger('input').trigger('change');
-          }
-
-          if ($materialGroup.length) {
-           // saved.group_name 또는 saved.MaterialGroupName 중 실제 사용 필드에 맞게
-           $materialGroup.val(saved.group_name ?? saved.MaterialGroupName ?? '')
-           .trigger('input').trigger('change');
-          }
-
-          if ($standard.length) {
-           $standard.val(saved.standard ?? '')
-           .trigger('input').trigger('change');
-          }
-
-          if ($unit.length) {
-           $unit.val(saved.unit_name ?? '')
-           .trigger('input').trigger('change');
-          }
-
-          // 규격이 있으면 규격 읽기전용
-          const hasStd = !!(saved.standard && String(saved.standard).trim().length);
-          if ($standard.length) {
-           $standard.prop('readonly', hasStd);
-          }
-         },
-
-         // 포커스 복귀
-         focusAfterClose: this
-        });
-       });
-
        // 포커스 자동 이동: Enter + 방향키(←→↑↓)
         $content.on('keydown', 'input', function (e) {
           const key = e.key;
@@ -1532,11 +1464,12 @@
 
             // ⬇️ 방향키 + 현재 행이 마지막 + 허용된 필드일 경우 → 행 자동 추가
             if (key === 'ArrowDown' && !$targetRow.length && isAllowedField) {
+             const prevLen = getRows().length;
               $content.find('#addRemark').trigger('click');
 
               setTimeout(() => {
                 const $rows = $content.find('.item-table tbody tr:visible').not('.item-template-row');
-                const $newRow = $rows.last();
+               const $newRow = $rows.eq(prevLen);
                 const $newInput = $newRow.find('input[name^="txtProductName_"]');
                 if ($newInput.length) $newInput.focus().select();
               }, 50);
