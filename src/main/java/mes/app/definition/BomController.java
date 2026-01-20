@@ -19,6 +19,7 @@ import mes.app.definition.service.BomUploadService;
 import mes.app.definition.service.material.UnitPriceService;
 import mes.app.sales.service.SujuUploadService;
 import mes.config.Settings;
+import mes.domain.dto.BomBuildReport;
 import mes.domain.entity.*;
 import mes.domain.repository.*;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -80,6 +81,7 @@ public class BomController {
 
     @Autowired
     private BomComponentRepository bomComponentRepository;
+
 
 	@RequestMapping("/read")
 	public AjaxResult getMaterialList(
@@ -877,6 +879,26 @@ public class BomController {
 			nextNumber++;
 		}
 		return String.valueOf(nextNumber);
+	}
+
+	@PostMapping("/bomadd")
+	public AjaxResult buildBomByCode(
+			@RequestParam String materialCode,
+			@RequestParam(defaultValue = "false") boolean dryRun
+	) {
+		AjaxResult result = new AjaxResult();
+
+		try {
+			BomBuildReport report = bomService.buildBom(materialCode, dryRun);
+			result.success = true;
+			result.data = report;   // 생성된 bom_id, comp 목록 등
+		} catch (Exception e) {
+			log.error("BOM build failed", e);
+			result.success = false;
+			result.message = e.getMessage();
+		}
+
+		return result;
 	}
 
 

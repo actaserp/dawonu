@@ -162,7 +162,13 @@
                                                     class="fas fa-edit"></i>수정
                                             </button>
                                         </li>
-
+                                        <li>
+                                            <input style="width:160px;" id="add_code"/>
+                                            <button type="button" class="btn-excellt btn-default y_write_auth" id="bomAdd"
+                                                    data-labelCd="자동생성"
+                                                    style="width: 90px; height: 36px; float: none;">
+                                            </button>
+                                        </li>
                                         <!--<li>
                                             <button type="button" class="btn-default" id="btnCompUp" title="순서 조정-위로"
                                                     style="width: 150px; height: 36px;"><i
@@ -655,10 +661,10 @@
                         }
                     },
                     columns: [
-                        {binding: 'mat_name', header: '품목명', width: 350, align: 'left'},
-                        {binding: 'Amount', header: '필요수량', width: 70, align: 'right'},
+                        {binding: 'mat_name', header: '품목명', width: 200, align: 'left'},
+                        {binding: 'Amount', header: '필요수량', width: 70, align: 'right',format:'n4'},
+                        {binding: 'mat_code', header: '품목코드', width: 150, align: 'center'},
                         {binding: 'Description', header: '비고', width: 300, align: 'left'},
-                        // {binding: 'mat_code', header: '품목코드', width: 150, align: 'center'},
                         {binding: 'unit', header: '단위', width: 100, align: 'center'},
                         // {binding: 'mat_type', header: '품목구분', width: 120, align: 'center'},
                     ],
@@ -1856,6 +1862,29 @@
                     Alert.alert("선택 오류", "삭제할 BOM을 선택하세요.");
                 }
             });
+
+            $('#bomAdd').click(function () {
+
+                const code = $('#add_code').val().trim();
+                if (!code) {
+                    Alert.alert("입력 오류", "품목 코드를 입력하세요.");
+                    return;
+                }
+
+                const url = '/api/definition/bom/bomadd';
+
+                const result = AjaxUtil.postSyncData(url, {
+                    materialCode: code,
+                    dryRun: false   // 🔥 테스트 시 true / 실제 생성 false
+                });
+
+                if (result.success) {
+                    Alert.alert("성공", "BOM 생성 완료");
+                } else {
+                    Alert.alert("오류", result.message || "오류가 발생했습니다.");
+                }
+            });
+
 
             $('#btnSaveBomText').click(function (e) {
                 let grid = wijmo.Control.getControl('#bom-grid'); // 그리드 객체 가져오기

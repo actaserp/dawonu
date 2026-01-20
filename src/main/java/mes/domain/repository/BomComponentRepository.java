@@ -6,7 +6,7 @@ import mes.domain.entity.BomComponent;
 
 import java.util.Optional;
 
-public interface BomComponentRepository extends JpaRepository<BomComponent, Integer> {
+public interface BomComponentRepository extends JpaRepository<BomComponent, Integer> , BomComponentRepositoryCustom {
 	public BomComponent getBomComponentById(int id);
 
     Optional<BomComponent> findByBomIdAndMaterialId(int bomId, int materialId);

@@ -35,9 +35,21 @@ public interface MaterialRepository extends JpaRepository<Material, Integer>{
 	@Query("SELECT m FROM Material m WHERE TRIM(m.name) = TRIM(:materialName)")
 	Material findByNameTrimmed(@Param("materialName") String materialName);
 
-	boolean existsByCode(String s);
+	@Query("""
+        SELECT CASE WHEN COUNT(m) > 0 THEN true ELSE false END
+        FROM Material m
+        WHERE m.code = :code
+    """)
+	boolean existsByCode(@Param("code") String code);
 
-    Integer findIdByCode(String code);
+	@Query("SELECT m.id FROM Material m WHERE m.code = :code")
+	Integer findIdByCode(@Param("code") String code);
 
 	Material findTopByCodeStartingWithOrderByCodeDesc(String prefix);
+	@Query("""
+        SELECT m.code
+        FROM Material m
+        ORDER BY LENGTH(m.code) DESC
+    """)
+	List<String> findAllCodesOrderByLengthDesc();
 }

@@ -1,9 +1,11 @@
 package mes.app.definition.service;
 
 import java.sql.Timestamp;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
+import mes.domain.dto.BomBuildReport;
+import mes.domain.repository.BomRuleRepository;
+import mes.domain.repository.MaterialRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.stereotype.Repository;
@@ -34,7 +36,11 @@ public class BomService {
 	BomComponentRepository bomComponentRepository;
 	
 	@Autowired
-	TransactionTemplate transactionTemplate;	
+	TransactionTemplate transactionTemplate;
+
+
+	@Autowired
+	private MaterialRepository materialRepository;
 	
 	/**
 	 * 
@@ -568,4 +574,205 @@ public class BomService {
         List<Map<String, Object>> items = this.sqlRunner.getRows(sql, dicParam);
         return items;
     }
+
+	private final Set<String> visited = new HashSet<>();
+	@Autowired
+	BomRuleRepository ruleRepo;
+
+	public BomBuildReport buildBom(String materialCode, boolean dryRun) {
+
+		visited.clear();
+
+		BomBuildReport report = new BomBuildReport(materialCode);
+
+		buildOneLevelBom(materialCode, report, dryRun);
+
+		return report;
+	}
+
+	private void buildOneLevelBom(String code,
+								  BomBuildReport report,
+								  boolean dryRun) {
+
+		Integer materialId = materialRepository.findIdByCode(code);
+		if (materialId == null) {
+			report.addSkip(code, "material 없음");
+			return;
+		}
+
+		List<String> components = new ArrayList<>();
+
+		// ✅ 1️⃣ 유저가 만든 중간 품목 우선
+		String prefix = findExistingPrefix(code);
+
+		if (prefix != null) {
+			String remain = code.substring(prefix.length());
+
+			if (isNumeric(remain)) {
+				String base = findBaseMaterial(prefix);
+				components.add(base != null ? base : prefix);
+			} else {
+				try {
+					String leaf = normalize(remain);
+					components.add(prefix);
+					components.add(leaf);
+				} catch (Exception e) {
+					components.addAll(splitByExistingParts(code));
+				}
+			}
+		} else {
+			// ✅ 2️⃣ rule
+			String ruleCode = ruleRepo.findLongestRule(code);
+
+			if (ruleCode != null) {
+				if (code.equals(ruleCode)) {
+					components.addAll(ruleRepo.findLeafMaterials(ruleCode));
+				} else {
+					components.add(ruleCode);
+					String remain = code.substring(ruleCode.length());
+					components.add(normalize(remain));
+				}
+			} else {
+				// ✅ 3️⃣ 최후의 수단
+				components.addAll(splitBasic(code));
+			}
+		}
+
+		// 🔥 components 정리
+		components = components.stream()
+				.filter(c -> c != null)
+				.filter(c -> !c.equals(code))
+				.distinct()
+				.toList();
+
+		// 🔥 분해 결과 없으면 BOM 생성 ❌
+		if (components.isEmpty() || components.size() < 2) {
+			report.addSkip(code, "의미 있는 분해 아님");
+			return;
+		}
+
+		// ✅ 여기서부터가 “진짜 BOM 생성”
+		Long bomId = bomRepository.ensureBom(materialId, dryRun);
+		report.addBom(code, bomId);
+
+		for (String comp : components) {
+
+			Integer compId = materialRepository.findIdByCode(comp);
+			if (compId == null) {
+				report.addSkip(comp, "component material 없음");
+				continue;
+			}
+
+			if (!dryRun) {
+				bomComponentRepository.insertIfNotExists(bomId, compId, 1);
+			}
+
+			report.addComp(code, comp, 1);
+		}
+	}
+
+
+	private String findExistingPrefix(String code) {
+
+		List<String> candidates =
+				materialRepository.findAllCodesOrderByLengthDesc();
+
+		for (String c : candidates) {
+			if (code.startsWith(c) && !c.equals(code)) {
+				return c;   // 🔥 가장 긴 것부터
+			}
+		}
+		return null;
+	}
+
+	private boolean isNumeric(String s) {
+		return s.matches("\\d+");
+	}
+
+	private String findBaseMaterial(String code) {
+		for (int i = code.length() - 1; i > 0; i--) {
+			if (!Character.isDigit(code.charAt(i))) break;
+			String candidate = code.substring(0, i);
+			if (materialRepository.existsByCode(candidate)) {
+				return candidate;
+			}
+		}
+		return null;
+	}
+
+	private List<String> splitByExistingParts(String code) {
+
+		List<String> result = new ArrayList<>();
+		List<String> candidates =
+				materialRepository.findAllCodesOrderByLengthDesc();
+
+		String remain = code;
+
+		while (!remain.isEmpty()) {
+
+			boolean matched = false;
+
+			for (String c : candidates) {
+
+				if (remain.startsWith(c)) {
+					result.add(c);
+					remain = remain.substring(c.length());
+					matched = true;
+					break;
+				}
+			}
+
+			if (!matched) {
+				return Collections.emptyList(); // 🔥 분해 실패
+			}
+		}
+
+		return result;
+	}
+
+	public String normalize(String remain) {
+
+		// 원본 그대로 뒤에서부터 줄여가며 탐색
+		for (int i = remain.length(); i > 0; i--) {
+			String candidate = remain.substring(0, i);
+
+			if (materialRepository.existsByCode(candidate)) {
+				return candidate;
+			}
+		}
+
+		throw new IllegalArgumentException("정규화 실패: " + remain);
+	}
+
+
+	private List<String> splitBasic(String code) {
+
+		List<String> result = new ArrayList<>();
+		List<String> candidates = materialRepository.findAllCodesOrderByLengthDesc();
+
+		String remain = code;
+
+		while (!remain.isEmpty()) {
+
+			boolean matched = false;
+
+			for (String matCode : candidates) {
+				if (matCode.equals(code)) continue;
+
+				if (remain.startsWith(matCode)) {
+					result.add(matCode);
+					remain = remain.substring(matCode.length());
+					matched = true;
+					break; // 🔥 핵심
+				}
+			}
+
+			if (!matched) {
+				throw new IllegalStateException("분해 실패, 잔여 코드: " + remain);
+			}
+		}
+
+		return result;
+	}
+
 }

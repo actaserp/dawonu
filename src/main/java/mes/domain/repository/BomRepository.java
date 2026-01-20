@@ -10,7 +10,7 @@ import java.math.BigDecimal;
 import java.sql.Timestamp;
 import java.util.List;
 
-public interface BomRepository extends JpaRepository<Bom, Integer>{
+public interface BomRepository extends JpaRepository<Bom, Integer>, BomRepositoryCustom {
 	public Bom getBomById(int id);
 
     List<Bom> findAllByStartDate(Timestamp startDate);
