@@ -950,7 +950,7 @@
                     let allData = _this.jobResGrid?.collectionView?.items || [];
                     console.log('btnJobResPrint allData', allData);
 
-                    // ✅ 조건 필터링: 지시량 0이거나 취소 상태 제외
+                    // 조건 필터링: 지시량 0이거나 취소 상태 제외
                     let items = allData.filter(item =>
                         (parseFloat(item.OrderQty) || 0) > 0 &&
                         (item.StateName !== '취소')
@@ -961,65 +961,57 @@
                         return;
                     }
 
+                    const ROWS_PER_PAGE = 10; // 한 장에 표 10줄
+
+                    // 10개씩 페이지로 자르기
+                    const pages = [];
+                    for (let i = 0; i < items.length; i += ROWS_PER_PAGE) {
+                        pages.push(items.slice(i, i + ROWS_PER_PAGE));
+                    }
+
                     let allHtml = `
-                        <html>
-                        <head>
-                          <title>일일작업지시서</title>
-                          <style>
-                            body { font-family: 'Malgun Gothic'; margin: 20px; }
-                            @media print { .print-page { page-break-after: always; } }
-                            @media print { * { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
-                          </style>
-                        </head>
-                        <body>
-                      `;
+                    <html>
+                    <head>
+                      <title>일일작업지시서</title>
+                      <style>
+                        body { font-family: 'Malgun Gothic'; margin: 20px; }
+                        @media print { .print-page { page-break-after: always; } }
+                        @media print { .print-page:last-child { page-break-after: auto; } }
+                        @media print { * { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+                      </style>
+                    </head>
+                    <body>
+                  `;
 
-                    for (const item of items) {
-                        const date = item.ProductionDate || '';
-                        const [y, m, d] = (date.includes('-') ? date.split('-') : ['', '', '']);
+                    for (const pageItems of pages) {
+                        const head = pageItems[0];               // 상단정보는 첫 행 기준
+                        const date = head?.ProductionDate || '';
 
-                        // ✅ print_daily_work_order 템플릿에 맞춘 data 구성
                         const data = {
-                            // 결재란(원하면 바인딩)
-                            writerSign:   item.writerSign || '',
-                            reviewerSign: item.reviewerSign || '',
-                            approverSign: item.approverSign || '',
+                            writerSign:   head.writerSign || '',
+                            reviewerSign: head.reviewerSign || '',
+                            approverSign: head.approverSign || '',
 
-                            // 상단 정보
-                            workDate: date,                               // 작업일자
-                            manager: '',  // 담당자
-                            companyName: item.CompanyName || '',          // 업체명
+                            workDate: date,
+                            manager: '',
+                            companyName: head.CompanyName || '',
+                            note: head.Description || head.description || '',
 
-                            // 특기사항
-                            note: item.Description || item.description || '',
+                            rows: ROWS_PER_PAGE,
 
-                            // 품목 표 (템플릿은 it.itemName/it.spec/it.qty/it.unit/it.site 기대)
-                            rows: 10,
-                            items: [
-                                // ✅ 부모 1줄을 “당일 작업” 첫줄로 넣고, 하위항목 이어붙이기(원하는 형태로 조정 가능)
-                                {
-                                    no: 1,
-                                    itemName: item.mat_name || '',
-                                    spec: item.standard || '',
-                                    qty: item.OrderQty || '',
-                                    unit: item.unit_name || 'EA',
-                                    site: item.site || item.WorkcenterName || ''
-                                },
-                                ...((item.items || []).map((r, idx) => ({
-                                    no: idx + 2,
-                                    itemName: r.ItemName || r.mat_name || '',   // 하위항목에 품명이 없으면 빈칸
-                                    spec: r.Standard || '',
-                                    qty: r.Qty || '',
-                                    unit: r.unit_name || 'EA',
-                                    site: r.site || ''
-                                })))
-                            ]
+                            //여기 핵심: "그리드 행들"을 그대로 표의 여러 줄로 넣는다
+                            items: pageItems.map((it, idx) => ({
+                                no: idx + 1,
+                                itemName: it.mat_name || '',
+                                spec: it.standard || '',
+                                qty: it.OrderQty || '',
+                                unit: it.unit_name || 'EA',
+                                site: it.site || it.WorkcenterName || ''
+                            }))
                         };
 
-                        // ✅ 템플릿 id만 교체
                         let html = tmpl('print_daily_work_order', data);
 
-                        // ✅ tmpl이 태그 이스케이프했을 경우 복원(기존 그대로)
                         html = html
                         .replace(/&lt;/g, '<')
                         .replace(/&gt;/g, '>')
@@ -1043,7 +1035,6 @@
                         setTimeout(() => printWindow.close(), 300);
                     };
                 });
-
             }
 
             // 해당 반제품생산지시 내역
