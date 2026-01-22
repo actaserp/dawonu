@@ -840,15 +840,42 @@
        $('#btnPopSujuSave').show();
        $('#notUpdate').hide();
        $('.popup-button').css('margin-top', '');
-      } else {
-       $('#btnPopSujuSave').hide();
-       // 메시지: 출하상태가 있으면 해당 이유로, 아니면 기존 메시지
-       const ship = String(data?.ShipmentStateName ?? '').trim();
-       const reason = ship ? '* 출하가 진행된 건은 수정이 불가합니다.'
-        : '* 출하가 진행된 수주는 수정이 불가합니다.';
-       $('#notUpdate').text(reason).css('margin-top', '10px').show();
-       $('.popup-button').css('margin-top', '10px');
+       return;
       }
+
+      $('#btnPopSujuSave').hide();
+
+      const shipName = String(data?.ShipmentStateName ?? '').trim(); // 예: '출하완료/부분출하/...' (코드표에 따라)
+      const state    = String(data?.State ?? '').trim();            // 예: 'part_ordered', 'part_planned', 'ordered'...
+      const stateName= String(data?.StateName ?? '').trim();        // 예: '부분지시', '지시', ...
+
+      // ✅ 지시 관련 상태 판별 (필요하면 여기 케이스를 더 추가)
+      const isOrderedLike =
+       state === 'ordered' ||
+       state === 'part_ordered' ||
+       state === 'planned' ||
+       state === 'part_planned';
+
+      let reason = '* 현재 상태에서는 수정할 수 없습니다.';
+
+      // ✅ 1) 출하가 진행된 경우 (최우선)
+      if (shipName) {
+       reason = `* 출하가 진행된 건은 수정할 수 없습니다. (출하상태: ${shipName})`;
+      }
+      // ✅ 2) 작업지시가 내려간 경우
+      else if (isOrderedLike) {
+       // 상태명이 있으면 같이 보여주기
+       reason = stateName
+        ? `* 작업지시가 생성된 건은 수정할 수 없습니다. (상태: ${stateName})`
+        : '* 작업지시가 생성된 건은 수정할 수 없습니다.';
+      }
+      // ✅ 3) 그 외
+      else {
+       reason = '* 현재 상태에서는 수정할 수 없습니다.';
+      }
+
+      $('#notUpdate').text(reason).css('margin-top', '10px').show();
+      $('.popup-button').css('margin-top', '10px');
      }
 
      // 수주등록 팝업 저장버튼 클릭

@@ -95,10 +95,11 @@ public class ProdOrderEditService {
 	                left join routing r on m."Routing_id" = r.id
 	                left join unit u on m."Unit_id" = u.id
 	                left join factory f on m."Factory_id" = f.id
-	                where 1 = 1 and mg."MaterialType"!='sangpum'
+	                where 1 = 1 
+	                and mg."MaterialType" IN ('product', 'semi')  --제품, 반제품만 조회
 	                and s.spjangcd = :spjangcd
         		""";
-//		 and s.confirm = '1'
+//		 and s.confirm = '1' , mg."MaterialType"!='sangpum'
 
         if ("suju_date".equals(date_kind)) {
         	sql += " and s.\"JumunDate\" between :start and :end ";

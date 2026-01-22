@@ -39,23 +39,40 @@ public class SujuService {
 		dicParam.addValue("spjangcd", spjangcd);
 		
 		String sql = """
-			WITH suju_state_summary AS (
-			  SELECT
-				sh.id AS suju_head_id,
-				-- 상태 요약 계산
-				CASE
-				  WHEN COUNT(DISTINCT s."State") = 1 THEN MIN(s."State")
-				  WHEN BOOL_AND(s."State" IN ('received', 'planned')) AND BOOL_OR(s."State" = 'planned') THEN 'part_planned'
-				  WHEN BOOL_AND(s."State" IN ('received', 'ordered', 'planned')) AND BOOL_OR(s."State" = 'ordered') THEN 'part_ordered'
-				  ELSE '기타'
-				END AS summary_state
-			   
-			  FROM suju_head sh
-			  JOIN suju s ON s."SujuHead_id" = sh.id
-			   
-			  GROUP BY sh.id
-			),
-			shipment_summary AS (
+			WITH
+				-- ✅ (1) suju(상세)별 job_res 집계
+				job_res_by_suju AS (
+				SELECT
+						jr."SourceDataPk" AS suju_id,
+						COUNT(*) FILTER (WHERE jr."State" <> 'canceled') AS active_job_cnt,
+						BOOL_OR(jr."State" = 'ordered')  FILTER (WHERE jr."State" <> 'canceled') AS has_ordered,
+						BOOL_OR(jr."State" = 'planned')  FILTER (WHERE jr."State" <> 'canceled') AS has_planned,
+						BOOL_OR(jr."State" = 'finished') FILTER (WHERE jr."State" <> 'canceled') AS has_finished   -- ✅ 추가
+				FROM job_res jr
+				WHERE jr."SourceTableName" = 'suju'
+				GROUP BY jr."SourceDataPk"
+				),
+				-- ✅ (2) suju_head(헤더) 상태 요약: job_res 기준으로 계산
+				suju_state_summary AS (
+				SELECT
+					sh.id AS suju_head_id,
+					CASE
+						-- 헤더 내 모든 suju 라인에 대해 유효 작업지시가 1건도 없으면
+						WHEN COALESCE(SUM(jbs.active_job_cnt), 0) = 0 THEN 'received'
+						-- ordered가 하나라도 있으면 (부분지시 포함)
+						WHEN BOOL_OR(COALESCE(jbs.has_ordered, false)) THEN 'part_ordered'
+						-- ordered는 없고 planned가 하나라도 있으면
+						WHEN BOOL_OR(COALESCE(jbs.has_planned, false)) THEN 'part_planned'
+						-- 그 외(예: received만 있다거나, 기타 상태 섞임)
+						ELSE '기타'
+					END AS summary_state
+				FROM suju_head sh
+				JOIN suju s ON s."SujuHead_id" = sh.id
+				LEFT JOIN job_res_by_suju jbs ON jbs.suju_id = s.id
+				GROUP BY sh.id
+				),
+				-- ✅ (3) 출하 상태 요약 (기존 그대로)
+				shipment_summary AS (
 				SELECT
 					s."SujuHead_id",
 					SUM(s."SujuQty") AS total_qty,
@@ -66,79 +83,82 @@ public class SujuService {
 						WHEN SUM(shp."shippedQty") >= SUM(s."SujuQty") THEN 'shipped'          -- 전량 출하
 						WHEN SUM(shp."shippedQty") < SUM(s."SujuQty") THEN 'partial'           -- 일부 출하
 						ELSE ''
-				  	END AS shipment_state
-				  FROM suju s
-				  LEFT JOIN (
+					END AS shipment_state
+				FROM suju s
+				LEFT JOIN (
 					SELECT "SourceDataPk", SUM("Qty") AS "shippedQty"
 					FROM shipment
 					GROUP BY "SourceDataPk"
-				  ) shp ON shp."SourceDataPk" = s.id
-				  GROUP BY s."SujuHead_id"
-			)
-			   
-			SELECT
-			  sh.id,
-			  sh."JumunNumber",
-			  to_char(sh."JumunDate", 'yyyy-mm-dd') AS "JumunDate",
-			  to_char(sh."DeliveryDate", 'yyyy-mm-dd') AS "DueDate",
-			  sh."Company_id",
-			  c."BusinessNumber",
-			  SUM(s."Price") AS "sujuPrice",
-			  SUM(s."Vat") AS "sujuVat",
-			  c."Name" AS "CompanyName",
-			  sh."TotalPrice",
-			  sh."Description",
-			  sc_state."Value" AS "StateName",
-			  sc_type."Value" AS "SujuTypeName",
-			   
-			  -- 대표 제품명 + 외 N개
-			  CASE
-				 WHEN COUNT(DISTINCT s."Material_id") = 1 THEN
-				       (array_agg(m."Name" ORDER BY s.id))[1]  
-				     ELSE
-				       CONCAT(
-				         (array_agg(m."Name" ORDER BY s.id))[1], 
-				         ' 외 ',
-				         COUNT(DISTINCT s."Material_id") - 1,
-				         '개'
-				       )
-				   END AS product_name,
-			  sss.summary_state AS "State",
-			  sc_ship."Value" AS "ShipmentStateName"
-			   
-			FROM suju_head sh
-			JOIN suju s ON s."SujuHead_id" = sh.id
-			JOIN material m ON m.id = s."Material_id"
-			LEFT JOIN (
-			  SELECT "SourceDataPk", SUM("Qty") AS "shippedQty"
-			  FROM shipment
-			  GROUP BY "SourceDataPk"
-			) shp ON shp."SourceDataPk" = s.id
-			LEFT JOIN company c ON c.id = sh."Company_id"
-			LEFT JOIN shipment_summary ss ON ss."SujuHead_id" = sh.id
-			LEFT JOIN suju_state_summary sss ON sss.suju_head_id = sh.id
-			LEFT JOIN sys_code sc_state ON sc_state."Code" = sss.summary_state AND sc_state."CodeType" = 'suju_state'
-			LEFT JOIN sys_code sc_type ON sc_type."Code" = sh."SujuType" AND sc_type."CodeType" = 'suju_type'
-			LEFT JOIN sys_code sc_ship ON sc_ship."Code" = ss.shipment_state AND sc_ship."CodeType" = 'shipment_state'
-            where 1 = 1
-            and sh.spjangcd = :spjangcd
-            and sh."JumunDate" between :start and :end
-				group by
-					 sh.id,
-					 sh."JumunNumber",
-					 sh."JumunDate",
-					 sh."DeliveryDate",
-					 sh."Company_id",
-					 c."Name",
-					 c."BusinessNumber",
-					 sh."TotalPrice",
-					 sh."Description",
-					 sh."SujuType",
-					 sss.summary_state,
-					 sc_state."Value",
-					 sc_type."Value",
-					 sc_ship."Value"
-				order by sh."JumunDate" desc,  sh.id desc
+				) shp ON shp."SourceDataPk" = s.id
+				GROUP BY s."SujuHead_id"
+				)
+				SELECT
+				sh.id,
+				sh."JumunNumber",
+				to_char(sh."JumunDate", 'yyyy-mm-dd') AS "JumunDate",
+				to_char(sh."DeliveryDate", 'yyyy-mm-dd') AS "DueDate",
+				sh."Company_id",
+				c."BusinessNumber",
+				SUM(s."Price") AS "sujuPrice",
+				SUM(s."Vat") AS "sujuVat",
+				c."Name" AS "CompanyName",
+				sh."TotalPrice",
+				sh."Description",
+				sc_state."Value" AS "StateName",
+				sc_type."Value" AS "SujuTypeName",
+				-- 대표 제품명 + 외 N개
+				CASE
+					WHEN COUNT(DISTINCT s."Material_id") = 1 THEN
+						(array_agg(m."Name" ORDER BY s.id))[1]
+					ELSE
+						CONCAT(
+							(array_agg(m."Name" ORDER BY s.id))[1],
+							' 외 ',
+							COUNT(DISTINCT s."Material_id") - 1,
+							'개'
+						)
+				END AS product_name,
+				sss.summary_state AS "State",
+				sc_ship."Value" AS "ShipmentStateName"
+				FROM suju_head sh
+				JOIN suju s ON s."SujuHead_id" = sh.id
+				LEFT JOIN material m ON m.id = s."Material_id"
+				LEFT JOIN (
+				SELECT "SourceDataPk", SUM("Qty") AS "shippedQty"
+				FROM shipment
+				GROUP BY "SourceDataPk"
+				) shp ON shp."SourceDataPk" = s.id
+				LEFT JOIN company c ON c.id = sh."Company_id"
+				LEFT JOIN shipment_summary ss ON ss."SujuHead_id" = sh.id
+				LEFT JOIN suju_state_summary sss ON sss.suju_head_id = sh.id
+				LEFT JOIN sys_code sc_state
+				ON sc_state."Code" = sss.summary_state
+				AND sc_state."CodeType" = 'suju_state'
+				LEFT JOIN sys_code sc_type
+				ON sc_type."Code" = sh."SujuType"
+				AND sc_type."CodeType" = 'suju_type'
+				LEFT JOIN sys_code sc_ship
+				ON sc_ship."Code" = ss.shipment_state
+				AND sc_ship."CodeType" = 'shipment_state'
+				WHERE 1 = 1
+				AND sh.spjangcd = :spjangcd
+				AND sh."JumunDate" BETWEEN :start AND :end
+				GROUP BY
+				sh.id,
+				sh."JumunNumber",
+				sh."JumunDate",
+				sh."DeliveryDate",
+				sh."Company_id",
+				c."Name",
+				c."BusinessNumber",
+				sh."TotalPrice",
+				sh."Description",
+				sh."SujuType",
+				sss.summary_state,
+				sc_state."Value",
+				sc_type."Value",
+				sc_ship."Value"
+				ORDER BY sh."JumunDate" DESC, sh.id DESC;
 			""";
 
 
