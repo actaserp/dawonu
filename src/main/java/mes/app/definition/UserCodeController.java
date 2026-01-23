@@ -7,11 +7,14 @@ import java.util.stream.Collectors;
 
 import javax.servlet.http.HttpServletRequest;
 
+import mes.domain.entity.Material;
 import mes.domain.entity.SystemCode;
+import mes.domain.repository.MaterialRepository;
 import mes.domain.repository.SysCodeRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -36,11 +39,13 @@ public class UserCodeController {
 	@Autowired
 	UserCodeRepository userCodeRepository;
 
+	@Autowired
+	MaterialRepository materialRepository;
 
 	@Autowired
 	SysCodeRepository sysCodeRepository;
 
-	
+
 	@GetMapping("/readFirst")
 	public AjaxResult getCodeListFirst(
 			@RequestParam("txtCode") String txtCode
@@ -112,7 +117,7 @@ public class UserCodeController {
 		return result;
 	}
 
-	
+	@Transactional
 	@PostMapping("/save")
 	public AjaxResult saveCode(
 			@RequestParam(value="id", required=false) Integer id,
@@ -151,7 +156,53 @@ public class UserCodeController {
 		c.setDescription(description);
 		c.set_audit(user);
 		c.set_status(status);
-		
+
+		// ✅ material 테이블 검사 및 insert 로직 추가
+		boolean materialExists = materialRepository.existsByCode(code);
+		if (!materialExists) {
+			Material material = new Material();
+
+			// 기본 정보
+			material.setCode(code);
+			material.setName(value);
+			material.setDescription(description);
+
+			// 필수 기본값들
+			material.setStandardTimeUnit("min");
+			material.setValidDays(90);
+			material.setPurchaseOrderStandard("mrp");
+			material.setVatExemptionYN("N");
+			material.setMinOrder(1f);
+			material.setMaxOrder(10f);
+			material.setEquipment(102);
+			material.setFactory_id(1);
+
+			// ✅ type → MaterialGroup_id
+			if (type != null && !type.isEmpty()) {
+				try {
+					material.setMaterialGroupId(Integer.parseInt(type));
+				} catch (NumberFormatException e) {
+					throw new IllegalArgumentException("Invalid type (MaterialGroup_id): " + type);
+				}
+			}
+
+			material.setStoreHouseId(5);
+			material.setUnitId(3);
+			material.setMtyn("1");
+			material.setUseyn("0");
+			material.setSpjangcd("ZZ");
+			material.setClass1(code.length() >= 4 ? code.substring(0, 4) : code);
+			material.setClass2(code);
+			material.setClass3("");
+
+			// 생성 정보
+//			material.setCreatedBy(user.getUsername());
+//			material.setCreatedAt(LocalDateTime.now());
+			material.set_audit(user);
+
+			materialRepository.save(material);
+		}
+
 		c = this.userCodeRepository.save(c);
 		
 		AjaxResult result = new AjaxResult();
