@@ -1,10 +1,13 @@
 package mes.app.production.production_package;
 
+import lombok.NoArgsConstructor;
+
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+@NoArgsConstructor
 public class BomNode {
 
     public Integer myKey;
@@ -27,9 +30,13 @@ public class BomNode {
     public String class2;
     public String class3;
 
+    public boolean complete;
+    public boolean current; //현재 공정
     public Integer storeHouseId;
 
     public List<BomNode> children = new ArrayList<>();
+
+
 
     public BomNode(Map<String, Object> row) {
         this.myKey = (Integer) row.get("my_key");
@@ -48,7 +55,17 @@ public class BomNode {
         this.class1 = row.get("class1") == null ? "" : row.get("class1").toString();
         this.class2 = row.get("class2") == null ? "" : row.get("class2").toString();
         this.class3 = row.get("class3") == null ? "" : row.get("class3").toString();
+        this.complete = false;
         this.storeHouseId = (Integer) row.get("storehouse_id");
+
+
     }
 
+    //현재 작업 상태 초기화
+    public void clearCursor(){
+        this.current = false;
+        for(BomNode child : this.children){
+            child.clearCursor();
+        }
+    }
 }

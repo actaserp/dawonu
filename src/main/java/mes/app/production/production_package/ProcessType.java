@@ -5,8 +5,8 @@ import lombok.Getter;
 @Getter
 public enum ProcessType {
 
-    FIRST_CONTAINS("1차공정포함"),
-    SINGLE("3차단독공정");
+    SIMPLE_FLOW("3차공정미포함"),
+    FULL_FLOW("3차공정포함"); //SINGLE
 
     private final String description;
 

@@ -2,25 +2,16 @@ package mes.app.production;
 
 import java.awt.*;
 import java.sql.Timestamp;
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
-
 import javax.servlet.http.HttpServletRequest;
 import javax.transaction.Transactional;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
 import mes.Exception.CustomException;
-import mes.app.common.NotificationController;
 import mes.app.production.production_package.*;
 import mes.domain.entity.*;
 import mes.domain.repository.*;
-import mes.domain.services.CommonUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -40,29 +31,7 @@ public class ProdOrderEditController {
     private ProdOrderEditService prodOrderEditService;
 
     @Autowired
-    MaterialRepository materialRepository;
-
-    @Autowired
-    RoutingProcRepository routingProcRepository;
-
-    @Autowired
     JobResRepository jobResRepository;
-
-    @Autowired
-    SujuRepository sujuRepository;
-
-    @Autowired
-    WorkcenterRepository workcenterRepository;
-
-    @Autowired
-    BomProcCompRepository bomProcCompRepository;
-
-    @Autowired
-    BomRepository bomRepository;
-
-    @Autowired
-    NotificationController notificationController;
-
     // 수주 목록 조회
     @GetMapping("/suju_list")
     public AjaxResult getSujuList(
@@ -176,7 +145,7 @@ public class ProdOrderEditController {
             return result;
 
         }catch(Exception e){
-            throw new CustomException("예상치 못한 에러가 발생하였습니다.", e);
+            throw new CustomException("예상치 못한 에러가 발생하였습니다.");
         }
     }
 

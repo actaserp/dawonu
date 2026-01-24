@@ -1,6 +1,7 @@
 package mes.domain.repository;
 
 import java.util.List;
+import java.util.Optional;
 
 import org.apache.ibatis.annotations.Param;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -38,12 +39,5 @@ public interface JobResRepository extends JpaRepository<JobRes, Integer> {
 	""")
 	Integer findIdByOrderProcessAndMaterial(String orderNum, Integer processId, Integer prodMatId);
 
-	// 공정 순서
-	@Query("""
-		SELECT rp.processOrder
-		FROM RoutingProc rp
-		WHERE rp.routingId = :routingId AND rp.processId = :processId
-	""")
-	Integer findProcessOrder(Integer routingId, Integer processId);
-
+    Optional<JobRes> findTopByWorkOrderNumberOrderByWorkIndexDesc(String workOrderNumber);
 }
