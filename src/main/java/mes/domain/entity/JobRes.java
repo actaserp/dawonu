@@ -121,8 +121,4 @@ public class JobRes extends AbstractAuditModel {
 
 	String spjangcd;
 
-    @Column(name = "\"ProcessTree\"", columnDefinition = "jsonb")
-    @ColumnTransformer(write = "?::json")
-    private String processTree;
-
 }

@@ -1,14 +1,19 @@
 package mes.app.util;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import lombok.extern.slf4j.Slf4j;
 import mes.Encryption.EncryptionKeyProvider;
 import mes.Encryption.EncryptionUtil;
+import mes.Exception.CustomException;
 import mes.app.production.production_package.BomNode;
+import mes.app.production.production_package.ProcessType;
 
 import javax.servlet.http.HttpSession;
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -20,6 +25,10 @@ import java.util.List;
 
 @Slf4j
 public class UtilClass {
+
+    public static float DecimalToFloat(BigDecimal value){
+        return value != null ? value.floatValue() : 0f;
+    }
 
     public static Integer getInt(Map<String, Object> map, String key) {
         if (map == null || key == null) return null;
@@ -343,25 +352,6 @@ public class UtilClass {
         }
 
         return accnum;
-    }
-
-    /**
-     * Map -> Json 결과물을 보기 좋게 print 찍기
-     * **/
-    public static String mapToJson(Map<String, ?> item){
-
-        try{
-            ObjectMapper mapper = new ObjectMapper();
-            mapper.enable(SerializationFeature.INDENT_OUTPUT);
-
-            String json = mapper.writeValueAsString(item);
-            log.info(json);
-            return json;
-
-        }catch(Exception e){
-            log.error("json으로 변환하지 못함.");
-            return null;
-        }
     }
 
 }

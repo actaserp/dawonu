@@ -1,26 +1,36 @@
 package mes.app.production.service;
 
 import java.math.BigDecimal;
+import java.sql.Date;
 import java.sql.Timestamp;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
-import java.util.List;
-import java.util.Map;
-
+import java.util.*;
+import java.util.stream.IntStream;
 import mes.Exception.CustomException;
+import mes.app.inventory.service.LotService;
 import mes.app.production.ProductuibResult_validation.ProductionResultValidator;
+import mes.app.production.dto.productionResult.WorkFinishRequest;
 import mes.app.production.production_package.BomNode;
+import mes.app.production.production_package.BomTreeService;
+import mes.app.util.JsonUtil;
 import mes.app.util.UtilClass;
 import mes.domain.entity.*;
+import mes.domain.model.AjaxResult;
+import mes.domain.repository.*;
+import mes.domain.services.CommonUtil;
+import mes.domain.services.DateUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
+import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
-
-import io.micrometer.core.instrument.util.StringUtils;
-import mes.domain.repository.MatLotConsRepository;
-import mes.domain.repository.MatLotRepository;
-import mes.domain.repository.StorehouseRepository;
 import mes.domain.services.SqlRunner;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.interceptor.TransactionAspectSupport;
+
+
 
 @Service
 public class ProductionResultService {
@@ -39,6 +49,36 @@ public class ProductionResultService {
 
     @Autowired
     ProductionResultValidator validator;
+
+    @Autowired
+    MatConsuRepository matConsuRepository;
+
+    @Autowired
+    EquRunRepository equRunRepository;
+
+    @Autowired
+    JobResRepository jobResRepository;
+
+    @Autowired
+    MatProduceRepository matProduceRepository;
+
+    @Autowired
+    MaterialRepository materialRepository;
+
+    @Autowired
+    MaterialGroupRepository materialGroupRepository;
+
+    @Autowired
+    WorkcenterRepository workcenterRepository;
+
+    @Autowired
+    MatInoutRepository matInoutRepository;
+
+    @Autowired
+    LotService lotService;
+
+    @Autowired
+    JobResProcessTreeRepository jobResProcessTreeRepository;
 
     /**
      * 작업지시에서 발생한 불량 수량을
@@ -104,64 +144,7 @@ public class ProductionResultService {
 
 	}
 
-	public List<Map<String, Object>> get_chasu_bom_mat_qty_list(int id) {
-		MapSqlParameterSource dicParam = new MapSqlParameterSource();
-		dicParam.addValue("id", id);
 
-		String sql = """
-	       		with mp as(
-		        select 
-		        "Material_id"
-		        , (COALESCE("GoodQty",0)+COALESCE("DefectQty",0)+COALESCE("ScrapQty",0)+COALESCE("LossQty",0)) as prod_qty
-		        , "ProductionDate"
-		        from mat_produce
-		         where id = :id
-		        ), 
-		        
-		        bom1 as (
-		        select 
-		        b1.id as bom_pk, 
-		        b1."Material_id" as prod_pk
-		        , b1."OutputAmount" as produced_qty
-		        , mp.prod_qty
-		        , row_number() over(partition by b1."Material_id" order by b1."Version" desc) as g_idx
-		        from bom b1
-		         inner join mp on mp."Material_id"=b1."Material_id"
-		        where b1."BOMType" = 'manufacturing' and mp."ProductionDate" between b1."StartDate" and b1."EndDate"  
-		        ), 
-		        
-		        BT as (
-		        select 
-		        bc."Material_id" as mat_pk
-		        , bom1.produced_qty
-		        , bc."Amount" as quantity 
-		        , bc."Amount" / bom1.produced_qty as bom_ratio
-		        , bc."Amount" / bom1.produced_qty * bom1.prod_qty as chasu_bom_qty 
-		        from bom_comp bc 
-		        inner join bom1 on bom1.bom_pk=bc."BOM_id"
-		        where bom1.g_idx = 1
-		        )
-		        
-		        select 
-		        BT.mat_pk
-		        , mg."MaterialType" as mat_type
-		        , fn_code_name('mat_type', mg."MaterialType") as mat_type_name
-		        , mg."Name" as mat_group_name
-		        , m."Code" as mat_code
-		        , m."Name" as mat_name
-		        , u."Name" as unit_name
-		        , BT.bom_ratio
-		        , BT.chasu_bom_qty
-		        , coalesce(m."LotUseYN",'N') as "lotUseYn"
-		        from BT
-		        inner join material m on m.id=BT.mat_pk
-		        left join mat_grp mg on mg.id=m."MaterialGroup_id"
-		        left join unit u on u.id=m."Unit_id"
-				""";
-
-		List<Map<String, Object>> items = this.sqlRunner.getRows(sql, dicParam);
-		return items;
-	}
 
 	public void calculate_balance_mat_lot_with_job_res(int id) {
 
@@ -273,108 +256,6 @@ public class ProductionResultService {
 		dicParam.addValue("matName", (choMat.isEmpty() || choMat == null) ? "%%": "%" + choMat  +"%");
         dicParam.addValue("jobProc", job_proc);
 
-
-		/*String sql = """
-			WITH T AS (
-			  SELECT
-				  jr.id                              AS child_id,
-				  jr."Parent_id"                     AS parent_id,
-				  jr."Description" as memo ,
-				  COALESCE(jr."Parent_id", jr.id)    AS base_id,
-				  CASE WHEN jr."State"='working' THEN 1 ELSE 0 END AS is_working,
-				  CASE WHEN jr."State"='stopped' THEN 1 ELSE 0 END AS is_stopped
-			  FROM job_res jr
-			  WHERE jr."ProductionDate" BETWEEN CAST(:dateFrom AS date) AND CAST(:dateTo AS date)
-				AND jr.spjangcd = :spjangcd
-			),
-			S AS (
-			  SELECT
-				  T.*,
-				  -- 대표행 선택: working 우선, 다음 최근 id
-				  ROW_NUMBER() OVER (
-						PARTITION BY T.base_id
-						ORDER BY
-						  T.is_working DESC,                                  -- 1) working 우선
-						  CASE WHEN T.parent_id IS NULL THEN 1 ELSE 0 END DESC, -- 2) 그다음 부모 우선
-						  T.child_id DESC                                     -- 3) 마지막 타이브레이커: 최신 id
-					  ) AS rn,
-				  -- 체인에 working 있는지 (있으면 1)
-				  MAX(T.is_working) OVER (PARTITION BY T.base_id) AS any_working
-				  , MAX(T.is_stopped) OVER (PARTITION BY T.base_id) AS any_stopped
-			  FROM T
-			),
-			F AS (
-			  SELECT
-				 S.child_id                                  AS id                         -- 대표행 id
-			   , C."WorkOrderNumber"                         AS order_num
-			   , TO_CHAR(B."ProductionDate",'yyyy-mm-dd')    AS prod_date  --생산일                 -- 기본정보는 base(부모)
-			   , TO_CHAR(su."DueDate",'yyyy-mm-dd')    AS due_date         --수주테이블의 마감기한
-			   , C."LotNumber"                               AS lot_num    --lot 번호
-			   , TO_CHAR(B."StartTime",'hh24:mi')            AS start_time --작업 시작시간
-			   , TO_CHAR(B."EndTime",'hh24:mi')              AS end_time   --작업 종료시간
-			   , WC.id                                       AS workcenter_id --작업 워크센터 아이디
-			   , WC."Name"                                   AS workcenter    --작업 웨크센터 이름
-			   , C."ShiftCode"                                AS shift_code   --근무조 코드
-			   , SH."Name"                                    AS shift_name   --근무조 이름
-			   , B."WorkIndex"                                AS work_idx     --작업순서
-			
-			   -- 파생 상태: working 있으면 working, 아니면 부모 상태
-			   , CASE
-					 WHEN S.any_working = 1 THEN 'working'
-					 WHEN S.any_stopped = 1 THEN 'stopped'
-					 ELSE B."State"
-				 END AS state
-				 , fn_code_name('job_state',
-					 CASE
-						 WHEN S.any_working = 1 THEN 'working'
-						 WHEN S.any_stopped = 1 THEN 'stopped'
-						 ELSE B."State"
-					 END
-				 ) AS job_state                 --작업상태 이름
-			
-			   , C."WorkerCount"                              AS worker_count  --작업자수
-			   , M.id                                         AS mat_pk        -- 품목아이디
-			   , M."Code"                                     AS mat_code      -- 품목코드
-			   , M."Name"                                     AS mat_name      -- 품목이름
-			   , fn_code_name('mat_type', MG."MaterialType")  AS mat_type      --품목타입
-			   , M."LotSize"                                  AS lot_size      --한 로트당 사이즈
-			   , M."Weight"                                   AS weight        --품목무게
-			   , U."Name"                                     AS unit          --단위이름
-			   , E.id                                         AS equipment_id  --설비 아이디
-			   , E."Name"                                     AS equipment     --설비이름
-			   , C."Description"                              AS description   --설명
-			   , ROUND(B."OrderQty"::numeric, 2)              AS order_qty     --작업 주문수량
-			   , ROUND(B."GoodQty"::numeric, 2)              AS good_qty       --양품수량
-			   , ROUND(B."DefectQty"::numeric, 2)             AS defect_qty    --불량품수량
-			   , B."LossQty"                                  AS loss_qty      --손실수량
-			   , B."ScrapQty"                                 AS scrap_qty     --잔여수량
-			   , TO_CHAR(B."ProductionDate" + M."ValidDays", 'yyyy-mm-dd') AS "ValidDays" -- (생산일+사용기한)
-			   , M."Routing_id"                               AS routing_id    -- 라우팅 id
-			   , COALESCE(su."Standard", M."Standard1") as standard            -- 규격 
-			   , su."CompanyName" as company_name                              -- 거래처이름
-			   , M."Factory_id" AS "Factory_id"                                -- 공장아이디
-			   , fa."Name" as fac_name                                         -- 공장이름
-			   , S.memo                                                        -- 메모 
-			  FROM S
-			  JOIN job_res       C  ON C.id = S.child_id              -- child = 대표행
-			  JOIN job_res       B  ON B.id = S.base_id               -- base = 부모
-			  LEFT JOIN work_center WC ON WC.id = C."WorkCenter_id"
-			  LEFT JOIN equ           E  ON E.id  = C."Equipment_id"
-			  LEFT JOIN shift         SH ON SH."Code" = C."ShiftCode"
-			  LEFT JOIN material      M  ON M.id = B."Material_id"
-			  LEFT JOIN routing       R  ON M."Routing_id" = R.id
-			  LEFT JOIN mat_grp       MG ON MG.id = M."MaterialGroup_id"
-			  LEFT JOIN unit          U  ON U.id = M."Unit_id"
-			  left join suju su on su.id = B."SourceDataPk" and B."SourceTableName" = 'suju'
-			  left join factory fa on M."Factory_id" = fa.id
-			  --WHERE S.rn = 1
-			)
-			SELECT *
-			FROM F
-			where  1=1
-			and F.mat_name like :choMat
-			""";*/
-
         String sql = """
                 WITH T AS (
                 			  SELECT
@@ -457,6 +338,7 @@ public class ProductionResultService {
                                , M."Class1" as class1                                         -- 1차공정
                 			   , M."Class2" as class2                                          -- 2차공정
                 			   , M."Class3" as class3                                          -- 3차공정
+                			   , COALESCE(C."Parent_id") as parent                                        --부모아이디
                 			FROM S
                 			JOIN job_res       C  ON C.id = S.child_id              -- child = 대표행
                 			left join suju su on su.id = C."SourceDataPk" and C."SourceTableName" = 'suju'
@@ -515,73 +397,6 @@ public class ProductionResultService {
 
 	public Map<String, Object> getProdResultDetail(Integer jrPk) {
 		MapSqlParameterSource p = new MapSqlParameterSource().addValue("jrPk", jrPk);
-
-		/*String sql = """
-			WITH target AS (
-				SELECT jr.id AS child_id, jr."Parent_id" AS parent_id
-				FROM job_res jr
-				WHERE jr.id = :jrPk
-			),
-			base_pick AS (
-				SELECT COALESCE(parent_id, child_id) AS base_id
-				FROM target
-			)
-			SELECT
-				-- PK들(프런트에서 쓰기 좋게 모두 내려줌)
-				c.id                             AS id,              -- ★ child jr_pk (현재 상세의 주인공)
-				t.parent_id                      AS parent_jr_pk,    -- 부모 있으면 부모 pk
-				b.base_id                        AS base_jr_pk,      -- 부모가 있으면 부모, 없으면 자기 자신
-		
-				-- 기본 정보는 base 기준(=부모 우선)
-				c."WorkOrderNumber"              AS order_num,       -- 작업지시번호는 child/parent 동일하므로 child 써도 무방
-				base_m.id                        AS mat_pk,
-				base_m."Code"                    AS mat_code,
-				base_m."Name"                    AS mat_name,
-				base_m."LotSize"                 AS lot_size,
-				u."Name"                         AS unit,
-				ROUND(COALESCE(base_jr."OrderQty", 0)::numeric, 2)   AS order_qty,
-				 ROUND(COALESCE(base_jr."GoodQty", 0)::numeric, 2)    AS good_qty,
-				 ROUND(COALESCE(base_jr."DefectQty", 0)::numeric, 2)  AS defect_qty,
-				 ROUND(COALESCE(base_jr."LossQty", 0)::numeric, 2)    AS loss_qty,
-				 ROUND(COALESCE(base_jr."ScrapQty", 0)::numeric, 2)   AS scrap_qty,
-				to_char(base_jr."ProductionDate",'yyyy-mm-dd') AS prod_date,
-				to_char(c."StartTime",'hh24:mi')         AS start_time,
-				c."EndDate"                               AS end_date,
-				to_char(c."StartTime",'yyyy-mm-dd')       AS start_date,
-				to_char(c."EndTime",'hh24:mi')            AS end_time,
-				c."ShiftCode"                             AS shift_code,
-				sh."Name"                                       AS shift_name,
-				base_m."ValidDays",
-				base_m."Routing_id"                             AS routing_id,
-				base_m."Temperature" as mat_temp,
-				base_m."Pressure" as mat_rpm,
-		
-				-- 공정/워크센터/설비/상태는 child 기준(=현재 공정)
-				c."State"                                       AS state,
-				fn_code_name('job_state', c."State")            AS job_state,
-				child_wc.id                                     AS workcenter_id,
-				child_wc."Name"                                 AS workcenter_name,
-				child_wc."Factory_id"                           AS wcfactory_id,
-				e.id                                            AS equipment_id,
-				e."Name"                                        AS equipment_name,
-				child_p.id                                      AS process_id,
-				child_p."Name"                                  AS process_nm,
-		
-				-- 필요하면 정렬/표시용
-				base_jr."WorkIndex"                             AS work_idx,
-				c."LotNumber"                                   AS lot_num
-		
-			FROM target t
-			JOIN base_pick b                 ON 1=1
-			JOIN job_res c                   ON c.id = t.child_id              -- child
-			JOIN job_res base_jr             ON base_jr.id = b.base_id         -- base(부모 있으면 부모)
-			LEFT JOIN material base_m        ON base_m.id = base_jr."Material_id"
-			LEFT JOIN unit u                 ON u.id = base_m."Unit_id"
-			LEFT JOIN shift sh               ON sh."Code" = base_jr."ShiftCode"
-			LEFT JOIN work_center child_wc   ON child_wc.id = c."WorkCenter_id"
-			LEFT JOIN process child_p        ON child_p.id = child_wc."Process_id"
-			LEFT JOIN equ e                  ON e.id = c."Equipment_id"
-			""";*/
 
         String sql = """
                 WITH target AS (
@@ -1500,33 +1315,7 @@ public class ProductionResultService {
 	}
 
 
-	public List<Map<String, Object>> getMaterialProcessInputList(int jrPk, int matPk) {
 
-		MapSqlParameterSource param = new MapSqlParameterSource();
-		param.addValue("jrPk", jrPk);
-		param.addValue("matPk", matPk);
-
-		String sql = """
-                select  mpi.id  as mpi_id
-                	  ,	mpi."RequestQty" as req_qty
-                	  , mpi."InputQty" as input_qty
-                	  , mpi."Material_id" as mat_pk
-                	  , ml."CurrentStock" as curr_qty
-                	  , ml.id as ml_id
-                	  , ml."LotNumber"
-                	  , ml."EffectiveDate" as eff_date
-                from job_res jr
-                inner join mat_proc_input mpi on mpi."MaterialProcessInputRequest_id"  = jr."MaterialProcessInputRequest_id"
-                inner join mat_lot ml on ml.id = mpi."MaterialLot_id"
-                where jr.id = :jrPk
-                and mpi."Material_id" = :matPk
-                order by ml."EffectiveDate"
-                """;
-
-		List<Map<String, Object>> items = this.sqlRunner.getRows(sql, param);
-
-		return items;
-	}
 
 	public Map<String, Object> getJobResponseGoodDefectQty(Integer jrPk) {
 
@@ -1610,13 +1399,968 @@ public class ProductionResultService {
         return end_time;
     }
 
-    //다음 공정 알아내기
-    public Object nextProcessOf(Map<String, ?> bomTree){
 
-        UtilClass.mapToJson(bomTree);
+    /// 작업지시 삭제   ///  /////////////////////////////////////////////////////////////////
+    //region : 작업지시 삭제 로직
+    @Transactional
+    public void deleteJobRes(JobRes jr, Integer equipmentId, String orderNum, User user){
+        validator.validateJobResExists(jr, "대상 작업지시를 찾을 수 없습니다.");
+
+        boolean isChild = jr.getParentId() != null;
+
+        if(isChild){
+            deleteChildJobRes(jr, equipmentId, orderNum, user);
+        }else{
+            deleteParentJobRes(jr, equipmentId, orderNum, user);
+        }
+
+        jobResProcessTreeRepository.deleteByWorkOrderNo(jr.getWorkOrderNumber());
+    }
+
+    private void deleteChildJobRes(JobRes jr, Integer equipmentId, String orderNum, User user){
+
+        if(equipmentId == null) throw new CustomException("장비 정보가 없어 삭제할 수 없습니다.");
+
+        prodResultDelValidator(jr,
+                "대상 작업지시를 찾을 수 없습니다.",
+                "생산량이 존재하여 삭제할 수 없습니다.",
+                "등록된 차수가 있어 삭제할 수 없습니다.");
+
+        //TODO: 삭제하면 이전 공정의 parentId 가르키는 것을 바꿔줘야 한다.
+        BomTreeService treeService = new BomTreeService();
+
+        int deleted = equRunRepository.deleteByWorkOrderNumberAndEquipmentId(orderNum, equipmentId);
+
+        // 자식 JobRes 삭제
+        jobResRepository.deleteById(jr.getId());
+
+    }
+
+    private void deleteParentJobRes(JobRes jr, Integer equipmentId, String orderNum, User user){
+        // ======================
+        // PLAN(부모) 취소 플로우
+        // ======================
+        // 진행 중인 설비가동은 stop 처리 (기존 로직 유지)
+        Timestamp now = DateUtil.getNowTimeStamp();
+
+        equRunRepository.findLatestRunningByEquipmentAndOrder(equipmentId, orderNum)
+                .ifPresent(run -> {
+                    if (run.getEndDate() == null) {
+                        run.setEndDate(now);
+                        run.setRunState("stop");
+                    }
+                    run.setDescription("작지 취소");
+                    run.set_audit(user);
+                    equRunRepository.save(run);
+                });
+
+        // 부모 상태만 canceled 로 업데이트 (이력 보존)
+//            jr.setState("canceled");
+//            jr.set_audit(user);
+//            jobResRepository.save(jr);
+
+        //자식 중에 일하고있는애 있는지 확인
+        List<JobRes> child_list = jobResRepository.findBySourceDataPkAndSourceTableName(jr.getSourceDataPk(), jr.getSourceTableName());
+        for (JobRes child : child_list) {
+            if (child.getState().equals("working")) throw new CustomException("관련 공정 중에 진행중인 공정이 존재합니다.");
+
+            //타당성 및 정합성 체크
+            prodResultDelValidator(child, "대상 작업지시를 찾을 수 없습니다."
+                    , "관련 공정 중에 등록된 차수가 존재합니다.", "관련 공정 중에 생산량이 존재하여 삭제할 수 없습니다.");
+        }
+
+        //자식&부모 작지 삭제
+        jobResRepository.deleteAll(child_list);
+    }
+
+    private void prodResultDelValidator(JobRes jr, String errMsg, String errMsg2, String errMsg3){
+
+
+        validator.validateJobResExists(jr, errMsg);
+
+        // 1) 생산량 가드: 양품+불량 > 0 이면 취소/삭제 불가
+        double good = jr.getGoodQty() == null ? 0d : jr.getGoodQty().doubleValue();
+        double defect = jr.getDefectQty() == null ? 0d : jr.getDefectQty().doubleValue();
+
+        if (good + defect > 0) {
+            throw new CustomException(errMsg2);
+        }
+
+        // (선택) 차수/투입 등 존재 시 가드 유지
+        // 기존 코드 유지: 등록된 차수(=소모/투입 등) 있으면 삭제 불가
+        List<MaterialConsume> mcList = matConsuRepository.findByJobResponseId(jr.getId());
+        if (mcList != null && !mcList.isEmpty()) {
+            throw new CustomException(errMsg3);
+        }
+    }
+    //endregion : 작업지시 삭제로직 끝
+    ///  끝 /////////////////////////////////////////////////////////////////
+
+
+    // 다음 공정 알아내기 (부모 JsonNode 반환)
+    public BomNode completeAndGetParentNode(
+            Map<String, BomNode> processTree,
+            int targetMatPk
+    ) {
+
+        //이전 정보 제거 (각 노드들의 current 정보를 다 false로 리셋)
+        processTree.values().forEach(BomNode::clearCursor);
+
+        for (BomNode root : processTree.values()) {
+            BomNode parent = completeAndFindParent(root, null, targetMatPk);
+            if (parent != null) {
+                return parent;
+            }
+        }
+        return null; // 최상위 공정
+    }
+
+    private BomNode completeAndFindParent(
+            BomNode current,
+            BomNode parent,
+            int targetMatPk
+    ) {
+
+        if (current.matPk != null && current.matPk == targetMatPk) {
+            current.complete = true; //완료 처리
+
+            current.current = true; //현재 공정 표시
+
+
+            return parent; // 다음 공정
+        }
+
+        for (BomNode child : current.children) {
+            BomNode found =
+                    completeAndFindParent(child, current, targetMatPk);
+            if (found != null) {
+                return found;
+            }
+        }
 
         return null;
     }
 
 
+    public void saveNextOfProcess(JobRes previous, BomNode node, User user) {
+
+        Optional<JobRes> jr = jobResRepository.findTopByWorkOrderNumberOrderByWorkIndexDesc(previous.getWorkOrderNumber());
+
+        if(!jr.isPresent()) throw new CustomException("작업지시를 찾을 수 없습니다.");
+
+        int workIndex = jr.get().getWorkIndex() + 1;
+
+        JobRes next = new JobRes();
+        next.set_audit(user); //공통
+        next.setProductionPlanDate(previous.getProductionPlanDate());
+        next.setProductionDate(previous.getProductionDate());
+        next.setShiftCode(previous.getShiftCode());
+        next.setWorkIndex(workIndex);
+        next.setOrderQty(node.calculatedBomRatio.floatValue());
+        next.setState("ordered");
+        next.setParentId(previous.getParentId());
+        next.setProcessCount(previous.getProcessCount()+1);
+        next.setSourceDataPk(previous.getSourceDataPk());
+        next.setSourceTableName(previous.getSourceTableName());
+        next.setFirstWorkCenter_id(previous.getFirstWorkCenter_id());
+
+        next.setMaterialId(node.matPk);
+
+        next.setStoreHouse_id(node.storeHouseId);
+
+        next.setWorkCenter_id(previous.getWorkCenter_id());
+        next.setSpjangcd(previous.getSpjangcd());
+
+        jobResRepository.save(next);
+
+        //: 이전공정이 물고있는 parentId 수정해줘여함
+        previous.setParentId(next.getId());
+        jobResRepository.save(previous);
+
+    }
+
+    /// chasu_add
+    //endregion 차수별 생산 api
+    public AjaxResult chasu_add_service(Integer jrPk, Float goodQty, String spjangcd, User user){
+
+        AjaxResult result = new AjaxResult();
+        Timestamp now = DateUtil.getNowTimeStamp();
+
+        // 현재 일자
+        LocalDate date = LocalDate.now();
+        DateTimeFormatter dateFormat = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+
+        // 현재 시간
+        LocalTime time = LocalTime.now();
+        DateTimeFormatter timeFormat = DateTimeFormatter.ofPattern("HH:mm:ss");
+
+        JobRes jr = this.jobResRepository.getJobResById(jrPk);
+        validator.throwIfNull(jr, "작업지시가 존재하지 않습니다.");
+        validator.throwIfNull(jr.getWorkCenter_id(), "워크센터가 지정되지 않았습니다.");
+
+        Material m = this.materialRepository.getMaterialById(jr.getMaterialId());
+
+        validator.throwIfNull(m, "해당 작업지시에 대한 품목정보가 없습니다.");
+        validator.throwIfNull(m.getStoreHouseId(), "생산제품의 기본 창고가 설정되어 있지 않습니다.");
+
+        Integer storehouseId = m.getStoreHouseId();
+
+        // 작업지시량 / lot당 수량 (올림해야댐) ==> 생성해야할 LOT 수
+        int totalLotCnt = (int) Math.ceil(jr.getOrderQty() / goodQty);
+
+        //각 LOT별 수량
+        int orderQty =  jr.getOrderQty().intValue();
+        int lotQty = goodQty.intValue();
+        List<Integer> lotQtyList = IntStream.rangeClosed(1, totalLotCnt)
+                .map(i -> i < totalLotCnt ? lotQty : orderQty - lotQty * (totalLotCnt - 1)).boxed().toList();
+
+
+        // matprods 개수로
+        List<MaterialProduce> mpList = this.matProduceRepository.findByJobResponseId(jr.getId());
+        Integer startChasu = mpList.size() + 1;
+        List<Integer> lotChasuList = IntStream.rangeClosed(startChasu, startChasu + totalLotCnt).boxed().toList();
+
+
+        // lot_size = material.LotSize
+        Workcenter wc = this.workcenterRepository.getWorkcenterById(jr.getWorkCenter_id());
+        Integer processId = wc.getProcessId();
+
+        // 1. 로트번호 생성
+        // lot 자동 생성
+        String lotPrefix = "B";
+
+        MaterialGroup mg = this.materialGroupRepository.getMatGrpById(m.getMaterialGroupId());
+        if (mg.getMaterialType().equals("product")) {
+            lotPrefix = "P";
+        }
+
+        //String lotNumber = this.lotService.make_production_lot_in_number(lotPrefix);
+        List<String> lotNumberList = this.lotService.make_production_lotList_in_number(lotPrefix, totalLotCnt);
+
+        // 차수별 mat_produce
+        List<MaterialProduce> mpEntityList = new ArrayList<>();
+        List<MaterialLot> mlEntityList = new ArrayList<>();
+
+        for(int i=0; i < totalLotCnt; i++) {
+            MaterialProduce mp = new MaterialProduce();
+            mp.setJobResponseId(jr.getId());
+            mp.setMaterialId(m.getId());
+            mp.setProcessId(processId);
+            mp.setProcessOrder(1);
+            mp.setLotIndex(lotChasuList.get(i));
+            mp.setState("finished");
+            mp.set_status("a");
+            mp.setStoreHouseId(storehouseId);
+            mp.setProductionDate(jr.getProductionDate());
+            mp.setStartTime(jr.getStartTime());
+            mp.setEndTime(now);
+            mp.setShiftCode(jr.getShiftCode());
+            mp.setWorkCenterId(jr.getWorkCenter_id());
+            mp.setEquipmentId(jr.getEquipment_id());
+            mp.setGoodQty(lotQtyList.get(i).floatValue());
+            mp.setDescription("차수생산");
+            mp.setActorId(user.getId());
+            mp.set_audit(user);
+            mp.setLastProcessYN("Y");
+            mp.setLotNumber(lotNumberList.get(i));
+            mp.setSpjangcd(spjangcd);
+            mpEntityList.add(mp);
+            this.matProduceRepository.save(mp);
+
+            MaterialLot ml = new MaterialLot();
+            ml.setLotNumber(lotNumberList.get(i));
+            ml.setMaterialId(m.getId());
+            ml.setInputDateTime(now);
+            ml.setInputQty(mp.getGoodQty());
+            ml.setCurrentStock(mp.getGoodQty());
+            ml.setDescription(lotChasuList.get(i) + "차수생산");
+            ml.setSourceDataPk(mp.getId());
+            ml.setSourceTableName("mat_produce");
+            ml.setStoreHouseId(mp.getStoreHouseId());
+            ml.set_audit(user);
+            ml.setSpjangcd(spjangcd);
+            mlEntityList.add(ml);
+
+            this.matLotRepository.save(ml);
+        }
+
+        // 차수생산량 만큼 good_qty량 만큼 BOM 수량조회
+        List<Map<String, Object>> bomMatItems = this.get_chasu_bom_mat_qty_list(mpEntityList.get(0).getId());
+        validator.assertNotEmpty(bomMatItems, "BOM구성이 없습니다.");
+
+
+        for (int i = 0; i < bomMatItems.size(); i++) {
+            Map<String, Object> bomMap = bomMatItems.get(i);
+
+            float chasuBomQty = Float.parseFloat(bomMap.get("chasu_bom_qty").toString());
+            Float bom_ratio   = bomMap.get("bom_ratio") == null ? null : Float.parseFloat(bomMap.get("bom_ratio").toString());
+            if(bom_ratio == null) throw new CustomException("bom 수량이 존재하지 않습니다.");
+
+            int consumeMatPk = (int) bomMap.get("mat_pk");
+            String matName = bomMap.get("mat_name").toString();
+            Material consMat = this.materialRepository.getMaterialById(consumeMatPk);
+            String lotUseYn = bomMap.get("lotUseYn").toString();
+            float totalQty = 0f;
+
+            /*
+			 선입선출로 mat_lot 찾아서 차감
+             차감하면서 mat_lot_cons 생성
+             투입되어야할 수량보다 적으면 재고량 부족으로 return
+             */
+
+            if ("Y".equals(lotUseYn)) { //lot 관리를 할 경우 //TODO
+                // 수정시작
+                // 1. mat_proc_input 에서 해당 품목의 로트리스트를 가져온다.
+
+                List<Map<String, Object>> mpiList = this.getMaterialProcessInputList(jr.getId(), consumeMatPk);
+                // 투입요청에서 해당 품목이 로트 투입인지 조회한다
+
+                float remainQty = chasuBomQty; //남은 투입량
+
+                /*for (int j = 0; j < mpiList.size(); j++) {
+                    Map<String, Object> mpiMap = mpiList.get(j);
+
+                    float reqQty = Float.parseFloat(mpiMap.get("req_qty").toString());
+                    totalQty += reqQty;
+
+                    int matLotId = (int) mpiMap.get("ml_id");
+                    float currentStock = Float.parseFloat(mpiMap.get("curr_qty").toString());
+                    if (currentStock == 0) { //TODO: 수량이 부족한데 예외 안터지고 그냥 반복문만 빠져나감... 뭐지?
+                        continue;
+                    }
+
+                    MatLotCons mlc = new MatLotCons();
+                    mlc.setMaterialLotId(matLotId);
+                    mlc.setOutputDateTime(now);
+                    mlc.setSourceDataPk(mp.getId());
+                    mlc.setSourceTableName("mat_produce");
+                    mlc.set_audit(user);
+                    mlc.setCurrentStock(ml.getCurrentStock()); // 당시 재고량
+                    mlc.setSpjangcd(spjangcd);
+                    if (currentStock >= remainQty) {
+                        // 해당로트의현재수량 가능
+                        mlc.setOutputQty(reqQty);
+                        remainQty = (float) 0;
+                        mlc = this.matLotConsRepository.save(mlc);
+
+                        break;
+                    } else {
+                        mlc.setOutputQty(reqQty);
+                        mlc = this.matLotConsRepository.save(mlc);
+                        remainQty = remainQty - reqQty;
+                    }
+
+                }*/
+
+//                if (remainQty > 0) {
+//                    result.message = "로트 수량이 부족합니다.(" + matName + ")";
+//                    result.success = false;
+//                    TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
+//                    return result;
+//                }
+            } else {
+                if ("1".equals(consMat.getUseyn())) {
+                    throw new CustomException("사용 불가능한 품목이 BOM에 등록되어 있습니다.(" + matName + ")");
+                }
+                // mtyn이 0일 때는 재고 체크하지 않음
+                if ("0".equals(consMat.getMtyn())) {
+                    // 아무 동작 안함.
+                } else {
+                    Float currentStock = consMat.getCurrentStock();
+                    if (currentStock == null || currentStock == 0f) {
+                        throw new CustomException("가용한 품목 재고가 없습니다.(" + matName + ")");
+                    } else if (currentStock < goodQty) {
+                        throw new CustomException("가용한 품목 재고가 부족합니다. \n(" +
+                                matName + ", 필요 수량: " + goodQty + ", 가용 수량: " + currentStock + ")");
+                    }
+                }
+                totalQty += chasuBomQty; //TODO 아래보니깐 그냥 chasuBomQty가 맞는듯함.
+            }
+
+            for(int j=0; j<mpEntityList.size(); j++){
+                // mat_cons 생성
+                MaterialConsume mc = new MaterialConsume();
+                mc.setJobResponseId(jr.getId());
+                mc.setMaterialId(consumeMatPk);
+                mc.setProcessOrder(1);
+                mc.setLotIndex(mpEntityList.get(j).getLotIndex());
+                mc.setStartTime(now);
+                mc.setEndTime(now);
+                mc.setDescription("차수생산분");
+                mc.setBomQty(chasuBomQty); //TODO
+
+                Float goodQty1 = mpEntityList.get(j).getGoodQty();
+
+                mc.setConsumedQty(goodQty1 * bom_ratio);        // 차수 생산분에 해당하는 BOM기준물량, lot 마다 투입 수량  //TODO
+                mc.set_audit(user);
+                mc.setState("finished");
+                mc.set_status("a");
+                mc.setStoreHouseId(consMat.getStoreHouseId());
+                mc.setSpjangcd(spjangcd);
+                mc = this.matConsuRepository.save(mc);
+
+                //1. mat_inout 생성=> lot 투입이면 투입 수량만큼 lot 없으면 BOM 수량만큼 재고를 차감한다.
+                MaterialInout mic = new MaterialInout();
+                mic.setMaterialInoutHeadId(null);
+                mic.setMaterialId(mc.getMaterialId());
+                mic.setStoreHouseId(consMat.getStoreHouseId());
+                mic.setLotNumber(mpEntityList.get(j).getLotNumber());
+                mic.setInoutDate(LocalDate.parse(date.format(dateFormat)));
+                mic.setInoutTime(LocalTime.parse(time.format(timeFormat)));
+                mic.setInOut("out");
+                mic.setOutputType("consumed_out");
+                mic.setOutputQty(mc.getConsumedQty());
+                mic.setSourceDataPk(mc.getId());
+                mic.setSourceTableName("mat_consu");
+                mic.setState("confirmed");
+                mic.set_status("a");
+                mic.setDescription("차수생산 투입재고 차감");
+                mic.set_audit(user);
+                mic.setSpjangcd(spjangcd);
+
+                this.matInoutRepository.save(mic);
+            }
+
+        } // bom List 반목문 끝, for문 끝
+
+        // 2. mat_inout 생성=> 차수 수량만큼 재고를 증감한다.
+
+        for(int i=0; i<totalLotCnt; i++){
+            MaterialInout mip = new MaterialInout();
+            mip.setMaterialInoutHeadId(null);
+            mip.setMaterialId(m.getId());
+            mip.setStoreHouseId(m.getStoreHouseId());
+            mip.setLotNumber(lotNumberList.get(i));
+            mip.setInoutDate(LocalDate.parse(date.format(dateFormat)));
+            mip.setInoutTime(LocalTime.parse(time.format(timeFormat)));
+            mip.setInOut("in");
+            mip.setInputQty(lotQtyList.get(i).floatValue()); //TODO 얘는진짜주의
+            mip.setInputType("produced_in");
+            mip.setSourceDataPk(mpEntityList.get(i).getId());
+            mip.setSourceTableName("mat_produce");
+            mip.setState("confirmed");
+            mip.set_status("a");
+            mip.setDescription("차수생산입고");
+            mip.set_audit(user);
+            mip.setSpjangcd(spjangcd);
+            this.matInoutRepository.save(mip);
+
+            //mat_lot 의 출고량과 현재고 수량 업데이트
+            this.calculate_balance_mat_lot_with_job_res(jr.getId()); //TODO: 성능개선포인트
+        }
+
+        // 양품량 합계 업데이트
+        Map<String, Object> mapSum = this.getJobResponseGoodDefectQty(jrPk);
+
+        float goodQtySum = Float.parseFloat(mapSum.get("good_qty").toString());
+        float defectQtySum = Float.parseFloat(mapSum.get("defect_qty").toString());
+        jr.setGoodQty(goodQtySum);
+        jr.setDefectQty(defectQtySum);
+        jr.set_audit(user);
+
+        jr = this.jobResRepository.save(jr);
+
+        Map<String, Object> item = new HashMap<>();
+        item.put("jr_pk", jrPk);
+        //item.put("lot_number", lotNumber);
+        item.put("good_qty_sum", jr.getGoodQty());
+        //item.put("chasu", chasu);
+        item.put("prod_mat_cd", m.getCode());
+        result.data = item;
+        return result;
+    }
+
+    public List<Map<String, Object>> get_chasu_bom_mat_qty_list(int id) {
+        MapSqlParameterSource dicParam = new MapSqlParameterSource();
+        dicParam.addValue("id", id);
+
+        String sql = """
+	       		with mp as(
+		        select 
+		        "Material_id"
+		        , (COALESCE("GoodQty",0)+COALESCE("DefectQty",0)+COALESCE("ScrapQty",0)+COALESCE("LossQty",0)) as prod_qty
+		        , "ProductionDate"
+		        from mat_produce
+		         where id = :id
+		        ), 
+		        
+		        bom1 as (
+		        select 
+		        b1.id as bom_pk, 
+		        b1."Material_id" as prod_pk
+		        , b1."OutputAmount" as produced_qty
+		        , mp.prod_qty
+		        , row_number() over(partition by b1."Material_id" order by b1."Version" desc) as g_idx
+		        from bom b1
+		         inner join mp on mp."Material_id"=b1."Material_id"
+		        where b1."BOMType" = 'manufacturing' and mp."ProductionDate" between b1."StartDate" and b1."EndDate"  
+		        ), 
+		        
+		        BT as (
+		        select 
+		        bc."Material_id" as mat_pk
+		        , bom1.produced_qty
+		        , bc."Amount" as quantity 
+		        , bc."Amount" / bom1.produced_qty as bom_ratio
+		        , bc."Amount" / bom1.produced_qty * bom1.prod_qty as chasu_bom_qty 
+		        from bom_comp bc 
+		        inner join bom1 on bom1.bom_pk=bc."BOM_id"
+		        where bom1.g_idx = 1
+		        )
+		        
+		        select 
+		        BT.mat_pk
+		        , mg."MaterialType" as mat_type
+		        , fn_code_name('mat_type', mg."MaterialType") as mat_type_name
+		        , mg."Name" as mat_group_name
+		        , m."Code" as mat_code
+		        , m."Name" as mat_name
+		        , u."Name" as unit_name
+		        , BT.bom_ratio
+		        , BT.chasu_bom_qty
+		        , coalesce(m."LotUseYN",'N') as "lotUseYn"
+		        from BT
+		        inner join material m on m.id=BT.mat_pk
+		        left join mat_grp mg on mg.id=m."MaterialGroup_id"
+		        left join unit u on u.id=m."Unit_id"
+				""";
+
+        List<Map<String, Object>> items = this.sqlRunner.getRows(sql, dicParam);
+        return items;
+    }
+
+    public List<Map<String, Object>> getMaterialProcessInputList(int jrPk, int matPk) {
+
+        MapSqlParameterSource param = new MapSqlParameterSource();
+        param.addValue("jrPk", jrPk);
+        param.addValue("matPk", matPk);
+
+        String sql = """
+                select  mpi.id  as mpi_id
+                	  ,	mpi."RequestQty" as req_qty
+                	  , mpi."InputQty" as input_qty
+                	  , mpi."Material_id" as mat_pk
+                	  , ml."CurrentStock" as curr_qty
+                	  , ml.id as ml_id
+                	  , ml."LotNumber"
+                	  , ml."EffectiveDate" as eff_date
+                from job_res jr
+                inner join mat_proc_input mpi on mpi."MaterialProcessInputRequest_id"  = jr."MaterialProcessInputRequest_id"
+                inner join mat_lot ml on ml.id = mpi."MaterialLot_id"
+                where jr.id = :jrPk
+                and mpi."Material_id" = :matPk
+                order by ml."EffectiveDate"
+                """;
+
+        List<Map<String, Object>> items = this.sqlRunner.getRows(sql, param);
+
+        return items;
+    }
+    //endregion
+
+    /// /chasu_save
+    //region : 차수 저장
+    @Transactional
+    public AjaxResult saveSingleChasu(Integer jrPk, Integer mpId, Float goodQty, Float defectQty, Authentication auth) {
+
+        AjaxResult result = new AjaxResult();
+        User user = (User) auth.getPrincipal();
+        Timestamp now = DateUtil.getNowTimeStamp();
+        // 현재 일자
+        LocalDate date = LocalDate.now();
+        DateTimeFormatter dateFormat = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+
+        // 현재 시간
+        LocalTime time = LocalTime.now();
+        DateTimeFormatter timeFormat = DateTimeFormatter.ofPattern("HH:mm:ss");
+
+        JobRes jr = this.jobResRepository.getJobResById(jrPk);
+
+        MaterialProduce mpe = this.matProduceRepository.getMatProduceById(mpId);
+
+        MaterialLot prodMatLot = this.matLotRepository.getByLotNumber(mpe.getLotNumber());
+
+        List<MatLotCons> prodMatLotConsCount = this.matLotConsRepository.findByMaterialLotId(prodMatLot.getId());
+
+        if (!prodMatLotConsCount.isEmpty()) {
+            throw new CustomException("해당차수의 로트가 이미 사용되어 수정할 수 없습니다.");
+        }
+
+        float mpGoodQty = mpe.getGoodQty() != null ? mpe.getGoodQty() : 0;
+        float mpDefectQty = mpe.getDefectQty() != null ? mpe.getDefectQty() : 0;
+
+//		if (Float.compare(mpGoodQty, goodQty) == 0 && Float.compare(mpDefectQty, defectQty) == 0) {	//if (Float.compare(mpe.getGoodQty(), goodQty) == 0 && Float.compare(mpe.getDefectQty(), defectQty) == 0) {
+//			result.message = "수량변경이 없습니다.("+	mpe.getLotNumber()+ ")";
+//			result.success = false;
+//		    return result;
+//		}
+
+        MaterialProduce mp = this.matProduceRepository.getMatProduceById(mpId);
+
+        if (mp.getGoodQty() == null) mp.setGoodQty((float) 0);
+        if (mp.getDefectQty() == null) mp.setDefectQty((float) 0);
+
+        Float diffGoodQty = goodQty - mp.getGoodQty();
+        Float diffDefectQty = defectQty - mp.getDefectQty();
+        Float diffTotal = diffGoodQty + diffDefectQty;
+
+        // 1. mat_produce 변경
+        Float prevMatProdGoodQty = mp.getGoodQty();
+        mp.setGoodQty(goodQty);
+        mp.setDefectQty(defectQty);
+        mp.setDescription("차수생산 수량변경");
+        mp.setActorId(user.getId());
+        mp.set_audit(user);
+        this.matProduceRepository.saveAndFlush(mp);
+
+        MaterialLot ml = this.matLotRepository.findBySourceTableNameAndSourceDataPkAndLotNumber("mat_produce", mp.getId(), mp.getLotNumber());
+
+        // 2.생산입고 mat_inout 수량 조절
+        if (diffGoodQty != 0) {
+            MaterialInout mi = this.matInoutRepository.findBySourceTableNameAndSourceDataPkAndInOutAndInputTypeAndMaterialId("mat_produce", mp.getId(), "in", "produced_in", mp.getMaterialId());
+            String message = "생산차수수량변경 " + prevMatProdGoodQty + "->" + goodQty;
+            mi.setInputQty(mp.getGoodQty());
+            mi.setDescription(message);
+            mi.setInoutDate(LocalDate.parse(date.format(dateFormat)));
+            mi.setInoutTime(LocalTime.parse(time.format(timeFormat)));
+            mi = this.matInoutRepository.saveAndFlush(mi);
+
+            ml.setCurrentStock(ml.getCurrentStock() - ml.getInputQty() + mp.getGoodQty());
+            ml.setInputQty(mp.getGoodQty());
+            ml = this.matLotRepository.saveAndFlush(ml);
+        }
+
+        // 합산물량이 변경이 없으면 소모물량은 변경없다
+        if (diffTotal == 0) {
+            // jobres 양품량 업데이트
+            Map<String, Object> mapSum = this.getJobResponseGoodDefectQty(jrPk);
+
+            float goodQtySum = Float.parseFloat(mapSum.get("good_qty").toString());
+            float defectQtySum = Float.parseFloat(mapSum.get("defect_qty").toString());
+
+            jr.setGoodQty(goodQtySum);
+            jr.setDefectQty(defectQtySum);
+            jr.set_audit(user);
+            jr = this.jobResRepository.save(jr);
+
+            Map<String, Object> item = new HashMap<String, Object>();
+            item.put("jr_pk", jrPk);
+            item.put("lot_number", mp.getLotNumber());
+            item.put("good_qty_sum", goodQtySum);
+            item.put("defect_qty_sum", defectQtySum);
+
+            result.success = true;
+            result.data = item;
+            return result;
+        }
+
+        // 변경된 물량만큼 소모 BOM 조회함
+        List<Map<String, Object>> bomMatItems = this.get_chasu_bom_mat_qty_list(mp.getId());
+
+        // mat_lot_cons 삭제 및 mat_lot 정산
+        // this.productionResultService.delete_mlc_and_rebalance_ml(mp.getId());
+
+        this.matLotConsRepository.deleteBySourceTableNameAndSourceDataPk("mat_produce", mp.getId());
+
+        for (Map<String, Object> bomMap : bomMatItems) {
+            float chasuBomQty = Float.parseFloat(bomMap.get("chasu_bom_qty").toString());
+            int consumeMatPk = (int) bomMap.get("mat_pk");
+            String matName = bomMap.get("mat_name").toString();
+            Material consMat = this.materialRepository.getMaterialById(consumeMatPk);
+            String lotUseYn = bomMap.get("lotUseYn").toString();
+
+            // 3.변경된 물량 만큼 consume 물량 변경
+            MaterialConsume mc = this.matConsuRepository.getByJobResponseIdAndProcessOrderAndLotIndexAndMaterialId(jr.getId(), mp.getProcessOrder(), mp.getLotIndex(), consumeMatPk);
+            mc.setBomQty(chasuBomQty);
+            mc.setConsumedQty(chasuBomQty);
+            mc.set_audit(user);
+            mc = this.matConsuRepository.saveAndFlush(mc);
+
+            // mat_inout 물량 조정
+            MaterialInout mi = this.matInoutRepository.findBySourceTableNameAndSourceDataPkAndInOutAndOutputTypeAndMaterialId("mat_consu", mc.getId(), "out", "consumed_out", consumeMatPk);
+            mi.set_audit(user);
+            mi.setDescription("'차수생산수량변경" + mi.getOutputQty() + " -> " + chasuBomQty);
+            mi.setOutputQty(chasuBomQty);
+            mi = this.matInoutRepository.saveAndFlush(mi);
+
+            if ("Y".equals(lotUseYn)) {
+                // 수정시작
+                // 1. mat_proc_input 에서 해당 품목의 로트리스트를 가져온다.
+
+                List<Map<String, Object>> mpiList = this.getMaterialProcessInputList(jr.getId(), consumeMatPk);
+                // 투입요청에서 해당 품목이 로트 투입인지 조회한다
+
+                float totalLotQty = 0;
+                for (int j = 0; j < mpiList.size(); j++) {
+                    Map<String, Object> mpiMap = mpiList.get(j);
+
+                    float currQty = Float.parseFloat(mpiMap.get("curr_qty").toString());
+                    totalLotQty += currQty;
+                }
+
+                if (totalLotQty < chasuBomQty) {
+                    throw new CustomException("가용한 LOT 재고가 없습니다.(" + matName + ")\n 투입 내역에서 가용 재고를 추가해주세요. ");
+                }
+
+                // 작업준비에 설정된 lot 투입 품목이면
+                // 로트 사용량 추가
+                float remainQty = chasuBomQty;
+
+                // MaterialProcessInput 조회
+                for (int k = 0; k < mpiList.size(); k++) {
+                    Map<String, Object> mpiMap = mpiList.get(k);
+                    int matLotId = (int) mpiMap.get("ml_id");
+                    float currentStock = Float.parseFloat(mpiMap.get("curr_qty").toString());
+                    if (currentStock == 0) {
+                        continue;
+                    }
+
+                    MatLotCons mlc = new MatLotCons();
+                    mlc.setMaterialLotId(matLotId);
+                    mlc.setOutputDateTime(now);
+                    mlc.setSourceDataPk(mp.getId());
+                    mlc.setSourceTableName("mat_produce");
+                    mlc.set_audit(user);
+                    mlc.setCurrentStock(ml.getCurrentStock()); // 당시 재고량
+
+                    if (currentStock >= remainQty) {
+                        // 해당로트의현재수량 가능
+                        mlc.setOutputQty(remainQty);
+                        remainQty = (float) 0;
+                        mlc = this.matLotConsRepository.save(mlc);
+
+                        break;
+                    } else {
+                        mlc.setOutputQty(currentStock);
+                        mlc = this.matLotConsRepository.save(mlc);
+                        remainQty = remainQty - currentStock;
+                    }
+
+                }
+
+//                if (remainQty > 0) {
+//                    result.message = "로트 수량이 부족합니다.(" + matName + ")";
+//                    result.success = false;
+//                    TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
+//                    return result;
+//                }
+            } else {
+                if ("1".equals(consMat.getUseyn())) {
+                    throw new CustomException("\"사용 불가능한 품목이 BOM에 등록되어 있습니다.(\" + matName + \")\"");
+                }
+
+                // mtyn이 0일 때는 재고 체크하지 않음
+                if ("0".equals(consMat.getMtyn())) {
+                    // 아무 조건 없이 통과
+                } else {
+                    Float currentStock = consMat.getCurrentStock();
+                    if (currentStock == null || currentStock == 0f) {
+                        result.message = "가용한 품목 재고가 없습니다.(" + matName + ")";
+                        result.success = false;
+                        TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
+                        return result;
+                    } else if (currentStock < goodQty) {
+                        result.message = "가용한 품목 재고가 부족합니다. \n(" +
+                                matName + ", 필요 수량: " + goodQty + ", 가용 수량: " + currentStock + ")";
+                        result.success = false;
+                        TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
+                        return result;
+                    }
+                }
+            }
+        }
+        // 한번더 정산
+        //this.productionResultService.calculate_balance_mat_lot_with_mat_prod(mp.getId());
+        this.calculate_balance_mat_lot_with_job_res(jr.getId());
+        // 양품량 합계 업데이트
+        Map<String, Object> mapSum = this.getJobResponseGoodDefectQty(jrPk);
+
+        float goodQtySum = Float.parseFloat(mapSum.get("good_qty").toString());
+        float defectQtySum = Float.parseFloat(mapSum.get("defect_qty").toString());
+
+        jr.setGoodQty(goodQtySum);
+        jr.setDefectQty(defectQtySum);
+        jr.set_audit(user);
+        jr = this.jobResRepository.save(jr);
+
+        Map<String, Object> item = new HashMap<String, Object>();
+        item.put("jr_pk", jrPk);
+        item.put("lot_number", mp.getLotNumber());
+        item.put("good_qty_sum", goodQtySum);
+        item.put("defect_qty_sum", defectQtySum);
+
+        result.data = item;
+        result.success = true;
+
+
+        return result;
+    }
+
+
+    /// //////////////////////////////////////////////////////////////////////////////////work_finish
+    // region : 작업 완료
+    @Transactional(rollbackFor = Exception.class)
+    public Map<String, Object> finishWork(WorkFinishRequest req, User user) {
+        JobRes jr = jobResRepository.getJobResById(req.getId());
+        validator.throwIfNull(jr, "작업지시가 존재하지 않습니다.");
+
+        /* =========================
+         * 1. 검증 파라미터 구성
+         * ========================= */
+        Map<String, Object> validationParam = buildValidationParam(req);
+
+        /* =========================
+         * 2. 차수 자동 생성 (부수공정) / 부모 -> 사용자가 직접  ,  부수공정 -> 자동으로 완료하면 생산저장
+         * ========================= */
+        boolean isMainProcess = jr.getParentId() == null;
+        if (!isMainProcess) {
+            this.chasu_add_service(
+                    jr.getId(),
+                    jr.getOrderQty(),
+                    jr.getSpjangcd(),
+                    user
+            );
+        }
+
+        /* =========================
+         * 3. 생산/투입 조회
+         * ========================= */
+        List<MaterialConsume> mcList =
+                matConsuRepository.findByJobResponseId(jr.getId());
+
+        List<MaterialProduce> mpList =
+                matProduceRepository.findByJobResponseId(jr.getId());
+
+        /* =========================
+         * 4. 작업완료 검증
+         * ========================= */
+        Timestamp endTime =
+                this.workFinish_validation(
+                        jr, validationParam, mcList, mpList
+                );
+
+        /* =========================
+         * 5. JobRes 업데이트
+         * ========================= */
+        applyFinishToJobRes(jr, req, endTime, user);
+
+        //불량창고에 불량품 등록
+        this.add_jobres_defectqty_inout(
+                jr.getId(), user.getId()
+        );
+
+        jobResRepository.save(jr);
+
+
+        /* =========================
+         * 6. 다음 공정 생성
+         * ========================= */
+        createNextProcess(jr, user);
+
+        /* =========================
+         * 7. 설비 종료
+         * ========================= */
+        finishEquipmentRun(jr, endTime, user);
+
+        /* =========================
+         * 8. 결과 반환
+         * ========================= */
+        Map<String, Object> result = new HashMap<>();
+        result.put("jr_pk", jr.getId());
+        return result;
+
+    }
+
+    private Map<String, Object> buildValidationParam(WorkFinishRequest req) {
+        Map<String, Object> map = new HashMap<>();
+        map.put("endDate", req.getEnd_date());
+        map.put("endTime", req.getEnd_time());
+        map.put("prodDate", req.getProd_date());
+        map.put("startTime", req.getStart_time());
+        return map;
+    }
+
+
+    private void applyFinishToJobRes(
+            JobRes jr,
+            WorkFinishRequest req,
+            Timestamp endTime,
+            User user) {
+
+        jr.set_audit(user);
+        jr.setLotNumber(req.getLot_num());
+        //jr.setGoodQty(req.getGood_qty());
+        jr.setGoodQty(req.getOrder_qty());
+        jr.setDefectQty(req.getDefect_qty());
+        jr.setLossQty(req.getLoss_qty());
+        jr.setScrapQty(req.getScrap_qty());
+        jr.setProductionDate(CommonUtil.tryTimestamp(req.getProd_date()));
+        jr.setEndDate(Date.valueOf(req.getEnd_date()));
+        jr.setEndTime(endTime);
+        jr.setShiftCode(req.getShift_code());
+        jr.setWorkCenter_id(req.getWorkcenter_id());
+        jr.setEquipment_id(req.getEquipment_id());
+        jr.setDescription(req.getDescription());
+        jr.setState("finished");
+    }
+
+
+    private void finishEquipmentRun(
+            JobRes jr,
+            Timestamp endTime,
+            User user) {
+
+        equRunRepository
+                .findLatestRunningByEquipmentAndOrder(
+                        jr.getEquipment_id(), jr.getWorkOrderNumber()
+                )
+                .ifPresent(equ -> {
+                    equ.setEndDate(endTime);
+                    equ.setRunState("complete");
+                    equ.setSourceTableName("job_res");
+                    equ.setSourceDataPk(jr.getId());
+                    equ.set_audit(user);
+                    equRunRepository.save(equ);
+                });
+    }
+
+    private void createNextProcess(JobRes jr, User user) {
+
+        JobResProcessTree jpt = jobResProcessTreeRepository.findByWorkOrderNo(jr.getWorkOrderNumber());
+        if(jpt == null) throw new CustomException("해당 작업지시에 대한 공정을 찾을 수 없습니다.");
+
+        String processTree = jpt.getProcessTree();
+
+        Integer matId = jr.getMaterialId();
+
+        //다음 공정 노드 찾기
+        BomNode next =
+                this.completeAndGetParentNode(
+                        JsonUtil.parseProcessTree(processTree), matId
+                );
+
+        //담 공정 없으면 스킵
+        if(next == null) return;
+
+        // 다음 공정트리 구하기
+        String nextTree =
+                new BomTreeService()
+                        .returnProcessTreeCurrentNode(processTree, next.matPk);
+
+        if(next.matPk != null){
+            this.saveNextOfProcess(
+                    jr, next, user
+            );
+        }
+
+        // job_res_tree도 최신화
+        // process Tree 도 최신화
+        int cnt = jobResProcessTreeRepository.updateProcessTreeOnly(jr.getWorkOrderNumber(), nextTree);
+        if(cnt <= 0) throw new CustomException("해당 작업지시에 대한 공정을 찾을 수 없습니다.");
+
+
+
+    }
+    //////////////////////////////////////////////////////////////////////////////////
+    //endregion
 }

@@ -32,8 +32,8 @@ public interface EquRunRepository extends JpaRepository<EquRun, Integer>{
     """)
     Optional<EquRun> findLatestRunningByEquipmentAndJobResId(@Param("equipmentId") Integer equipmentId, @Param("jrPk") Integer jrPk);
 
-    @Query("SELECT e FROM EquRun e WHERE e.equipmentId = :equipmentId AND e.workOrderNumber = :orderNum AND e.runState = 'complete' ORDER BY e.endDate DESC")
-	Optional<EquRun> findLatestCompleteByEquipmentAndOrder(@Param("equipmentId") Integer equipmentId, @Param("orderNum") String orderNum);
+    @Query("SELECT e FROM EquRun e WHERE e.equipmentId = :equipmentId AND e.workOrderNumber = :orderNum AND e.runState = 'complete' AND e.sourceDataPk = :jrPk AND e.sourceTableName = 'job_res' ORDER BY e.endDate DESC")
+	Optional<EquRun> findLatestCompleteByEquipmentAndOrder(@Param("equipmentId") Integer equipmentId, @Param("orderNum") String orderNum, @Param("jrPk") Integer jrPk);
 
 	long countByEquipmentIdAndRunState(Integer equipmentId, String runState);
 

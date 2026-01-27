@@ -7,6 +7,6 @@ import java.util.Map;
 
 public interface ProcessStartStrategy {
     ProcessType getType();
-    void start(JobRes jobRes, ProcessFlow flow, BomNode ExtraData, User user);
+    void start(JobRes jobRes, ProcessFlow flow, Map<ProcessType, BomNode>  ExtraData, User user);
 
 }

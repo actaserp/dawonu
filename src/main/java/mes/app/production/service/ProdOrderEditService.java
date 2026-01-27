@@ -1,23 +1,24 @@
 package mes.app.production.service;
 
 import java.sql.Timestamp;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
+import jdk.jshell.execution.Util;
 import mes.Exception.CustomException;
 import mes.app.definition.service.BomService;
 import mes.app.production.production_package.*;
+import mes.app.util.JsonUtil;
 import mes.app.util.UtilClass;
 import mes.domain.entity.JobRes;
+import mes.domain.entity.JobResProcessTree;
 import mes.domain.entity.Material;
 import mes.domain.entity.User;
+import mes.domain.repository.JobResProcessTreeRepository;
 import mes.domain.repository.JobResRepository;
 import mes.domain.repository.MaterialRepository;
 import mes.domain.services.CommonUtil;
@@ -29,6 +30,8 @@ import org.springframework.stereotype.Service;
 import io.micrometer.core.instrument.util.StringUtils;
 import mes.domain.services.SqlRunner;
 
+import javax.persistence.EntityManager;
+
 @Service
 public class ProdOrderEditService {
 
@@ -37,8 +40,10 @@ public class ProdOrderEditService {
     private final JobResRepository jobResRepository;
     private final Map<ProcessType, ProcessStartStrategy> strategyMap;
     private final BomService bomService;
+    private final JobResProcessTreeRepository jobResProcessTreeRepository;
+    private final EntityManager entityManager;
 
-    public ProdOrderEditService(SqlRunner sqlRunner, MaterialRepository materialRepository, JobResRepository jobResRepository, List<ProcessStartStrategy> strategies, BomService bomService) {
+    public ProdOrderEditService(SqlRunner sqlRunner, MaterialRepository materialRepository, JobResRepository jobResRepository, List<ProcessStartStrategy> strategies, BomService bomService, JobResProcessTreeRepository jobResProcessTreeRepository, EntityManager entityManager) {
         this.sqlRunner = sqlRunner;
         this.materialRepository = materialRepository;
         this.jobResRepository = jobResRepository;
@@ -48,25 +53,27 @@ public class ProdOrderEditService {
                         Function.identity()
                 ));
         this.bomService = bomService;
+        this.jobResProcessTreeRepository = jobResProcessTreeRepository;
+        this.entityManager = entityManager;
     }
 
 
     // 수주 목록 조회
-	public List<Map<String, Object>> getSujuList(String date_kind, String start, String end, Integer mat_group, String mat_name, String not_flag, String spjangcd, Integer cboFactory) {
-		
-		MapSqlParameterSource dicParam = new MapSqlParameterSource();
-		dicParam.addValue("start", Timestamp.valueOf(start + " 00:00:00"));
-		dicParam.addValue("end", Timestamp.valueOf(end + " 23:59:59"));
-		dicParam.addValue("mat_group", mat_group);
-		dicParam.addValue("mat_name", mat_name);
-		dicParam.addValue("cboFactory", cboFactory);
-		dicParam.addValue("spjangcd", spjangcd);
-		
-		if (StringUtils.isEmpty(date_kind)) {
-			date_kind = "sales";
-		}
-		
-		// 수주에서 수주량-예약량 = 수주량2(필요량)
+    public List<Map<String, Object>> getSujuList(String date_kind, String start, String end, Integer mat_group, String mat_name, String not_flag, String spjangcd, Integer cboFactory) {
+
+        MapSqlParameterSource dicParam = new MapSqlParameterSource();
+        dicParam.addValue("start", Timestamp.valueOf(start + " 00:00:00"));
+        dicParam.addValue("end", Timestamp.valueOf(end + " 23:59:59"));
+        dicParam.addValue("mat_group", mat_group);
+        dicParam.addValue("mat_name", mat_name);
+        dicParam.addValue("cboFactory", cboFactory);
+        dicParam.addValue("spjangcd", spjangcd);
+
+        if (StringUtils.isEmpty(date_kind)) {
+            date_kind = "sales";
+        }
+
+        // 수주에서 수주량-예약량 = 수주량2(필요량)
         String sql = """
         		with s as (
 	                select s.id, s."JumunDate", s."DueDate", s."JumunNumber"
@@ -95,34 +102,33 @@ public class ProdOrderEditService {
 	                left join routing r on m."Routing_id" = r.id
 	                left join unit u on m."Unit_id" = u.id
 	                left join factory f on m."Factory_id" = f.id
-	                where 1 = 1 
-	                and mg."MaterialType" IN ('product', 'semi')  --제품, 반제품만 조회
+	                where 1 = 1 and mg."MaterialType"!='sangpum'
 	                and s.spjangcd = :spjangcd
         		""";
-//		 and s.confirm = '1' , mg."MaterialType"!='sangpum'
+//		 and s.confirm = '1'
 
         if ("suju_date".equals(date_kind)) {
-        	sql += " and s.\"JumunDate\" between :start and :end ";
+            sql += " and s.\"JumunDate\" between :start and :end ";
         } else {
             sql += " and s.\"DueDate\" between :start and :end ";
         }
 
-		if (cboFactory != null) {
-			sql += " and m.\"Factory_id\" = :cboFactory ";
-		}
-        
-        if (mat_group != null) {
-        	sql += " and mg.id = :mat_group ";
+        if (cboFactory != null) {
+            sql += " and m.\"Factory_id\" = :cboFactory ";
         }
-        
+
+        if (mat_group != null) {
+            sql += " and mg.id = :mat_group ";
+        }
+
         if (StringUtils.isEmpty(mat_name) == false) {
-        	sql += """
+            sql += """
         			and ( upper(m."Name") like concat('%%',upper(:mat_name),'%%')
 	                or upper(m."Code") = upper(:mat_name)
 	                )
         			""";
         }
-        
+
         sql += """
         		)
 	            , q as (
@@ -170,25 +176,25 @@ public class ProdOrderEditService {
         		""";
 
         if (StringUtils.isEmpty(not_flag) == false) {
-        	sql += "  and (s.\"SujuQty2\"- coalesce (q.ordered_qty,0)) > 0 ";
-        } 
+            sql += "  and (s.\"SujuQty2\"- coalesce (q.ordered_qty,0)) > 0 ";
+        }
 
         if ("suju_date".equals(date_kind)) {
-        	sql += " order by s.\"DueDate\" desc, s.\"JumunNumber\" desc ";
+            sql += " order by s.\"DueDate\" desc, s.\"JumunNumber\" desc ";
         } else {
             sql += " order by s.\"JumunDate\" desc, s.\"JumunNumber\" desc ";
         }
-        		
-        List<Map<String, Object>> items = this.sqlRunner.getRows(sql, dicParam);
-        
-        return items;
-	}
 
-	public List<Map<String, Object>> makeProdOrder(Integer sujuId) {
-		MapSqlParameterSource dicParam = new MapSqlParameterSource();
-		dicParam.addValue("sujuId", sujuId);
-		
-		String sql = """
+        List<Map<String, Object>> items = this.sqlRunner.getRows(sql, dicParam);
+
+        return items;
+    }
+
+    public List<Map<String, Object>> makeProdOrder(Integer sujuId) {
+        MapSqlParameterSource dicParam = new MapSqlParameterSource();
+        dicParam.addValue("sujuId", sujuId);
+
+        String sql = """
                 with qsum as(
                 select
                 s.id as suju_id
@@ -201,19 +207,19 @@ public class ProdOrderEditService {
                 select suju_id, "Material_id", "SujuQty", ordered_qty, greatest("SujuQty"-ordered_qty, 0 ) as remain_qty
                 from qsum
 				""";
-		
+
         List<Map<String, Object>> items = this.sqlRunner.getRows(sql, dicParam);
-        
+
         return items;
-	}
-	
-	// 제품 지시내역 조회
-	public List<Map<String, Object>> getJobOrderList(Integer suju_id) {
-		
-		MapSqlParameterSource dicParam = new MapSqlParameterSource();
-		dicParam.addValue("suju_id", suju_id);
-		
-		String sql = """
+    }
+
+    // 제품 지시내역 조회
+    public List<Map<String, Object>> getJobOrderList(Integer suju_id) {
+
+        MapSqlParameterSource dicParam = new MapSqlParameterSource();
+        dicParam.addValue("suju_id", suju_id);
+
+        String sql = """
 			select jr.id
 			, jr."WorkOrderNumber"
 			, jr."ProductionDate"
@@ -246,9 +252,9 @@ public class ProdOrderEditService {
 			order by jr."WorkOrderNumber" desc, jr.id
 			""";
 
-		List<Map<String, Object>> job_res = this.sqlRunner.getRows(sql, dicParam);
+        List<Map<String, Object>> job_res = this.sqlRunner.getRows(sql, dicParam);
 
-		String sql_suju_detail = """
+        String sql_suju_detail = """
 			SELECT
 				sd.id,
 				sd."suju_id",
@@ -259,23 +265,23 @@ public class ProdOrderEditService {
 			ORDER BY sd.id
 		""";
 
-		List<Map<String, Object>> suju_detail = this.sqlRunner.getRows(sql_suju_detail, dicParam);
+        List<Map<String, Object>> suju_detail = this.sqlRunner.getRows(sql_suju_detail, dicParam);
 
-		for (Map<String, Object> job : job_res) {
-			job.put("items", suju_detail);
-		}
+        for (Map<String, Object> job : job_res) {
+            job.put("items", suju_detail);
+        }
 
-		return job_res;
-	}
+        return job_res;
+    }
 
 
-	// 제품 지시내역 상세조회
-	public Map<String, Object> getJobOrderDetail(Integer jobres_id) {
-		
-		MapSqlParameterSource dicParam = new MapSqlParameterSource();
-		dicParam.addValue("jobres_id", jobres_id);
-		
-		String sql = """
+    // 제품 지시내역 상세조회
+    public Map<String, Object> getJobOrderDetail(Integer jobres_id) {
+
+        MapSqlParameterSource dicParam = new MapSqlParameterSource();
+        dicParam.addValue("jobres_id", jobres_id);
+
+        String sql = """
 				select jr.id
 	            , jr."WorkOrderNumber"
 	            , to_char(jr."ProductionDate", 'yyyy-mm-dd') as "ProductionDate"
@@ -297,22 +303,22 @@ public class ProdOrderEditService {
 	            left join work_center wc on wc.id = jr."WorkCenter_id"
 	            where jr.id = :jobres_id
 			""";
-		
-		Map<String, Object> item = this.sqlRunner.getRow(sql, dicParam);
 
-		return item;
-	}
-	
-	// 반제품 작업지시 조회
-	public List<Map<String, Object>> getSemiList(String data_date, Integer mat_pk, Double suju_qty, Integer suju_pk) {
-		
-		MapSqlParameterSource dicParam = new MapSqlParameterSource();
-		dicParam.addValue("data_date", data_date);
-		dicParam.addValue("mat_pk", mat_pk.toString());
-		dicParam.addValue("mat_order_qty", suju_qty);
-		dicParam.addValue("suju_pk", suju_pk);
-		
-		String sql = """
+        Map<String, Object> item = this.sqlRunner.getRow(sql, dicParam);
+
+        return item;
+    }
+
+    // 반제품 작업지시 조회
+    public List<Map<String, Object>> getSemiList(String data_date, Integer mat_pk, Double suju_qty, Integer suju_pk) {
+
+        MapSqlParameterSource dicParam = new MapSqlParameterSource();
+        dicParam.addValue("data_date", data_date);
+        dicParam.addValue("mat_pk", mat_pk.toString());
+        dicParam.addValue("mat_order_qty", suju_qty);
+        dicParam.addValue("suju_pk", suju_pk);
+
+        String sql = """
 				with A as (
 	                select m.id as mat_pk
 	                , mg."Name" as group_name
@@ -348,18 +354,18 @@ public class ProdOrderEditService {
 	                left join sq on sq.mat_pk = A.mat_pk
 				""";
 
-		List<Map<String, Object>> items = this.sqlRunner.getRows(sql, dicParam);
+        List<Map<String, Object>> items = this.sqlRunner.getRows(sql, dicParam);
 
-		return items;
-	}
-	
-	// 반제품 지시내역 조회
-	public List<Map<String, Object>> getSemiJoborderList(Integer suju_id) {
-		
-		MapSqlParameterSource dicParam = new MapSqlParameterSource();
-		dicParam.addValue("suju_id", suju_id);
-		
-		String sql = """
+        return items;
+    }
+
+    // 반제품 지시내역 조회
+    public List<Map<String, Object>> getSemiJoborderList(Integer suju_id) {
+
+        MapSqlParameterSource dicParam = new MapSqlParameterSource();
+        dicParam.addValue("suju_id", suju_id);
+
+        String sql = """
 				select jr.id
 	            , jr."WorkOrderNumber"
 	            , jr."ProductionDate"
@@ -388,12 +394,12 @@ public class ProdOrderEditService {
 	            order by jr."WorkOrderNumber" desc, jr.id
 				""";
 
-		List<Map<String, Object>> items = this.sqlRunner.getRows(sql, dicParam);
+        List<Map<String, Object>> items = this.sqlRunner.getRows(sql, dicParam);
 
-		return items;
-	}
-
-
+        return items;
+    }
+    /// ///////////////////////////////////////////////////////////////// 작업지시 생성 ///////////////////////////////////
+    //region : 작업지시 생성
     public JobRes makeParentProdOrder(
             Integer sujuId,
             String productionDate,
@@ -427,11 +433,11 @@ public class ProdOrderEditService {
         header.setEquipment_id(cboEquiment);
         header.setShiftCode(cboShiftCode);
 
-        // 공정 판단 객체 생성
+        // 첫 공정 판단 객체 생성 (작지 내려야 하는데 어떤 공정을 첫 작지로 내릴까?)
         ProcessFlow flow = ProcessFlow.from(m);
 
         header.setProcessCount(flow.cnt());
-
+        header.setWorkIndex(flow.cnt() + 1); //얘가 마지막 공정이니 얘한테 딸린 공정을 다음이겠지
 
         //전략 선택
         ProcessType type = flow.startType();
@@ -444,23 +450,86 @@ public class ProdOrderEditService {
 
         //전체 bom -> json 형태로 보기쉽게 변환
         BomTreeService bomTreeService = new BomTreeService();
+
+        // 1. bom 트리 생성
         Map<String, BomNode> bomTree =  bomTreeService.buildTree(bomListByMat);
 
-        header.setProcessTree(UtilClass.mapToJson(bomTree));
-        header = jobResRepository.save(header); //트리거가 번호 생성
+        //처음 작업에 대한 품목 판별 및 현재공정판별
+        bomTreeService.markFirstCurrentProcess(flow, bomTree, header.getOrderQty());
 
-        //처음 작업에 대한 품목 판별
-        BomNode firstProcessContext = bomTreeService.selectTargetMaterial(flow, bomTree, header.getOrderQty());
+        //부모(마스터 작지) 저장
+        header = jobResRepository.save(header); //트리거가 번호 생성
+        jobResRepository.flush(); //WorkOrderNum을 알아야함. 근데 이거 트리거라서 flush , flush여도 롤백쌉가능
+        entityManager.refresh(header);
+
+        JobRes savedHeader = jobResRepository.findById(header.getId()).orElseThrow(() -> new CustomException("엔티티를 찾을 수 없습니다."));
+
+        //job_res_process_tree에 저장
+        saveJobResProcessTree(savedHeader, JsonUtil.mapToJson(bomTree));
 
         //자식 작업지시 생성 (1차 or 3차 단독이면 3차)
-        strategy.start(header, flow, firstProcessContext, user);
+        Map<ProcessType, BomNode> bomNode = resolveStartBomNodes(bomTree);
+
+        ///  얘는 전략패턴임. 분기 if 제거용이 아니라 도메인 구조에 따라 동적인 코드를 구성하기 위한것
+        /// 호출 클라이언트에서는 상세코드를 몰라도 된다. 그저 어떠한 공정인지만 알아내서 던져주면
+        ///  내부에서 알아서 처리할 수 있게끔.
+        strategy.start(header, flow, bomNode, user);
 
         //TODO: 트랜잭션 처리는 문제가 없는지?
 
         return header;
     }
 
+    private void saveJobResProcessTree(JobRes jr, String bomTree) {
 
+        JobResProcessTree jpt = new JobResProcessTree();
+
+        jpt.setWorkOrderNo(jr.getWorkOrderNumber());
+        jpt.setProcessTree(bomTree);
+
+        jobResProcessTreeRepository.save(jpt);
+    }
+
+    /**
+     * 첫 작업지시 생성을 위한 시작 BomNode 목록 반환
+     * - 1·2차 메인라인 → 1개
+     * - 3차 공정 포함 시 → 병렬로 추가
+     */
+    private Map<ProcessType, BomNode> resolveStartBomNodes(
+            Map<String, BomNode> bomTree
+    ) {
+        if (bomTree == null || bomTree.isEmpty()) {
+            throw new IllegalArgumentException("BOM tree is empty");
+        }
+
+        Map<ProcessType, BomNode> result = new EnumMap<>(ProcessType.class);
+
+        // 1️⃣ 메인 라인 (1·2차)
+        BomNode main = bomTree.get(ProcessType.SIMPLE_FLOW.name());
+        if (main != null) {
+            result.put(ProcessType.SIMPLE_FLOW, main);
+        }
+
+        // 2️⃣ 3차 병렬 공정
+        BomNode third = bomTree.get(ProcessType.FULL_FLOW.name());
+        if (third != null) {
+            result.put(ProcessType.FULL_FLOW, third);
+        }
+
+        // 3️⃣ fallback: 키가 달라도 하나뿐인 경우
+        if (result.isEmpty() && bomTree.size() == 1) {
+            BomNode only = bomTree.values().iterator().next();
+            result.put(ProcessType.SIMPLE_FLOW, only); // 의미상 메인으로 간주
+        }
+
+        if (result.isEmpty()) {
+            throw new IllegalStateException("Cannot resolve start BomNodes from bomTree");
+        }
+
+        return result;
+    }
+
+    //endregion
 
 
 }

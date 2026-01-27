@@ -1111,6 +1111,7 @@
                         {binding: 'workcenter', header: '워크센터', width: 100, align: 'center'},
                         {binding: 'work_idx', header: '작업순서', width: 100, align: 'center'},
                         {binding: 'memo', header: '비고', width: 190, align: 'left'},
+                        {binding: 'parent', header: '부모', width: 190, align: 'left', visible: false},
                         {binding: 'routing_id', visible: false}
                     ],
                     itemsSource: new wijmo.collections.CollectionView([]),
@@ -1246,7 +1247,7 @@
                             if (selectedRows.length > 0) {
                                 const item = selectedRows[0].dataItem;
                                 // 클래스 메서드 호출
-                                this.showDefectList('chasu');
+                                //this.showDefectList('chasu');
                                 this.setButtonState();
                             }
                         }
@@ -1835,8 +1836,9 @@
             }
 
             // 버튼 활성화 설정
-            setButtonState() {
-                let pk = $('#tabBasic').find('#id').val();
+            setButtonState(forceState) {
+                
+                let state = forceState ?? $('#tabBasic').find('#state').val();// ordered, working, finished
 
                 let chasu = this.chasuGrid.selectedItems;
                 if (chasu.length > 0) {
@@ -1845,8 +1847,8 @@
                     chasu = 0;
                 }
 
-                let state = $('#tabBasic').find('#state').val(); // ordered, working, finished
                 $('#btnConsumedView').removeAttr('disabled');
+
                 if (state === 'ordered') {
                     $('#btnWorkStart').removeAttr('disabled');
                     $('#btnSave').removeAttr('disabled');
@@ -1957,8 +1959,11 @@
                     view.sourceCollection.splice(0, view.sourceCollection.length, ...result.data);
                     view.refresh();
 
+                    
+
                     // ✅ 새 데이터에 이전 jobres id가 존재하면 자동 재선택
                     if (prevJobId) {
+                        console.log('1')
                         const foundIndex = result.data.findIndex(d => d.id === prevJobId);
                         if (foundIndex >= 0) {
                             _this.grid.select(foundIndex, 0);
@@ -1977,6 +1982,7 @@
                             this.setButtonState();
                             $('#svgBarcode').empty();
                         }
+                        console.log('2')
                     }
                 }
             }
@@ -2374,9 +2380,10 @@
 
                         // 메인 그리드/상세 갱신: 부모 컨텍스트 유지
                         _this.searchMainData();
-                        if (parentId) {
-                            _this.showBasicInfo(parentId); // 부모 상세로 다시 로딩 → onProcessChange에서 현재 공정 자식 탐색
-                        }
+
+                         _this.showBasicInfo(childId);
+
+                        //_this.grid.selection = null
 
                         // 그리드 선택 복구
                         setTimeout(() => {
@@ -2393,8 +2400,8 @@
                             _this.showInputLotList(null);
                             _this.showChasuList(null);
                         }
-
-                        _this.setButtonState && _this.setButtonState();
+                        
+                        _this.setButtonState('working')
                     } else {
                         Alert.alert('작업 시작 실패', (res && res.message) || '작업을 시작할 수 없습니다.');
                     }
@@ -2605,6 +2612,13 @@
                 let jr_pk = this.$tabBasic.find('#id').val();
                 let workcenter_id = this.$tabBasic.find('#workcenter_id').val()
                 let lotSize = $('#chasuLotSize').val();
+
+                let item = this.grid.selectedItems;
+
+                if(item !== ''){
+                    Alert.alert('', '마지막 공정만 차수별 생산이 가능합니다.');
+                    return;
+                }
 
                 if (!workcenter_id) {
                     Alert.alert('차수저장오류', '기본정보 탭의 워크센터를 선택해주세요.');
