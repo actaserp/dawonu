@@ -3,6 +3,7 @@ package mes.domain.dto;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -21,6 +22,7 @@ public class BomBuildReport {
 
     // 스킵된 항목 (code → 사유)
     private final Map<String, String> skipped = new LinkedHashMap<>();
+    private final Map<String, String> failed = new LinkedHashMap<>();
 
     // 더 내려가지 않는 leaf 노드
     private final List<String> leafNodes = new ArrayList<>();
@@ -35,7 +37,7 @@ public class BomBuildReport {
         bomMap.put(code, bomId);
     }
 
-    public void addComp(String parentCode, String compCode, int amount) {
+    public void addComp(String parentCode, String compCode, BigDecimal amount) {
         bomCompMap
                 .computeIfAbsent(parentCode, k -> new ArrayList<>())
                 .add(new BomCompInfo(compCode, amount));
@@ -43,10 +45,19 @@ public class BomBuildReport {
 
     public void addSkip(String code, String reason) {
         skipped.put(code, reason);
+        System.out.println("⚠ SKIP → " + code + " : " + reason);
     }
 
-    public void addLeaf(String code) {
-        leafNodes.add(code);
+    public void addFail(String code, String reason) {
+        failed.put(code, reason);
+    }
+
+    public int getSkippedCount() {
+        return skipped.size();
+    }
+
+    public int getFailedCount() {
+        return failed.size();
     }
 
     /* ===================== 내부 DTO ===================== */
@@ -55,6 +66,6 @@ public class BomBuildReport {
     @AllArgsConstructor
     public static class BomCompInfo {
         private String code;
-        private int amount;
+        private BigDecimal amount;
     }
 }

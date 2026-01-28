@@ -4,6 +4,8 @@ import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
+import java.math.BigDecimal;
+
 @Repository
 public class BomComponentRepositoryImpl
         implements BomComponentRepositoryCustom {
@@ -17,7 +19,7 @@ public class BomComponentRepositoryImpl
     @Override
     public void insertIfNotExists(Long bomId,
                                   Integer materialId,
-                                  int amount) {
+                                  BigDecimal amount) {
 
         String sql = """
         INSERT INTO bom_comp (

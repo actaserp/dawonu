@@ -883,15 +883,23 @@ public class BomController {
 
 	@PostMapping("/bomadd")
 	public AjaxResult buildBomByCode(
-			@RequestParam String materialCode,
+			@RequestParam(required = false) String materialCode,
 			@RequestParam(defaultValue = "false") boolean dryRun
 	) {
 		AjaxResult result = new AjaxResult();
 
 		try {
-			BomBuildReport report = bomService.buildBom(materialCode, dryRun);
+			BomBuildReport report;
+
+			if (materialCode == null || materialCode.isBlank()) {
+				report = bomService.buildAllBom(dryRun);   // 🔥 전체
+			} else {
+				report = bomService.buildBom(materialCode, dryRun);
+			}
+
 			result.success = true;
-			result.data = report;   // 생성된 bom_id, comp 목록 등
+			result.data = report;
+
 		} catch (Exception e) {
 			log.error("BOM build failed", e);
 			result.success = false;
@@ -900,6 +908,7 @@ public class BomController {
 
 		return result;
 	}
+
 
 
 

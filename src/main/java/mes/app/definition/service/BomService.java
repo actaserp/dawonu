@@ -1,5 +1,7 @@
 package mes.app.definition.service;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.sql.Timestamp;
 import java.util.*;
 
@@ -576,8 +578,52 @@ public class BomService {
     }
 
 	private final Set<String> visited = new HashSet<>();
+
 	@Autowired
 	BomRuleRepository ruleRepo;
+
+	public BomBuildReport buildAllBom(boolean dryRun) {
+
+		BomBuildReport report = new BomBuildReport("ALL");
+
+		List<String> allCodes = materialRepository.findZMCodes();
+
+		System.out.println("======================================");
+		System.out.println("BOM BUILD START (zm)");
+		System.out.println("TOTAL: " + allCodes.size());
+		System.out.println("dryRun = " + dryRun);
+		System.out.println("======================================");
+
+		int success = 0;
+		int fail = 0;
+		int skip = 0;
+
+		int idx = 0;
+		for (String code : allCodes) {
+			idx++;
+
+			try {
+				System.out.println("\n[" + idx + "/" + allCodes.size() + "] START → " + code);
+				buildOneLevelBom(code, report, dryRun);
+				success++;
+			} catch (Exception e) {
+				fail++;
+				report.addFail(code, e.getMessage());
+				System.err.println("❌ FAIL → " + code + " : " + e.getMessage());
+				// 🔥 여기서 throw 안 함 → 계속 진행
+			}
+		}
+
+		System.out.println("\n======================================");
+		System.out.println("BOM BUILD END");
+		System.out.println("SUCCESS : " + success);
+		System.out.println("FAIL    : " + fail);
+		System.out.println("SKIP    : " + report.getSkippedCount());
+		System.out.println("======================================");
+
+		return report;
+	}
+
 
 	public BomBuildReport buildBom(String materialCode, boolean dryRun) {
 
@@ -600,50 +646,103 @@ public class BomService {
 			return;
 		}
 
-		List<String> components = new ArrayList<>();
+		System.out.println("dryRun = " + dryRun);
+
+		Map<String, BigDecimal> components = new LinkedHashMap<>();
+
 
 		// ✅ 1️⃣ 유저가 만든 중간 품목 우선
 		String prefix = findExistingPrefix(code);
+		System.out.println("PREFIX = " + prefix);
+
 
 		if (prefix != null) {
 			String remain = code.substring(prefix.length());
+			System.out.println("REMAIN = " + remain);
+			// 🔥 zl + b 계열 특수 처리(벽돌)
+			if ((prefix.toLowerCase().startsWith("zl") || prefix.toLowerCase().startsWith("zm")) &&
+					remain.toLowerCase().startsWith("b")) {
 
-			if (isNumeric(remain)) {
-				String base = findBaseMaterial(prefix);
-				components.add(base != null ? base : prefix);
-			} else {
-				try {
-					String leaf = normalize(remain);
-					components.add(prefix);
-					components.add(leaf);
-				} catch (Exception e) {
-					components.addAll(splitByExistingParts(code));
+				String brick = remain.substring(0, 3); // BY0
+				Integer brickType = resolveBrickType(remain);
+
+				components.put(prefix, BigDecimal.ONE); // ZL250 1EA
+
+				if (brickType != null) {
+
+					// ✅ 벽돌 개수
+					int brickQty = (brickType == 3) ? 25 : 24;
+					components.put(brick, BigDecimal.valueOf(brickQty));
+
+					// ✅ 배합재 (보드 1장 기준)
+					if (brickType == 3) {
+						components.put("TR500", new BigDecimal("0.119"));
+						components.put("TYC4050", new BigDecimal("0.0833"));
+					}
+					else if (brickType == 4) {
+						components.put("TR500", new BigDecimal("0.1143"));
+						components.put("TYC4050", new BigDecimal("0.08"));
+					}
 				}
 			}
-		} else {
+			// 석제, 테라코타 등
+			else if ((prefix.toLowerCase().startsWith("zl") || prefix.toLowerCase().startsWith("zm")) &&
+					(remain.startsWith("F") || remain.startsWith("T"))) {
+
+				// 1️⃣ 보드
+				components.put(prefix, BigDecimal.ONE);
+
+				// 2️⃣ remain 안의 실제 자식 품목 (FMG0, FT0 등)
+				try {
+					String child = normalize(remain);   // 🔥 핵심
+					components.put(child, BigDecimal.ONE);
+				} catch (Exception e) {
+					report.addSkip(remain, "F/T 자식 품목 정규화 실패");
+				}
+
+				// 3️⃣ 폭 기준 배합재
+				BigDecimal ratio = resolveWidthRatioByPrefix(prefix);
+				addMixMaterialsByWidth(components, ratio);
+			}
+			else {
+				// 기존 로직 유지
+				if (isNumeric(remain)) {
+					String base = findBaseMaterial(prefix);
+					components.put(base != null ? base : prefix, BigDecimal.valueOf(1));
+				} else {
+					try {
+						String leaf = normalize(remain);
+						components.put(prefix, BigDecimal.ONE);
+						components.put(leaf, BigDecimal.ONE);
+					} catch (Exception e) {
+						splitByExistingParts(code)
+								.forEach(c -> components.put(c, BigDecimal.ONE));
+					}
+				}
+			}
+		}
+
+		else {
 			// ✅ 2️⃣ rule
 			String ruleCode = ruleRepo.findLongestRule(code);
 
 			if (ruleCode != null) {
 				if (code.equals(ruleCode)) {
-					components.addAll(ruleRepo.findLeafMaterials(ruleCode));
+					ruleRepo.findLeafMaterials(ruleCode)
+							.forEach(c -> components.put(c, BigDecimal.ONE));
 				} else {
-					components.add(ruleCode);
+					components.put(ruleCode, BigDecimal.ONE);
 					String remain = code.substring(ruleCode.length());
-					components.add(normalize(remain));
+					components.put(normalize(remain), BigDecimal.ONE);
 				}
 			} else {
 				// ✅ 3️⃣ 최후의 수단
-				components.addAll(splitBasic(code));
+				splitBasic(code).forEach(c -> components.put(c, BigDecimal.ONE));
 			}
 		}
 
-		// 🔥 components 정리
-		components = components.stream()
-				.filter(c -> c != null)
-				.filter(c -> !c.equals(code))
-				.distinct()
-				.toList();
+		System.out.println("COMPONENTS = " + components);
+		System.out.println("COMPONENT SIZE = " + components.size());
 
 		// 🔥 분해 결과 없으면 BOM 생성 ❌
 		if (components.isEmpty() || components.size() < 2) {
@@ -655,7 +754,10 @@ public class BomService {
 		Long bomId = bomRepository.ensureBom(materialId, dryRun);
 		report.addBom(code, bomId);
 
-		for (String comp : components) {
+		for (Map.Entry<String, BigDecimal> entry : components.entrySet()) {
+
+			String comp = entry.getKey();
+			BigDecimal qty = entry.getValue();
 
 			Integer compId = materialRepository.findIdByCode(comp);
 			if (compId == null) {
@@ -663,12 +765,79 @@ public class BomService {
 				continue;
 			}
 
-			if (!dryRun) {
-				bomComponentRepository.insertIfNotExists(bomId, compId, 1);
+			if (compId.equals(materialId)) {
+				report.addSkip(comp, "자기 자신을 component로 추가하려 해서 skip");
+				System.out.println("⚠ SKIP SELF → parent=" + code + ", comp=" + comp);
+				continue;
 			}
 
-			report.addComp(code, comp, 1);
+			if (!dryRun) {
+				bomComponentRepository.insertIfNotExists(bomId, compId, qty);
+				System.out.println(
+						"INSERT TRY → bomId=" + bomId +
+								", compId=" + compId +
+								", qty=" + qty
+				);
+			}
+
+			report.addComp(code, comp, qty);
 		}
+
+	}
+
+	private Integer resolveBrickType(String remain) {
+		if (remain.length() < 4) return null;
+
+		char gubun = remain.charAt(3); // BY0[3]336 → '3'
+		if (gubun == '3') return 3;
+		if (gubun == '4') return 4;
+
+		return null;
+	}
+
+	private String extractNumber(String prefix) {
+		return prefix.replaceAll("[^0-9]", "");
+	}
+
+	private BigDecimal resolveWidthRatioByPrefix(String prefix) {
+
+		if (prefix == null || prefix.isBlank()) {
+			return BigDecimal.ONE;
+		}
+
+		// ✅ ZM 계열은 무조건 1000 기준
+		if (prefix.toUpperCase().startsWith("ZM")) {
+			return BigDecimal.ONE;
+		}
+
+		String num = extractNumber(prefix);
+		if (num.isEmpty()) return BigDecimal.ONE;
+
+		// 끝 두 자리 기준
+		if (num.endsWith("50") || num.endsWith("40")) {
+			return BigDecimal.ONE;           // 1000
+		}
+		if (num.endsWith("59") || num.endsWith("49")) {
+			return new BigDecimal("0.9");    // 900
+		}
+		if (num.endsWith("58") || num.endsWith("48")) {
+			return new BigDecimal("0.8");    // 800
+		}
+
+		// 기본값 (안전)
+		return BigDecimal.ONE;
+	}
+
+	private void addMixMaterialsByWidth(
+			Map<String, BigDecimal> components,
+			BigDecimal ratio
+	) {
+		BigDecimal tr500 = new BigDecimal("0.1190").multiply(ratio);
+		BigDecimal tyc4050 = new BigDecimal("0.0833").multiply(ratio);
+
+		// 소수점 정리 (표랑 맞추기)
+		components.put("TR500", tr500.setScale(4, RoundingMode.HALF_UP));
+		components.put("TYC4050", tyc4050.setScale(4, RoundingMode.HALF_UP));
 	}
 
 

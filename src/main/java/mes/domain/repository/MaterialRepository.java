@@ -52,4 +52,11 @@ public interface MaterialRepository extends JpaRepository<Material, Integer>{
         ORDER BY LENGTH(m.code) DESC
     """)
 	List<String> findAllCodesOrderByLengthDesc();
+
+	@Query("""
+    select m.code
+    from Material m
+    where m.code like 'ZM%'
+""")
+	List<String> findZMCodes();
 }

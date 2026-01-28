@@ -162,13 +162,13 @@
                                                     class="fas fa-edit"></i>수정
                                             </button>
                                         </li>
-                                        <li>
-                                            <input style="width:160px;" id="add_code"/>
-                                            <button type="button" class="btn-excellt btn-default y_write_auth" id="bomAdd"
-                                                    data-labelCd="자동생성"
-                                                    style="width: 90px; height: 36px; float: none;">
-                                            </button>
-                                        </li>
+<!--                                        <li>-->
+<!--                                            <input style="width:160px;" id="add_code"/>-->
+<!--                                            <button type="button" class="btn-excellt btn-default y_write_auth" id="bomAdd"-->
+<!--                                                    data-labelCd="자동생성"-->
+<!--                                                    style="width: 90px; height: 36px; float: none;">-->
+<!--                                            </button>-->
+<!--                                        </li>-->
                                         <!--<li>
                                             <button type="button" class="btn-default" id="btnCompUp" title="순서 조정-위로"
                                                     style="width: 150px; height: 36px;"><i
@@ -1866,15 +1866,11 @@
             $('#bomAdd').click(function () {
 
                 const code = $('#add_code').val().trim();
-                if (!code) {
-                    Alert.alert("입력 오류", "품목 코드를 입력하세요.");
-                    return;
-                }
 
                 const url = '/api/definition/bom/bomadd';
 
                 const result = AjaxUtil.postSyncData(url, {
-                    materialCode: code,
+                    materialCode: code || null,
                     dryRun: false   // 🔥 테스트 시 true / 실제 생성 false
                 });
 
