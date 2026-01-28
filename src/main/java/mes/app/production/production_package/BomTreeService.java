@@ -230,9 +230,10 @@ public class BomTreeService {
      * 난 조건은 여러 노드에서 martial id가 겹칠 수 있으므로 조건은 파라미터로 받은
      * String processTree에서 기존의 current가 true 되있던 것에 상위에서 뒤져야 한다.
      * **/
-    public String returnProcessTreeCurrentNode(
+    public String returnProcessTreeNextNode(
             String processTreeJson,
-            Integer targetMatPk
+            Integer targetMatPk,
+            String targetMatName
     ) {
 
         if (processTreeJson == null || processTreeJson.isBlank()) {
@@ -244,7 +245,7 @@ public class BomTreeService {
                 JsonUtil.parseProcessTree(processTreeJson);
 
         // 1️⃣ 기존 current 위치 찾기
-        CurrentContext ctx = findCurrentNodeContext(bomTree, targetMatPk);
+        CurrentContext ctx = findCurrentNodeContext(bomTree, targetMatPk, targetMatName);
         if (ctx == null) {
             throw new CustomException("현재 진행 중인 공정을 찾지 못했습니다.");
         }
@@ -276,10 +277,15 @@ public class BomTreeService {
     //기존 current 찾기
     private CurrentContext findCurrentNodeContext(
             Map<String, BomNode> bomTree,
-            Integer targetMatPk
+            Integer targetMatPk,
+            String targetFlowKey
     ) {
 
         for (Map.Entry<String, BomNode> entry : bomTree.entrySet()) {
+
+            if(targetFlowKey != null && !targetFlowKey.equals(entry.getKey())){
+                continue;
+            }
 
             List<BomNode> path = new ArrayList<>();
             BomNode found = dfsFindCurrent(entry.getValue(), path);
@@ -352,12 +358,13 @@ public class BomTreeService {
                 if (!passed) continue;
 
                 BomNode leaf = findDeepestProcessLeaf(sibling);
-                if (leaf != null) return leaf;
+                if (leaf != null && leaf != current) return leaf;
             }
         }
 
         // 3️⃣ 마지막 → 가상 루트로 이동
         return ctx.root;
+
     }
 
     private BomNode findDeepestProcessLeaf(BomNode node) {
@@ -392,7 +399,91 @@ public class BomTreeService {
 
     //////////////////////////////////////////////////////////////////////////////
 
-    private boolean isProcessNode(BomNode node) {
+
+    public String rollbackProcessTreeCurrentNode(
+            String processTreeJson,
+            Integer targetMatPk,
+            String flowKey
+    ) {
+        if (processTreeJson == null || processTreeJson.isBlank()) {
+            throw new CustomException("processTree가 비어있습니다.");
+        }
+
+        Map<String, BomNode> bomTree =
+                JsonUtil.parseProcessTree(processTreeJson);
+
+        // 🔥 current 기준이 아니라 "취소 대상 기준"으로 찾는다
+        CurrentContext ctx =
+                findContextByMatPk(bomTree, targetMatPk, flowKey);
+
+        if (ctx == null) {
+            throw new CustomException("취소 대상 공정을 찾지 못했습니다.");
+        }
+
+        BomNode target = ctx.current; // == 석재 연마1 33T
+        BomNode root = ctx.root;
+
+        // 1️⃣ 전체 current 제거
+        root.clearCursor();
+
+        // 2️⃣ 취소 처리
+        target.complete = false;
+
+        // 3️⃣ 🔥 자기 자신을 current로 복구
+        target.current = true;
+
+        return JsonUtil.mapToJson(bomTree);
+    }
+
+    private CurrentContext findContextByMatPk(
+            Map<String, BomNode> bomTree,
+            Integer targetMatPk,
+            String targetFlowKey
+    ) {
+        for (Map.Entry<String, BomNode> entry : bomTree.entrySet()) {
+
+            if (targetFlowKey != null &&
+                    !targetFlowKey.equals(entry.getKey())) {
+                continue;
+            }
+
+            List<BomNode> path = new ArrayList<>();
+            BomNode found = dfsFindByMatPk(entry.getValue(), path, targetMatPk);
+
+            if (found == null) continue;
+
+            CurrentContext ctx = new CurrentContext();
+            ctx.root = entry.getValue();
+            ctx.current = found;
+            ctx.path = path;
+            return ctx;
+        }
+        return null;
+    }
+
+    private BomNode dfsFindByMatPk(
+            BomNode node,
+            List<BomNode> path,
+            Integer targetMatPk
+    ) {
+        path.add(node);
+
+        if (node.matPk != null && node.matPk.equals(targetMatPk)) {
+            return node;
+        }
+
+        for (BomNode child : node.children) {
+            BomNode found = dfsFindByMatPk(child, path, targetMatPk);
+            if (found != null) return found;
+        }
+
+        path.remove(path.size() - 1);
+        return null;
+    }
+
+    //////////////////////////////////////////////////////////////////////////////
+
+    public static boolean isProcessNode(BomNode node) {
         return (node.class1 != null && !node.class1.isBlank())
                 || (node.class2 != null && !node.class2.isBlank())
                 || (node.class3 != null && !node.class3.isBlank());

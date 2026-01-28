@@ -412,6 +412,7 @@ public class ProdOrderEditService {
     ){
 
         Material m = materialRepository.getMaterialById(materialId);
+
         Timestamp prodDate = CommonUtil.tryTimestamp(productionDate);
 
         JobRes header = new JobRes();
@@ -437,7 +438,12 @@ public class ProdOrderEditService {
         ProcessFlow flow = ProcessFlow.from(m);
 
         header.setProcessCount(flow.cnt());
-        header.setWorkIndex(flow.cnt() + 1); //얘가 마지막 공정이니 얘한테 딸린 공정을 다음이겠지
+
+        if(flow.startType() == ProcessType.FULL_FLOW){
+            header.setWorkIndex(flow.cnt() + 1); //얘가 마지막 공정이니 얘한테 딸린 공정을 다음이겠지
+        }else{
+            header.setWorkIndex(flow.cnt());
+        }
 
         //전략 선택
         ProcessType type = flow.startType();

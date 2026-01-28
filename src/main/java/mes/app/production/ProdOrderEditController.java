@@ -126,27 +126,22 @@ public class ProdOrderEditController {
         AjaxResult result = new AjaxResult();
         User user = (User)auth.getPrincipal();
 
-        try{
-            //작업지시 생성 (제품)
-            JobRes header = prodOrderEditService.makeParentProdOrder(
-                    sujuId,
-                    productionDate,
-                    cboMaterial,
-                    cboShiftCode,
-                    cboWorcenter,
-                    cboEquipment,
-                    txtOrderQty,
-                    spjangcd,
-                    user
-            );
+        //작업지시 생성 (제품)
+        JobRes header = prodOrderEditService.makeParentProdOrder(
+                sujuId,
+                productionDate,
+                cboMaterial,
+                cboShiftCode,
+                cboWorcenter,
+                cboEquipment,
+                txtOrderQty,
+                spjangcd,
+                user
+        );
 
-            result.success = true;
-            result.data = header;
-            return result;
-
-        }catch(Exception e){
-            throw new CustomException("예상치 못한 에러가 발생하였습니다.");
-        }
+        result.success = true;
+        result.data = header;
+        return result;
     }
 
     // 작업 지시 수정 (모달 저장)

@@ -339,9 +339,10 @@
                                     <li>
                                         <select id="job_proc" name="job_proc">
                                             <option value="">전체</option>
-                                            <option value=1>1차 공정</option>
-                                            <option value=2>2차 공정</option>
-                                            <option value=3>3차 공정</option>
+                                            <option value=1>1차 : 보드제작</option>
+                                            <option value=2>2차 : 접착/경화</option>
+                                            <option value=3>3차 : 단열제 절단</option>
+                                            <option value=4>4차 : 단열제 부착</option>
                                         </select>
                                     </li>
                                     
@@ -639,13 +640,13 @@
                                 <div id="consumed-grid" style="height: 20vh;"></div>
                             </div>
                         </div>
-                        <div>
+                        <div style="display: none;">
                             <label class="switch">
                                 <input type="checkbox" id="btnToggle"><span class="slider round"></span>
                             </label>투입로트 보기/감추기
                         </div>
                         <div>&nbsp;</div>
-                        <div class="grid_box" id="input_lot_div">
+                        <div class="grid_box" id="input_lot_div" style="display: none;">
                             <div class="button-wrap">
                                 <ul>
                                     <li>
@@ -1099,7 +1100,9 @@
                         {binding: 'company_name', header: '판매처', width: 110, align: 'left', isReadOnly: true},
                         {binding: 'prod_date', header: '생산일', width: 100, align: 'center'},
                         {binding: 'job_state', header: '상태', width: 70, align: 'center'},
-                        {binding: 'mat_name', header: '품목', width: 180, align: 'left'},
+                        {binding: 'parent_mat_name', header: '품목', width: 180, align: 'left'},
+                        {binding: 'work_idx', header: '작업순서', width: 80, align: 'center'},
+                        {binding: 'mat_name', header: '품목', width: 180, align: 'left', visible: false},
                         {binding: 'standard', header: '규격', width: 60, align: 'center'},
                         {binding: 'due_date', header: '납기예정일', width: 100, align: 'center'},
                         {binding: 'order_qty', header: '지시량', width: 80, format: 'n2', align: 'right'},
@@ -1109,7 +1112,6 @@
                         {binding: 'mat_type', header: '품목구분', width: 100, align: 'center'},
                         {binding: 'unit', header: '단위', width: 80, align: 'center'},
                         {binding: 'workcenter', header: '워크센터', width: 100, align: 'center'},
-                        {binding: 'work_idx', header: '작업순서', width: 100, align: 'center'},
                         {binding: 'memo', header: '비고', width: 190, align: 'left'},
                         {binding: 'parent', header: '부모', width: 190, align: 'left', visible: false},
                         {binding: 'routing_id', visible: false}
@@ -1537,7 +1539,7 @@
                     const jr_pk = $('#tabBasic').find('#id').val();
                     if (ht.panel === this.inputLotGrid.cells) {
                         const item = this.inputLotGrid.rows[ht.row]?.dataItem;
-                        console.log('item', item);
+                   
                         if (item) page.showLotInput(item.lot_number, jr_pk, item.mpi_id);
                     }
                 }.bind(this));
@@ -1963,7 +1965,7 @@
 
                     // ✅ 새 데이터에 이전 jobres id가 존재하면 자동 재선택
                     if (prevJobId) {
-                        console.log('1')
+                    
                         const foundIndex = result.data.findIndex(d => d.id === prevJobId);
                         if (foundIndex >= 0) {
                             _this.grid.select(foundIndex, 0);
@@ -1982,7 +1984,7 @@
                             this.setButtonState();
                             $('#svgBarcode').empty();
                         }
-                        console.log('2')
+               
                     }
                 }
             }
@@ -2215,7 +2217,7 @@
             // 통합 헬퍼: 현재 공정의 자식 id로 리스트 갱신
             refreshProcessLists = () => {
                 const childId = $('#tabBasic #id').val(); // 선택자 일관성 유지(항상 같은 곳 읽기)
-                console.log('childId', childId);
+            
                 if (childId) {
                     this.showConsumedList(childId);
                     this.showInputLotList(childId);
@@ -2574,7 +2576,7 @@
                 }
 
                 let resultDetail = AjaxUtil.getSyncData(this.baseUrl + '/mat_detail', param);
-                console.log('resultDetail', resultDetail);
+               
 
                 if (resultDetail.data) {
                     const parent = {
@@ -2615,7 +2617,7 @@
 
                 let item = this.grid.selectedItems;
 
-                if(item !== ''){
+                if(item[0].parent != null){
                     Alert.alert('', '마지막 공정만 차수별 생산이 가능합니다.');
                     return;
                 }
@@ -2693,7 +2695,6 @@
                 }
 
 
-                console.log('selected', selectedItems);
                 if (selectedItems.length === 0) {
                     Alert.alert('차수 삭제오류', '선택된 차수가 없습니다.');
                     return;
@@ -2752,8 +2753,7 @@
 
                 let items = this.chasuGrid.collectionView.items;
 
-                console.log('items', items);
-
+                
                 if (items.length === 0) {
                     return;
                 }
@@ -2770,7 +2770,7 @@
                     let defect_qty = Number(item.defect_qty);
 
                     if (Number.isNaN(good_qty) || good_qty < 0) {
-                        console.log(good_qty);
+                        
                         Alert.alert('차수 양품량 수정', '잘못된 수량이 포함되어 있습니다.');
                         return;
                     }
@@ -3497,8 +3497,6 @@
                 try {
                     const {lot, message} = await this.fetchLotInfo(lot_number, jr_pk, mpi_id);
 
-                    console.log('lot', lot);
-
                     if (message) {
                         Alert.alert('', message);
                     }
@@ -3518,7 +3516,7 @@
 
                     if (autoQty > 0 && autoQty <= remain) {
                         // 조건 충족: 팝업 없이 바로 저장
-                        console.log('lot', lot);
+       
                         this.saveLotInput(lot.id, autoQty, lot.mpi_id);
                         return;
                     }
@@ -3526,7 +3524,7 @@
                     // 조건 불충족: 기존처럼 팝업 열어서 사용자 입력 받기
                     const poppage = new PopupLotInputPage();
                     const callback = (sel) => {
-                        console.log('sel', sel);
+                   
                         const selLotId = sel.lot_id;
                         if (!selLotId) {
                             Alert.alert('', 'LOT 검색에 실패했습니다.');
@@ -3845,7 +3843,7 @@
                             Equipment_id: $('#tabBasic').find('#equipment_id').val(),
                             StopCause_id: null
                         };
-                        console.log('sendData', sendData);
+                    
 
                         let previousIndex = _this.selectedIndex;
                         AjaxUtil.postAsyncData(_this.baseUrl + '/stop_save', sendData, function (result) {

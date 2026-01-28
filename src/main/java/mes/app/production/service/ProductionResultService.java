@@ -22,6 +22,7 @@ import mes.domain.model.AjaxResult;
 import mes.domain.repository.*;
 import mes.domain.services.CommonUtil;
 import mes.domain.services.DateUtil;
+import org.springframework.batch.core.Job;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.security.core.Authentication;
@@ -30,6 +31,7 @@ import mes.domain.services.SqlRunner;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.interceptor.TransactionAspectSupport;
 
+import static mes.app.production.production_package.BomTreeService.isProcessNode;
 
 
 @Service
@@ -335,17 +337,23 @@ public class ProductionResultService {
                 			   , M."Factory_id" AS "Factory_id"                                -- 공장아이디
                 			   , fa."Name" as fac_name                                         -- 공장이름
                 			   , S.memo                                                        -- 메모
-                               , M."Class1" as class1                                         -- 1차공정
+                               , M."Class1" as class1                                          -- 1차공정
                 			   , M."Class2" as class2                                          -- 2차공정
                 			   , M."Class3" as class3                                          -- 3차공정
-                			   , COALESCE(C."Parent_id") as parent                                        --부모아이디
+                			   , COALESCE(C."Parent_id") as parent                             --부모아이디
+                			   , PM."Name" as parent_mat_name                                  --부모(마스터) 작업 품목 
                 			FROM S
                 			JOIN job_res       C  ON C.id = S.child_id              -- child = 대표행
+                			LEFT JOIN job_res P
+                             ON P."WorkOrderNumber" = C."WorkOrderNumber"
+                            AND P."Parent_id" IS NULL
                 			left join suju su on su.id = C."SourceDataPk" and C."SourceTableName" = 'suju'
                 			LEFT JOIN work_center WC ON WC.id = C."WorkCenter_id"
                 			LEFT JOIN equ           E  ON E.id  = C."Equipment_id"
                 			LEFT JOIN shift         SH ON SH."Code" = C."ShiftCode"
                 			LEFT JOIN material      M  ON M.id = C."Material_id"
+                			LEFT JOIN material PM
+                            ON PM.id = P."Material_id"
                 			LEFT JOIN mat_grp       MG ON MG.id = M."MaterialGroup_id"
                 			LEFT JOIN unit          U  ON U.id = M."Unit_id"
                 			left join factory fa on M."Factory_id" = fa.id
@@ -364,6 +372,7 @@ public class ProductionResultService {
                             AND COALESCE(F.class1,'') <> ''
                             AND COALESCE(F.class2,'') = ''
                             AND COALESCE(F.class3,'') = ''
+                            AND 
                         )
                      OR (:jobProc = 2
                             AND COALESCE(F.class1,'') <> ''
@@ -371,10 +380,16 @@ public class ProductionResultService {
                             AND COALESCE(F.class3,'') = ''
                         )
                      OR (:jobProc = 3
+                            AND COALESCE(F.class1,'') = ''
+                            AND COALESCE(F.class2,'') = ''
+                            AND COALESCE(F.class3,'') <> ''
+                        )
+                     OR (:jobProc = 4
                             AND COALESCE(F.class1,'') <> ''
                             AND COALESCE(F.class2,'') <> ''
                             AND COALESCE(F.class3,'') <> ''
                         )
+                        
                     )
                     """;
         }
@@ -388,10 +403,9 @@ public class ProductionResultService {
 			sql += " and F.\"Factory_id\" = :cboFactory ";
 		}
 
-		sql += " ORDER BY F.prod_date, F.order_num, F.id ";
+		sql += " ORDER BY F.prod_date, F.order_num, F.work_idx, F.id";
 
-
-		List<Map<String, Object>> items = this.sqlRunner.getRows(sql, dicParam);
+        List<Map<String, Object>> items = this.sqlRunner.getRows(sql, dicParam);
 		return items;
 	}
 
@@ -1497,22 +1511,31 @@ public class ProductionResultService {
     ///  끝 /////////////////////////////////////////////////////////////////
 
 
+    ///  현재 완료후 다음 노드 구하기/////////////////////////////////////////////////////////////////
+
+    public static class NextContext{
+        BomNode nextNode;
+        String flowKey;
+    }
+
     // 다음 공정 알아내기 (부모 JsonNode 반환)
-    public BomNode completeAndGetParentNode(
+    public NextContext completeAndGetParentNode(
             Map<String, BomNode> processTree,
             int targetMatPk
     ) {
-
-        //이전 정보 제거 (각 노드들의 current 정보를 다 false로 리셋)
         processTree.values().forEach(BomNode::clearCursor);
 
-        for (BomNode root : processTree.values()) {
-            BomNode parent = completeAndFindParent(root, null, targetMatPk);
+        for (Map.Entry<String, BomNode> entry : processTree.entrySet()) {
+            BomNode parent =
+                    completeAndFindParent(entry.getValue(), null, targetMatPk);
             if (parent != null) {
-                return parent;
+                NextContext ctx = new NextContext();
+                ctx.nextNode = parent;
+                ctx.flowKey = entry.getKey(); // ROOT KEY
+                return ctx;
             }
         }
-        return null; // 최상위 공정
+        return null;
     }
 
     private BomNode completeAndFindParent(
@@ -1522,6 +1545,9 @@ public class ProductionResultService {
     ) {
 
         if (current.matPk != null && current.matPk == targetMatPk) {
+
+
+
             current.complete = true; //완료 처리
 
             current.current = true; //현재 공정 표시
@@ -1541,10 +1567,96 @@ public class ProductionResultService {
         return null;
     }
 
+    ///  현재 작업 취소 후 이전 노드 구하기/////////////////////////////////////////////////////////////////
+
+    public static class PrevContext {
+        BomNode prevNode;
+        String flowKey;
+    }
+    public PrevContext rollbackAndGetPrevNode(
+            Map<String, BomNode> processTree,
+            int targetMatPk
+    ) {
+        // current 전부 제거
+        processTree.values().forEach(BomNode::clearCursor);
+
+        for (Map.Entry<String, BomNode> entry : processTree.entrySet()) {
+            PrevContext ctx =
+                    rollbackAndFindPrev(entry.getValue(), null, targetMatPk);
+
+            if (ctx != null) {
+                ctx.flowKey = entry.getKey();
+                return ctx;
+            }
+        }
+        return null;
+    }
+
+    private PrevContext rollbackAndFindPrev(
+            BomNode current,
+            BomNode parent,
+            int targetMatPk
+    ) {
+
+        // 🎯 취소 대상 공정 발견
+        if (current.matPk != null && current.matPk == targetMatPk) {
+
+            // 현재 공정 롤백
+            current.current = false;
+            current.complete = false;
+
+            BomNode prev = null;
+
+            // 1️⃣ 자식 중 "마지막 실제 공정" 찾기
+            for (BomNode child : current.children) {
+                BomNode leaf = findLastProcessLeaf(child);
+                if (leaf != null) {
+                    prev = leaf;
+                }
+            }
+
+            // 2️⃣ 자식이 없으면 부모가 이전 공정
+            if (prev == null && parent != null && isProcessNode(parent)) {
+                prev = parent;
+            }
+
+            PrevContext ctx = new PrevContext();
+            ctx.prevNode = prev;
+            return ctx;
+        }
+
+        for (BomNode child : current.children) {
+            PrevContext found =
+                    rollbackAndFindPrev(child, current, targetMatPk);
+            if (found != null) {
+                return found;
+            }
+        }
+
+        return null;
+    }
+
+    private BomNode findLastProcessLeaf(BomNode node) {
+        BomNode last = null;
+
+        if (isProcessNode(node)) {
+            last = node;
+        }
+
+        for (BomNode child : node.children) {
+            BomNode found = findLastProcessLeaf(child);
+            if (found != null) {
+                last = found;
+            }
+        }
+        return last;
+    }
+
+    ///  //////////////////////////////////////////////////////////////////////////////
 
     public void saveNextOfProcess(JobRes previous, BomNode node, User user) {
 
-        Optional<JobRes> jr = jobResRepository.findTopByWorkOrderNumberOrderByWorkIndexDesc(previous.getWorkOrderNumber());
+        Optional<JobRes> jr = jobResRepository.findTopByWorkOrderNumberAndParentIdIsNotNullOrderByWorkIndexDesc(previous.getWorkOrderNumber());
 
         if(!jr.isPresent()) throw new CustomException("작업지시를 찾을 수 없습니다.");
 
@@ -2332,24 +2444,23 @@ public class ProductionResultService {
         String processTree = jpt.getProcessTree();
 
         Integer matId = jr.getMaterialId();
+        Map<String, BomNode> bomTree = JsonUtil.parseProcessTree(processTree);
 
         //다음 공정 노드 찾기
-        BomNode next =
-                this.completeAndGetParentNode(
-                        JsonUtil.parseProcessTree(processTree), matId
-                );
+        NextContext nextCtx = completeAndGetParentNode(bomTree, matId);
 
         //담 공정 없으면 스킵
-        if(next == null) return;
+        if(nextCtx.nextNode == null) return;
 
         // 다음 공정트리 구하기
         String nextTree =
                 new BomTreeService()
-                        .returnProcessTreeCurrentNode(processTree, next.matPk);
+                        .returnProcessTreeNextNode(processTree, nextCtx.nextNode.matPk, nextCtx.flowKey);
 
-        if(next.matPk != null){
+
+        if(nextCtx.nextNode.matPk != null){
             this.saveNextOfProcess(
-                    jr, next, user
+                    jr, nextCtx.nextNode, user
             );
         }
 
@@ -2357,10 +2468,149 @@ public class ProductionResultService {
         // process Tree 도 최신화
         int cnt = jobResProcessTreeRepository.updateProcessTreeOnly(jr.getWorkOrderNumber(), nextTree);
         if(cnt <= 0) throw new CustomException("해당 작업지시에 대한 공정을 찾을 수 없습니다.");
+    }
+    ///////////////////////////////////////////////////////////////////////////////////////////////
+    //endregion
 
 
+    //region : 완료 취소 (finishCancel)
+    @Transactional
+    public Map<String, Object> finishCancel(Integer jrPk, Integer EquipmentId, User user, String spjangcd){
+
+        JobRes jr = this.jobResRepository.getJobResById(jrPk);
+
+        /* =========================
+         * 1. 검증
+         * ========================= */
+        JobResDeleteValidationCheck(jr, EquipmentId);
+
+        /* =========================
+         * 2. 작업지시 수정
+         * ========================= */
+        JobResCancelWithUpdate(jr, user);
+
+        /* =========================
+         * 3. 장비 수정 (완료 -> 완료취소)
+         * ========================= */
+        EquUpdateStop(jr, user, spjangcd);
+
+        /* =========================
+         * 4. job_process_tree (공정 트리) 수정,
+         * ========================= */
+        UpdateProcessTreeByFinishCancel(jr);
+
+        Map<String, Object> item = new HashMap<String, Object>();
+        item.put("jr_pk", jrPk);
+
+        return item;
+    }
+
+    private void UpdateProcessTreeByFinishCancel(JobRes jr){
+        //수정된 공정트리
+        String processTree = returnProcessTreePreviousNode(jr);
+        jobResProcessTreeRepository.updateProcessTreeOnly(jr.getWorkOrderNumber(), processTree);
+    }
+
+    private void EquUpdateStop(JobRes jr, User user, String spjangcd){
+        Optional<EquRun> latestComplete = equRunRepository.findLatestCompleteByEquipmentAndOrder(
+                jr.getEquipment_id(), jr.getWorkOrderNumber(), jr.getId());
+
+        if (latestComplete.isPresent()) {
+            EquRun equ = latestComplete.get();
+            equ.setRunState("complete_cancel");
+            equ.set_audit(user);
+            equ.setDescription("완료 취소");
+            equ.setSpjangcd(spjangcd);
+            equ.setSourceTableName("job_res");
+            equ.setSourceDataPk(jr.getId());
+            equRunRepository.save(equ);
+
+            Timestamp nowWithCurrentSecond = Timestamp.valueOf(LocalDateTime.now());
+
+
+            // 그리고 새로운 run 상태로 재시작
+            EquRun newRun = new EquRun();
+            newRun.setEquipmentId(jr.getEquipment_id());
+            newRun.setWorkOrderNumber(jr.getWorkOrderNumber());
+            newRun.setStartDate(nowWithCurrentSecond);
+            newRun.setRunState("run");
+            newRun.setSpjangcd(spjangcd);
+            newRun.set_audit(user);
+
+            newRun.setSourceTableName("job_res");
+            newRun.setSourceDataPk(jr.getId());
+
+            equRunRepository.save(newRun);
+        }
+    }
+
+    private void JobResCancelWithUpdate(JobRes jr, User user){
+        jr.setEndTime(null);
+        jr.setState("working");
+        jr.set_audit(user);
+
+        jr = this.jobResRepository.save(jr);
+
+        this.delete_jobres_defectqty_inout(jr.getId());
 
     }
-    //////////////////////////////////////////////////////////////////////////////////
+
+    private void JobResDeleteValidationCheck(JobRes jr, Integer EquipmentId){
+        int runningProcessCnt = this.jobResRepository.countInvalidNextProcess(jr.getWorkOrderNumber(), jr.getWorkIndex());
+
+        if(runningProcessCnt > 0){
+            throw new CustomException("후속 공정이 이미 진행 중입니다. 후속공정을 삭제하거나 완료 취소를 해주십시오.");
+        }
+
+        long runningCount = equRunRepository.countByEquipmentIdAndRunState(EquipmentId, "run");
+
+        if (runningCount > 0) {
+            throw new CustomException("해당 설비는 이미 작업 중입니다. 재가동할 수 없습니다.");
+        }
+    }
+
+
+    public String returnProcessTreePreviousNode(JobRes jr){
+        JobResProcessTree jpt = jobResProcessTreeRepository.findByWorkOrderNo(jr.getWorkOrderNumber());
+        if(jpt == null) throw new CustomException("해당 작업지시에 대한 공정을 찾을 수 없습니다.");
+
+        String processTree = jpt.getProcessTree();
+
+        Integer matId = jr.getMaterialId();
+        Map<String, BomNode> bomTree = JsonUtil.parseProcessTree(processTree);
+
+        PrevContext prevCtx =
+                rollbackAndGetPrevNode(bomTree, jr.getMaterialId());
+
+        if (prevCtx != null && prevCtx.prevNode != null) {
+            prevCtx.prevNode.current = true;
+        } else {
+            // 이전 공정 없으면 루트가 current
+            bomTree.get(prevCtx.flowKey).current = true;
+        }
+
+        //작업을 취소했으니 process_tree 수정 (롤백)
+        return new BomTreeService().rollbackProcessTreeCurrentNode(processTree, jr.getMaterialId(), prevCtx.flowKey);
+    }
+    //endregion
+
+    /// job_res del //////////////////////////////////////////////////////////////////////////////////////////////
+    //region : 작업지시 삭제
+    @Transactional
+    public void JobResDel(Integer jobresId, String orderNum, Integer equipmentId, User user){
+        // 대상 작업지시
+        JobRes jr = jobResRepository.getJobResById(jobresId);
+
+        /* =========================
+         * 1. 작업지시 삭제
+         * ========================= */
+        deleteJobRes(jr, equipmentId, orderNum, user);
+
+        /* =========================
+         * 2. job_process_tree (공정 트리) 수정,
+         * ========================= */
+        UpdateProcessTreeByFinishCancel(jr);
+    }
+
     //endregion
 }

@@ -588,6 +588,8 @@
                     if (result.success) {
                         Alert.alert('', '생성되었습니다.');
                         _this.sujuSearch();
+                    }else{
+                        Alert.alert('', result.message);
                     }
                 };
 

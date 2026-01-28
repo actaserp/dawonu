@@ -39,5 +39,18 @@ public interface JobResRepository extends JpaRepository<JobRes, Integer> {
 	""")
 	Integer findIdByOrderProcessAndMaterial(String orderNum, Integer processId, Integer prodMatId);
 
-    Optional<JobRes> findTopByWorkOrderNumberOrderByWorkIndexDesc(String workOrderNumber);
+    Optional<JobRes> findTopByWorkOrderNumberAndParentIdIsNotNullOrderByWorkIndexDesc(
+            String workOrderNumber
+    );
+
+    @Query("""
+            SELECT COUNT(j)
+            FROM JobRes j
+            WHERE j.workOrderNumber = :workOrderNumber
+              AND j.workIndex > :workIndex
+              AND j.parentId IS NOT NULL
+              AND j.state <> 'ordered'
+            """)
+    int countInvalidNextProcess(@Param("workOrderNumber") String workOrderNumber, @Param("workIndex") Integer workIndex);
+
 }

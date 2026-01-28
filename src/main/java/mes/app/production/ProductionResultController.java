@@ -56,7 +56,7 @@ public class ProductionResultController {
     private ProductionResultService productionResultService;
 
     @Autowired
-    private LotService lotService;
+    private JobResProcessTreeRepository jobResProcessTreeRepository;
 
     @Autowired
     ProductionResultValidator validator;
@@ -641,7 +641,6 @@ public class ProductionResultController {
      * 3. 설비동작 이력을 가져와서 RunState를 "complete_cancel" 로 수정후 새로운 행을 하나 추가(RunState : run)
      * */
     @PostMapping("/finish_cancel")
-    @Transactional
     public AjaxResult finishCancel(
             @RequestParam(value = "jr_pk", required = false) Integer jrPk,
             @RequestParam(value = "spjangcd", required = false) String spjangcd,
@@ -649,69 +648,12 @@ public class ProductionResultController {
             HttpServletRequest request,
             Authentication auth) {
 
-        AjaxResult result = new AjaxResult();
-
         User user = (User) auth.getPrincipal();
 
-        /// 상위공정이 있는지 , (최상우 root) 제외
-        JobRes jr = this.jobResRepository.getJobResById(jrPk);
+        //통합 메서드
+        Map<String, Object> item = productionResultService.finishCancel(jrPk, Equipment_id, user, spjangcd);
 
-
-        long runningCount = equRunRepository.countByEquipmentIdAndRunState(Equipment_id, "run");
-
-        if (runningCount > 0) {
-            throw new CustomException("해당 설비는 이미 작업 중입니다. 재가동할 수 없습니다.");
-        }
-
-
-
-        jr.setEndTime(null);
-        jr.setState("working");
-        jr.set_audit(user);
-
-        jr = this.jobResRepository.save(jr);
-
-        this.productionResultService.delete_jobres_defectqty_inout(jrPk);
-
-        Optional<EquRun> latestComplete = equRunRepository.findLatestCompleteByEquipmentAndOrder(
-                jr.getEquipment_id(), jr.getWorkOrderNumber(), jr.getId());
-
-        if (latestComplete.isPresent()) {
-            EquRun equ = latestComplete.get();
-            equ.setRunState("complete_cancel");
-            equ.set_audit(user);
-            equ.setDescription("완료 취소");
-            equ.setSpjangcd(spjangcd);
-            equ.setSourceTableName("job_res");
-            equ.setSourceDataPk(jrPk);
-            equRunRepository.save(equ);
-
-            Timestamp nowWithCurrentSecond = Timestamp.valueOf(LocalDateTime.now());
-
-
-            // 그리고 새로운 run 상태로 재시작
-            EquRun newRun = new EquRun();
-            newRun.setEquipmentId(jr.getEquipment_id());
-            newRun.setWorkOrderNumber(jr.getWorkOrderNumber());
-            newRun.setStartDate(nowWithCurrentSecond);
-            newRun.setRunState("run");
-            newRun.setSpjangcd(spjangcd);
-            newRun.set_audit(user);
-
-            newRun.setSourceTableName("job_res");
-            newRun.setSourceDataPk(jrPk);
-
-            equRunRepository.save(newRun);
-        }
-
-        Map<String, Object> item = new HashMap<String, Object>();
-        item.put("jr_pk", jrPk);
-
-        result.success = true;
-        result.data = item;
-
-        return result;
-
+        return AjaxResult.success(null, item);
     }
 
 
@@ -1141,19 +1083,17 @@ public class ProductionResultController {
      * ***/
     // 생산정보 삭제
     @PostMapping("/del")
-    @Transactional
     public AjaxResult prodResultDel(
             @RequestParam("id") Integer jobresId,
             @RequestParam(value = "order_num", required = false) String orderNum,
             @RequestParam(value = "equipment_id", required = false) Integer equipmentId,
             Authentication auth
     ) {
-        // 대상 작업지시
-        JobRes jr = jobResRepository.getJobResById(jobresId);
+
         User user = (User) auth.getPrincipal();
 
-        //delete
-        productionResultService.deleteJobRes(jr, equipmentId, orderNum, user);
+        productionResultService.JobResDel(jobresId, orderNum, equipmentId, user);
+         //job_res_processTree 업데이트
         return AjaxResult.success("작업지시가 삭제되었습니다.", null);
     }
 

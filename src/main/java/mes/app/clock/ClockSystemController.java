@@ -1,5 +1,6 @@
 package mes.app.clock;
 
+import mes.Exception.CustomException;
 import mes.app.clock.service.ClockSystemService;
 import mes.domain.entity.*;
 import mes.domain.model.AjaxResult;
@@ -113,6 +114,8 @@ public class ClockSystemController {
     @PostMapping("/delete")
     public AjaxResult deleteSystem(@RequestParam("workcd") String workcd,
                                  @RequestParam("spjangcd") String spjangcd) {
+
+
         Tb_pb210Id id = new Tb_pb210Id(spjangcd, workcd); // 복합키 객체 생성
         tb_pb210Repository.deleteById(id);                // 복합키로 삭제
 
