@@ -1,8 +1,6 @@
 package mes.domain.entity;
 
-import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.NoArgsConstructor;
+import lombok.*;
 import org.hibernate.annotations.ColumnTransformer;
 
 import javax.persistence.*;
@@ -10,7 +8,8 @@ import javax.persistence.*;
 @Entity
 @Table(name="job_res_process_tree")
 @NoArgsConstructor
-@Data
+@Getter
+@Setter
 @EqualsAndHashCode(callSuper=false)
 public class JobResProcessTree {
 
@@ -19,7 +18,7 @@ public class JobResProcessTree {
     int id;
 
     @Column(name = "\"WorkOrderNo\"")
-    String workOrderNo;
+    private String workOrderNo;
 
     @Column(name = "\"ProcessTree\"", columnDefinition = "jsonb")
     @ColumnTransformer(write = "?::json")

@@ -11,7 +11,17 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface JobResProcessTreeRepository extends JpaRepository<JobResProcessTree, Integer> {
 
-    JobResProcessTree findByWorkOrderNo(String workOrderNumber);
+    JobResProcessTree findByWorkOrderNo(String workOrderNo);
+
+    @Query(
+            value = """
+    select *
+    from job_res_process_tree
+    where "WorkOrderNo" = :workOrderNo
+    """,
+            nativeQuery = true
+    )
+    JobResProcessTree findNative(@Param("workOrderNo") String workOrderNo);
 
     @Modifying
     @Query(value = "UPDATE job_res_process_tree SET \"ProcessTree\" = CAST(:processTree AS json) WHERE \"WorkOrderNo\" = :woNo", nativeQuery = true)

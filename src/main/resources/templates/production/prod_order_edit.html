@@ -788,7 +788,7 @@
                         {binding: 'workcenter_id', header: '워크센터', width: 120, dataMap: workcenterMap, isReadOnly: false},
                         {binding: 'prod_date', header: '생산일', width: 140, align: 'center', isReadOnly: true},
                         {binding: 'workshift', header: '근무조', width: 120, dataMap: workshiftMap, isReadOnly: false},
-                        {binding: 'order_action', header: '지시', width: 80, align: 'center', isReadOnly: true}
+                        //{binding: 'order_action', header: '지시', width: 80, align: 'center', isReadOnly: true}
                     ]
                 });
 
@@ -799,24 +799,24 @@
                     if (e.panel.cellType === wijmo.grid.CellType.Cell) {
                         let col = s.columns[e.col];
 
-                        if (col.binding === 'order_action' && userinfo.can_write()) {
-                            let btn = document.createElement("button");
-                            let row = s.rows[e.row];
-                            let item = row.dataItem;
+                        // if (col.binding === 'order_action' && userinfo.can_write()) {
+                        //     let btn = document.createElement("button");
+                        //     let row = s.rows[e.row];
+                        //     let item = row.dataItem;
 
-                            btn.className = "btn-default";
-                            btn.style.width = "100%";
-                            btn.style.height = "25px";
-                            btn.innerText = "지시";
+                        //     btn.className = "btn-default";
+                        //     btn.style.width = "100%";
+                        //     btn.style.height = "25px";
+                        //     btn.innerText = "지시";
 
-                            // 아래 속성들을 추가해줍니다
-                            btn.setAttribute("data-custom-btn", e.row); // dindex = row index
-                            btn.setAttribute("suju_id", item.id);  // 필요한 데이터
+                        //     // 아래 속성들을 추가해줍니다
+                        //     btn.setAttribute("data-custom-btn", e.row); // dindex = row index
+                        //     btn.setAttribute("suju_id", item.id);  // 필요한 데이터
 
-                            e.cell.innerHTML = "";
-                            e.cell.appendChild(btn);
+                        //     e.cell.innerHTML = "";
+                        //     e.cell.appendChild(btn);
 
-                        }
+                        // }
                     }
                 });
 

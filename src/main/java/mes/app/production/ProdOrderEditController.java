@@ -126,22 +126,29 @@ public class ProdOrderEditController {
         AjaxResult result = new AjaxResult();
         User user = (User)auth.getPrincipal();
 
-        //작업지시 생성 (제품)
-        JobRes header = prodOrderEditService.makeParentProdOrder(
-                sujuId,
-                productionDate,
-                cboMaterial,
-                cboShiftCode,
-                cboWorcenter,
-                cboEquipment,
-                txtOrderQty,
-                spjangcd,
-                user
-        );
+        List<JobRes> jobResList = jobResRepository.findBySourceDataPkAndSourceTableName(sujuId, "suju");
 
-        result.success = true;
-        result.data = header;
-        return result;
+        if(jobResList.isEmpty()){
+            //작업지시 생성 (제품)
+            JobRes header = prodOrderEditService.makeParentProdOrder(
+                    sujuId,
+                    productionDate,
+                    cboMaterial,
+                    cboShiftCode,
+                    cboWorcenter,
+                    cboEquipment,
+                    txtOrderQty,
+                    spjangcd,
+                    user
+            );
+
+            return AjaxResult.success(null, header);
+        }else{
+            //작업지시 생성(반제품)
+            //JobRes jobRes = prodOrderEditService.makeJobRes(cboMaterial);
+            //return AjaxResult.success(null, jobRes);
+            throw new CustomException("잘못된 작업지시 요청입니다.");
+        }
     }
 
     // 작업 지시 수정 (모달 저장)

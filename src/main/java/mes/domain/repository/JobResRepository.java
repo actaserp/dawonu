@@ -53,4 +53,7 @@ public interface JobResRepository extends JpaRepository<JobRes, Integer> {
             """)
     int countInvalidNextProcess(@Param("workOrderNumber") String workOrderNumber, @Param("workIndex") Integer workIndex);
 
+    List<JobRes> findAllByParentId(Integer deleteTargetId);
+
+    boolean existsByParentId(int id);
 }

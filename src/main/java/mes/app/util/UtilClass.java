@@ -26,6 +26,7 @@ import java.util.List;
 @Slf4j
 public class UtilClass {
 
+
     public static float DecimalToFloat(BigDecimal value){
         return value != null ? value.floatValue() : 0f;
     }

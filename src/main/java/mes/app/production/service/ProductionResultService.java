@@ -30,6 +30,7 @@ import org.springframework.stereotype.Service;
 import mes.domain.services.SqlRunner;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.interceptor.TransactionAspectSupport;
+import org.springframework.util.StringUtils;
 
 import static mes.app.production.production_package.BomTreeService.isProcessNode;
 
@@ -1420,6 +1421,30 @@ public class ProductionResultService {
     public void deleteJobRes(JobRes jr, Integer equipmentId, String orderNum, User user){
         validator.validateJobResExists(jr, "대상 작업지시를 찾을 수 없습니다.");
 
+        Integer jrMaterialId = jr.getMaterialId();
+
+        Material m = materialRepository.findById(jrMaterialId)
+                .orElseThrow(() ->
+                        new CustomException("잘못된 작업지시입니다. 품목정보가 없습니다.")
+                );
+
+        //1차랑 3차면 삭제 못하게...
+        // 1차 공정: class1만 있음
+        boolean isFirstProcess =
+                StringUtils.hasText(m.getClass1())
+                        && !StringUtils.hasText(m.getClass2())
+                        && !StringUtils.hasText(m.getClass3());
+
+        // 3차 공정: class3만 있음
+        boolean isThirdProcess =
+                !StringUtils.hasText(m.getClass1())
+                        && !StringUtils.hasText(m.getClass2())
+                        &&  StringUtils.hasText(m.getClass3());
+
+        if (isFirstProcess || isThirdProcess) {
+            throw new CustomException("1차 또는 3차 공정은 삭제할 수 없습니다. 삭제를 원하실경우 마지막 완제품 작업을 삭제해야 합니다.");
+        }
+
         boolean isChild = jr.getParentId() != null;
 
         if(isChild){
@@ -1428,26 +1453,90 @@ public class ProductionResultService {
             deleteParentJobRes(jr, equipmentId, orderNum, user);
         }
 
-        jobResProcessTreeRepository.deleteByWorkOrderNo(jr.getWorkOrderNumber());
+
     }
 
-    private void deleteChildJobRes(JobRes jr, Integer equipmentId, String orderNum, User user){
+    private void deleteChildJobRes(JobRes jr,
+                                   Integer equipmentId,
+                                   String orderNum,
+                                   User user) {
 
-        if(equipmentId == null) throw new CustomException("장비 정보가 없어 삭제할 수 없습니다.");
+        if (equipmentId == null) {
+            throw new CustomException("장비 정보가 없어 삭제할 수 없습니다.");
+        }
 
-        prodResultDelValidator(jr,
+        // 1. 삭제 가능 여부 검증
+        prodResultDelValidator(
+                jr,
                 "대상 작업지시를 찾을 수 없습니다.",
                 "생산량이 존재하여 삭제할 수 없습니다.",
-                "등록된 차수가 있어 삭제할 수 없습니다.");
+                "등록된 차수가 있어 삭제할 수 없습니다."
+        );
 
-        //TODO: 삭제하면 이전 공정의 parentId 가르키는 것을 바꿔줘야 한다.
-        BomTreeService treeService = new BomTreeService();
+        Integer deleteTargetId = jr.getId();
+        Integer upperParentId  = jr.getParentId(); // 한 단계 위 부모
 
-        int deleted = equRunRepository.deleteByWorkOrderNumberAndEquipmentId(orderNum, equipmentId);
+        // 2. 설비 가동 이력 삭제
+        equRunRepository.deleteByWorkOrderNumberAndEquipmentId(orderNum, equipmentId);
 
-        // 자식 JobRes 삭제
-        jobResRepository.deleteById(jr.getId());
+        // 3. 🔥 핵심: 재연결 대상 선별
+        reconnectChildren(deleteTargetId, upperParentId);
 
+        // 4. 공정 트리(JSON) 먼저 롤백
+        UpdateProcessTreeByFinishCancel(jr);
+
+        // 5. JobRes 삭제
+        jobResRepository.deleteById(deleteTargetId);
+    }
+
+    private void reconnectChildren(Integer deleteTargetId,
+                                   Integer upperParentId) {
+
+        // 삭제 대상(jr)을 parent로 가진 모든 자식
+        List<JobRes> children =
+                jobResRepository.findAllByParentId(deleteTargetId);
+
+        if (children == null || children.isEmpty()) {
+            return; // leaf → 재연결 대상 없음
+        }
+
+        // 🔥 재연결 대상 필터링
+        List<JobRes> reconnectTargets = children.stream()
+                .filter(child -> {
+
+                    // 1️⃣ Material 조회
+                    Material mat = materialRepository.findById(child.getMaterialId())
+                            .orElse(null);
+
+                    // Material 못 찾으면 안전하게 제외
+                    if (mat == null) {
+                        return false;
+                    }
+
+                    // 2️⃣ class1 / class2 기준 (공정 흐름 노드)
+                    if (StringUtils.hasText(mat.getClass1())
+                            || StringUtils.hasText(mat.getClass2())) {
+                        return true;
+                    }
+
+                    // 3️⃣ 하위 공정 존재 여부
+                    boolean hasChildren =
+                            jobResRepository.existsByParentId(child.getId());
+
+                    return hasChildren;
+                })
+                .toList();
+
+        if (reconnectTargets.isEmpty()) {
+            return; // 전부 단독공정(3차) → 무시
+        }
+
+        // parentId 재연결
+        for (JobRes target : reconnectTargets) {
+            target.setParentId(upperParentId);
+        }
+
+        jobResRepository.saveAll(reconnectTargets);
     }
 
     private void deleteParentJobRes(JobRes jr, Integer equipmentId, String orderNum, User user){
@@ -1485,6 +1574,9 @@ public class ProductionResultService {
 
         //자식&부모 작지 삭제
         jobResRepository.deleteAll(child_list);
+
+        //공정트리도 같이 삭제
+        jobResProcessTreeRepository.deleteByWorkOrderNo(jr.getWorkOrderNumber());
     }
 
     private void prodResultDelValidator(JobRes jr, String errMsg, String errMsg2, String errMsg3){
@@ -2505,10 +2597,13 @@ public class ProductionResultService {
         return item;
     }
 
-    private void UpdateProcessTreeByFinishCancel(JobRes jr){
-        //수정된 공정트리
+    private void UpdateProcessTreeByFinishCancel(JobRes jr) {
+        // 수정된 공정트리
         String processTree = returnProcessTreePreviousNode(jr);
-        jobResProcessTreeRepository.updateProcessTreeOnly(jr.getWorkOrderNumber(), processTree);
+        jobResProcessTreeRepository.updateProcessTreeOnly(
+                jr.getWorkOrderNumber(),
+                processTree
+        );
     }
 
     private void EquUpdateStop(JobRes jr, User user, String spjangcd){
@@ -2559,7 +2654,18 @@ public class ProductionResultService {
         int runningProcessCnt = this.jobResRepository.countInvalidNextProcess(jr.getWorkOrderNumber(), jr.getWorkIndex());
 
         if(runningProcessCnt > 0){
-            throw new CustomException("후속 공정이 이미 진행 중입니다. 후속공정을 삭제하거나 완료 취소를 해주십시오.");
+
+            Integer jrMaterialId = jr.getMaterialId();
+            Material mat = materialRepository.findById(jrMaterialId)
+                    .orElseThrow(() -> new CustomException("품목정보가 올바르지 않습니다."));
+
+            boolean isThirdProcess = !StringUtils.hasText(mat.getClass1())
+                                    && !StringUtils.hasText(mat.getClass2())
+                                    && StringUtils.hasText(mat.getClass3());
+            if(!isThirdProcess){
+                throw new CustomException("후속 공정이 이미 진행 중입니다. 후속공정을 삭제하거나 완료 취소를 해주십시오.");
+            }
+
         }
 
         long runningCount = equRunRepository.countByEquipmentIdAndRunState(EquipmentId, "run");
@@ -2571,7 +2677,10 @@ public class ProductionResultService {
 
 
     public String returnProcessTreePreviousNode(JobRes jr){
-        JobResProcessTree jpt = jobResProcessTreeRepository.findByWorkOrderNo(jr.getWorkOrderNumber());
+
+        String workOrderNumber = jr.getWorkOrderNumber();
+
+        JobResProcessTree jpt = jobResProcessTreeRepository.findByWorkOrderNo(workOrderNumber);
         if(jpt == null) throw new CustomException("해당 작업지시에 대한 공정을 찾을 수 없습니다.");
 
         String processTree = jpt.getProcessTree();
@@ -2606,10 +2715,6 @@ public class ProductionResultService {
          * ========================= */
         deleteJobRes(jr, equipmentId, orderNum, user);
 
-        /* =========================
-         * 2. job_process_tree (공정 트리) 수정,
-         * ========================= */
-        UpdateProcessTreeByFinishCancel(jr);
     }
 
     //endregion

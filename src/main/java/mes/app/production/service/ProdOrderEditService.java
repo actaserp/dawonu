@@ -17,6 +17,7 @@ import mes.app.util.UtilClass;
 import mes.domain.entity.JobRes;
 import mes.domain.entity.JobResProcessTree;
 import mes.domain.entity.Material;
+import mes.domain.entity.Process;
 import mes.domain.entity.User;
 import mes.domain.repository.JobResProcessTreeRepository;
 import mes.domain.repository.JobResRepository;
@@ -534,6 +535,26 @@ public class ProdOrderEditService {
 
         return result;
     }
+
+    /*public JobRes makeJobRes(Integer materialId) {
+
+        Material m = materialRepository.getMaterialById(materialId);
+
+        // 첫 공정 판단 객체 생성 (작지 내려야 하는데 어떤 공정을 첫 작지로 내릴까?)
+        ProcessFlow flow = ProcessFlow.from(m);
+
+        ProcessType type = null;
+        if(flow.hasThirdProcess()){
+            type = ProcessType.FULL_FLOW;
+        }else{
+            type = ProcessType.SIMPLE_FLOW;
+        }
+
+
+        if(1==1) throw new CustomException("asda");
+
+        return null;
+    }*/
 
     //endregion
 
