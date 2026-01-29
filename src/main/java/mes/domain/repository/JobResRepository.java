@@ -1,5 +1,6 @@
 package mes.domain.repository;
 
+
 import java.util.List;
 import java.util.Optional;
 
@@ -44,16 +45,30 @@ public interface JobResRepository extends JpaRepository<JobRes, Integer> {
     );
 
     @Query("""
-            SELECT COUNT(j)
-            FROM JobRes j
-            WHERE j.workOrderNumber = :workOrderNumber
-              AND j.workIndex > :workIndex
-              AND j.parentId IS NOT NULL
-              AND j.state <> 'ordered'
-            """)
-    int countInvalidNextProcess(@Param("workOrderNumber") String workOrderNumber, @Param("workIndex") Integer workIndex);
+    SELECT j
+    FROM JobRes j
+    JOIN Material m ON m.id = j.materialId
+    WHERE j.workOrderNumber = :workOrderNumber
+      AND j.workIndex > :workIndex
+      AND j.parentId IS NOT NULL
+      AND j.state <> 'ordered'
+      AND NOT (
+            (m.class1 IS NULL OR m.class1 = '')
+        AND (m.class2 IS NULL OR m.class2 = '')
+        AND  m.class3 IS NOT NULL
+        AND  m.class3 <> ''
+      )
+    ORDER BY j.workIndex ASC
+""")
+    List<JobRes> findNextProcess(
+            @Param("workOrderNumber") String workOrderNumber,
+            @Param("workIndex") Integer workIndex
+    );
 
     List<JobRes> findAllByParentId(Integer deleteTargetId);
 
     boolean existsByParentId(int id);
+
+
+    JobRes findByParentId(Integer parent_id);
 }

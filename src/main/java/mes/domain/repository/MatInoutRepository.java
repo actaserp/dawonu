@@ -37,13 +37,13 @@ public interface MatInoutRepository extends JpaRepository<MaterialInout, Integer
     @Query("""
     delete from MaterialInout m
     where m.sourceTableName = :sourceTableName
-      and m.sourceDataPk IN (:lotIds)
+      and m.sourceDataPk IN (:mpid)
       and m.inOut = :inOut
       and m.inputType = :inputType
 """)
     void deleteBySourceTableNameAndSourceDataPksAndInOutAndInputType(
             @Param("sourceTableName") String sourceTableName,
-            @Param("lotIds") List<Integer> lotIds,
+            @Param("mpid") List<Integer> mpid,
             @Param("inOut") String inOut,
             @Param("inputType") String inputType
     );

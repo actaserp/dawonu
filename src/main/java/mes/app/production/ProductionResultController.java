@@ -651,7 +651,7 @@ public class ProductionResultController {
         User user = (User) auth.getPrincipal();
 
         //통합 메서드
-        Map<String, Object> item = productionResultService.finishCancel(jrPk, Equipment_id, user, spjangcd);
+        Map<String, Object> item = productionResultService.finishCancel(jrPk, user, spjangcd);
 
         return AjaxResult.success(null, item);
     }
@@ -1004,7 +1004,10 @@ public class ProductionResultController {
         this.matLotConsRepository.deleteBySourceTableNameAndSourceDataPkIn("mat_produce", lotIds);
 
         // mat_inout 삭제
-        this.matInoutRepository.deleteBySourceTableNameAndSourceDataPksAndInOutAndInputType("mat_produce", lotIds, "in", "produced_in");
+        List<Integer> matProduceIds = mpList.stream()
+                .map(MaterialProduce::getId)
+                .toList();
+        this.matInoutRepository.deleteBySourceTableNameAndSourceDataPksAndInOutAndInputType("mat_produce", matProduceIds, "in", "produced_in");
 
         // 5.mat_inout 생산 재고 차감 이력 삭제 (자재원복), mat_cons 삭제
         for(int i=0; i < mcList.size(); i++){ //TODO: 이거 반복문 보다는 한번에 하는게 나을듯? 일단은 이렇게 하고
@@ -1094,6 +1097,7 @@ public class ProductionResultController {
 
         productionResultService.JobResDel(jobresId, orderNum, equipmentId, user);
          //job_res_processTree 업데이트
+
         return AjaxResult.success("작업지시가 삭제되었습니다.", null);
     }
 

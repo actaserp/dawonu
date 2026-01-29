@@ -8,11 +8,13 @@ import java.util.Map;
 import javax.servlet.http.HttpServletRequest;
 import javax.transaction.Transactional;
 
+import mes.Exception.CustomException;
 import mes.domain.entity.*;
 import mes.domain.repository.*;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import org.springframework.security.core.Authentication;
+import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -109,6 +111,10 @@ public class ProdOrderAController {
 		Material m = materialRepository.getMaterialById(matPk);
 		Integer routingPk = m.getRoutingId();
 		Integer locPk = m.getStoreHouseId();
+
+        if(!StringUtils.hasText(m.getClass1()) && !StringUtils.hasText(m.getClass2()) && !StringUtils.hasText(m.getClass3())){
+            throw new CustomException("원자재는 생산지시 할 수 없습니다.");
+        }
 
 		Timestamp prodDate = CommonUtil.tryTimestamp(productionDate);
 
