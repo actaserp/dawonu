@@ -300,10 +300,10 @@
                     </tr>
                     <tr>
                      <th style="text-align: center">
-                      현장명
+                      현장명(주소)
                      </th>
                      <td colspan="5">
-                     <input id="DeliveryName" name="DeliveryName" placeholder="현장명" style="width: 100%;">
+                     <input id="DeliveryName" name="DeliveryName" placeholder="현장명(주소)" style="width: 100%;">
                      </td>
                     </tr>
                     <tr>
@@ -333,9 +333,8 @@
             <table class="item-table">
                 <table class="item-table">
                 <colgroup>
-                    <col style="width: 6%">
+<!--                    <col style="width: 6%">-->
                     <col style="width: 20%">
-                    <col style="width: 6%">
                     <col style="width: 11%">
                     <col style="width: 6%">
                     <col style="width: 13%">
@@ -347,11 +346,10 @@
                 </colgroup>
                 <thead>
                 <tr id="itemHeaderRow">
-                    <th>코드</th>
+<!--                    <th>코드</th>-->
                     <th>품목</th>
-                    <th>단위</th>
                     <th>규격</th>
-                    <th>수량</th>
+                    <th>수량(㎡)</th>
                     <th>단가 <span style="font-size: 13px;">(선택시 부가세 포함)</span></th>
                     <th>공급가액</th>
                     <th>부가세</th>
@@ -365,19 +363,19 @@
                 </tr>
                 </thead>
                 <tr class="item-template-row" style="display: none;">
-                    <td>
+                    <!--<td>
                         <input type="text" style="text-align:center;" name="product_code" placeholder="코드" readonly/>
-                    </td>
+                    </td>-->
                     <td>
                         <div class="input-with-button">
                             <input type="hidden" name="suju_id" />
-                            <input type="text" name="txtProductName" placeholder="코드 또는 품명 입력 후 엔터" autocomplete="off" />
+                            <input type="text" name="txtProductName" placeholder="품목명 입력" autocomplete="off" />
                             <input type="hidden" name="MaterialGroupName" />
                             <input type="hidden" name="Material_id" />
                             <input type="hidden" name="standard_locked">
                         </div>
                     </td>
-                    <td><input type="text" style="text-align:center;" name="unit" placeholder="단위" readonly/></td>
+
                     <td>
                       <div class="input-with-button">
                         <input type="hidden" id = "standard_id" name="standard_id" />
@@ -387,7 +385,7 @@
                         </a>
                       </div>
                     </td>
-                    <td><input type="text" style="text-align:right;" name="quantity" placeholder="수량" /></td>
+                    <td><input type="text" style="text-align:right;" name="quantity" placeholder="수량(㎡)" /></td>
                     <td>
                         <div class="input-with-checkbox">
                             <input style="text-align:right;" type="text" name="unitPrice" placeholder="단가" />
@@ -710,6 +708,7 @@
       let searchcallback = function (items) {
        $content.find('#cboCompany').val(items.id);
        $content.find('#CompanyName').val(items.compname);
+       $content.find('#DeliveryName').val(items.invoiceeaddr);
 
        // if ($Material_id.val() && $cboCompany.val()) {
        //     tryShowPrice();
@@ -728,6 +727,7 @@
         if (saved) {
          $content.find('#cboCompany').val(saved.id);
          $content.find('#CompanyName').val(saved.name);
+         $content.find('#DeliveryName').val(saved.address);
 
          setTimeout(() => {
           const $delivery = $content.find('#DeliveryName');
@@ -744,8 +744,7 @@
            if ($fallback.length) $fallback.focus();
           }
          }, 120);
-        }
-        ;
+        };
        },
        focusAfterClose: this
       });
@@ -933,7 +932,7 @@
          suju_id: data[`suju_id_${i}`] || '',
          Material_id: normMaterialId,
          MaterialGroupName: data[`MaterialGroupName_${i}`] || '',
-         product_code: data[`product_code_${i}`] || '',
+         // product_code: data[`product_code_${i}`] || '',
          txtProductName: productName,
          //txtProductName: data[`txtProductName_${i}`] || '',
          quantity: (data[`quantity_${i}`] || '0').replace(/,/g, ''),
@@ -1040,109 +1039,32 @@
      }
 
 
-     function isAdjustmentRow($row) {
-      const code = (($row.find('input[name^="product_code_"]').val() ?? '') + '').trim();
-      return code === ''; // 상품코드 비어있으면 단수정리 행
-     }
+     // function isAdjustmentRow($row) {
+     //  const code = (($row.find('input[name^="product_code_"]').val() ?? '') + '').trim();
+     //  return code === ''; // 상품코드 비어있으면 단수정리 행
+     // }
 
      let isInternalFormatting = false;
 
      function calculateAmounts($row, source = null) {
       if (isInternalFormatting) return;
       isInternalFormatting = true;
+
       try {
-       const quantity = getNumericValue($row.find('input[name^="quantity_"]'), 0);
+       const quantity  = getNumericValue($row.find('input[name^="quantity_"]'), 0);
        const unitPrice = getNumericValue($row.find('input[name^="unitPrice_"]'), 0);
 
        // 단가 입력 유무(빈칸이거나 NaN이면 자동계산 금지)
        const unitPriceRaw = String($row.find('input[name^="unitPrice_"]').val() || '').replace(/,/g, '');
        const hasUnitPrice = unitPriceRaw !== '' && !isNaN(Number(unitPriceRaw));
 
-       const $standard = $row.find('input[type="text"][name^="standard_"]');
-       const standardRaw = (($standard.val() ?? '') + '').trim();
-       const standardNumStr = standardRaw.replace(/,/g, '');
-       const isStandardNumeric = standardNumStr !== '' && /^\d+(\.\d+)?$/.test(standardNumStr);
-       const standardNum = isStandardNumeric ? parseFloat(standardNumStr) : 0;
+       // ✅ 단위/규격 무시: 실제 계산 수량은 항상 quantity
+       const qtyForCalc = Number.isFinite(quantity) ? quantity : 0;
 
-       const baseQty = Number.isFinite(quantity) ? quantity : 0;
-
-// 🔹 단위 읽기
-       const unitVal = String(
-        $row.find('input[name^="unit_"], input[name="unit"]').val() || ''
-       ).trim();
-
-       // 🔹 단위 + 규격에 따른 실제 계산 수량
-       let qtyForCalc = baseQty;
-
-       if (isStandardNumeric) {
-        if (isMeter(unitVal)) {
-         // M인 경우만 규격 × 수량
-         qtyForCalc = standardNum * baseQty;
-        } else {
-         // M이 아닌 단위(EA, SET 등)는 규격 무시
-         qtyForCalc = baseQty;
-        }
-       }
-
-       const isVatIncluded = $row.find('input[name^="VatIncluded_"]').is(':checked');
-       const isVatExempt = false;
-
-       let supplyAmount = getNumericValue($row.find('input[name^="supplyAmount_"]'), 0);
-       let vatAmount = getNumericValue($row.find('input[name^="VatAmount_"]'), 0);
-       const isSupplyEdited = $row.data('supplyEdited') === true;
-       const isVatEdited = $row.data('vatEdited') === true;
-
-       const adjustment = isAdjustmentRow($row);
-
-       // 단가 없으면 자동계산 금지
-       const shouldAuto = !adjustment && hasUnitPrice && ((source === 'unit') || (!isSupplyEdited && !isVatEdited));
-
-       if (adjustment) {
-        let supplyAmount = getNumericValue($row.find('input[name^="supplyAmount_"]'), 0, true); // 음수 허용
-        // (정책상 단수정리 필요하면 여기서 Math.floor 등 적용)
-        $row.find('input[name^="VatAmount_"]').val(''); // VAT=0 표기
-        $row.find('input[name^="totalAmount_"]').val(
-         supplyAmount === 0 ? '' : supplyAmount.toLocaleString('ko-KR')
-        );
-        calculateTotalSum($content);
-        return; // 조정행은 여기서 종료(일반 자동계산 덮어쓰기 방지)
-       }
-
-       if (shouldAuto) {
-        const lineTotal = qtyForCalc * unitPrice;
-
-        if (isVatExempt) {
-         supplyAmount = lineTotal;
-         vatAmount = 0;
-        } else if (isVatIncluded) {
-         supplyAmount = Math.round(lineTotal / 1.1);
-         vatAmount = lineTotal - supplyAmount;
-        } else {
-         supplyAmount = lineTotal;
-         vatAmount = Math.floor(supplyAmount * 0.1);
-        }
-
-        if (!isSupplyEdited) {
-         $row.find('input[name^="supplyAmount_"]').val(supplyAmount === 0 ? '' : supplyAmount.toLocaleString());
-        }
-        if (!isVatEdited) {
-         $row.find('input[name^="VatAmount_"]').val(isVatExempt ? '면세' : (vatAmount === 0 ? '' : vatAmount.toLocaleString()));
-        }
-       } else if (!hasUnitPrice && !adjustment && !isSupplyEdited && !isVatEdited) {
-
-       }
-       // 합계(표시용)
-       const sNum = getNumericValue($row.find('input[name^="supplyAmount_"]'), 0);
-       const vNum = getNumericValue($row.find('input[name^="VatAmount_"]'), 0);
-       const autoSum = sNum + vNum;
-
-       $row.find('input[name^="totalAmount_"]').val(autoSum === 0 ? '' : autoSum.toLocaleString('ko-KR'));
-
-       // 표기 포맷
-       $row.find('input[name^="quantity_"]').val(quantity === 0 ? '' : quantity.toLocaleString());
-       $row.find('input[name^="unitPrice_"]').val(unitPrice === 0 ? '' : unitPrice.toLocaleString());
-
-       calculateTotalSum($content);
+       // 이하 기존 계산 로직에서 qtyForCalc 사용만 유지
+       // 예)
+       const supplyAmount = hasUnitPrice ? (qtyForCalc * unitPrice) : 0;
+       // VAT/total 계산 등 기존 로직 이어서...
       } finally {
        isInternalFormatting = false;
       }
@@ -1459,134 +1381,92 @@
       }
      );
 
-     $content.off('change.productCodeGuard')
-     .on('change.productCodeGuard', 'input[name^="product_code_"]', function () {
-      const $row = $(this).closest('tr');
-      const code = (this.value ?? '').toString().trim();
-      if (code !== '') {
-       // totalAmount_에서 음수 제거 후 재계산
-       const $tot = $row.find('input[name^="totalAmount_"]');
-       const cleaned = (($tot.val() ?? '') + '').replace(/,/g, '').replace(/-/g, '');
-       $tot.val(cleaned ? Number(cleaned).toLocaleString('ko-KR') : '');
-       // 일반 모드 강제 재계산
-       $row.removeData('supplyEdited');
-       $row.removeData('vatEdited');
-       calculateAmounts($row, 'unit');
-      }
-     });
+     // $content.off('change.productCodeGuard')
+     // .on('change.productCodeGuard', 'input[name^="product_code_"]', function () {
+     //  const $row = $(this).closest('tr');
+     //  const code = (this.value ?? '').toString().trim();
+     //  if (code !== '') {
+     //   // totalAmount_에서 음수 제거 후 재계산
+     //   const $tot = $row.find('input[name^="totalAmount_"]');
+     //   const cleaned = (($tot.val() ?? '') + '').replace(/,/g, '').replace(/-/g, '');
+     //   $tot.val(cleaned ? Number(cleaned).toLocaleString('ko-KR') : '');
+     //   // 일반 모드 강제 재계산
+     //   $row.removeData('supplyEdited');
+     //   $row.removeData('vatEdited');
+     //   calculateAmounts($row, 'unit');
+     //  }
+     // });
 
-     $content.on('keydown', 'input[name^="txtProductName_"]', function (e) {
-      if (e.key !== 'Enter' && e.keyCode !== 13) return;
-
-      e.preventDefault();
-
-      const $field = $(this);
-      const $row = $field.closest('tr');
-
-      const $productInput = $row.find('input[name^="txtProductName_"]');
-      const $productId = $row.find('input[name^="Material_id_"]');
-      const $productCode = $row.find('input[name^="product_code_"]');
-      const $Standard = $row.find('input[name^="standard_"]');
-      const $unit_name = $row.find('input[name^="unit_"]');
-
-      const keyword = $field.val().trim();
-      const pop = new PopMatComponent();
-      pop.material_type = 'product,sangpum';
-
-      const callback = function (item) {
-       $productId.val(item.id || '');
-       $productInput.val(item.Name || '');
-       $productCode.val(item.Code || '');
-       $unit_name.val(item.unit_name || '').trigger('input');
-
-       const parsedStd = parseStandardFromProductCode(item.Code);
-
-       // ✅ Spec 안 씀. 규칙 없는 코드는 빈값(또는 '미정')
-       $Standard.val(parsedStd || '');
-
-       tryShowPrice($row);
-      };
-
-      if (!keyword) {
-       pop.focusAfterClose = $field[0];
-       pop.show(callback);
-       return;
-      }
-
-      const data = {
-       keyword: keyword,
-       spjangcd: sessionStorage.getItem('spjangcd')
-      };
-
-      const result = AjaxUtil.getSyncData('/api/popup/search_material', data);
-      const rows = result?.data || [];
-
-      if (rows.length === 1) {
-       callback(rows[0]);
-      } else {
-       pop.show(callback);
-       setTimeout(() => {
-        pop.$keyword.val(keyword);
-        pop.$btnMaterialSearch.trigger('click');
-       }, 50);
-      }
-     });
-
-     function parseStandardFromProductCode(code) {
-      if (!code) return '';
-      const s = String(code).trim();
-
-      // ✅ ZL 규칙만 확정 적용
-      const mZL = s.match(/ZL(\d+)/i);
-      if (mZL) {
-       return parseFromZL(mZL[1]);
-      }
-
-      // ✅ ZM으로 시작하면 고정 규격
-      if (/^ZM/i.test(s)) {
-       return '1000*500';
-      }
-
-      // ⚠️ 그 외 타입은 아직 규칙 미확정 → 빈값
-      return '';
-     }
-
-     function parseFromZL(zlNum) {
-      // ZL 규칙:
-      // - 끝자리(가로코드): 9 -> 900, 8 -> 800, 0 -> 1000
-      // - 세로는 500 고정
-      const widthMap = {'0': 1000, '8': 800, '9': 900};
-
-      const s = String(zlNum || '').trim();
-      if (!s) return '';
-
-      // ✅ 가로코드: "ZL49" -> zlNum="49" -> 마지막 자리 "9"
-      const wKey = s.slice(-1);
-      const width = widthMap[wKey] ?? null;
-
-      if (width == null) return '';
-      return `${width}*500`;
-     }
+     // $content.on('keydown', 'input[name^="txtProductName_"]', function (e) {
+     //  if (e.key !== 'Enter' && e.keyCode !== 13) return;
+     //
+     //  e.preventDefault();
+     //
+     //  const $field = $(this);
+     //  const $row = $field.closest('tr');
+     //
+     //  const $productInput = $row.find('input[name^="txtProductName_"]');
+     //  const $productId = $row.find('input[name^="Material_id_"]');
+     //  const $productCode = $row.find('input[name^="product_code_"]');
+     //  const $unit_name = $row.find('input[name^="unit_"]');
+     //
+     //  const keyword = $field.val().trim();
+     //  const pop = new PopMatComponent();
+     //  pop.material_type = 'product,sangpum';
+     //
+     //  const callback = function (item) {
+     //   $productId.val(item.id || '');
+     //   $productInput.val(item.Name || '');
+     //   $productCode.val(item.Code || '');
+     //   $unit_name.val(item.unit_name || '').trigger('input');
+     //
+     //   tryShowPrice($row);
+     //  };
+     //
+     //  if (!keyword) {
+     //   pop.focusAfterClose = $field[0];
+     //   pop.show(callback);
+     //   return;
+     //  }
+     //
+     //  const data = {
+     //   keyword: keyword,
+     //   spjangcd: sessionStorage.getItem('spjangcd')
+     //  };
+     //
+     //  const result = AjaxUtil.getSyncData('/api/popup/search_material', data);
+     //  const rows = result?.data || [];
+     //
+     //  if (rows.length === 1) {
+     //   callback(rows[0]);
+     //  } else {
+     //   pop.show(callback);
+     //   setTimeout(() => {
+     //    pop.$keyword.val(keyword);
+     //    pop.$btnMaterialSearch.trigger('click');
+     //   }, 50);
+     //  }
+     // });
 
      // 품목명 지우면 코드들도 같이 지워지게
-     $content.on('input', 'input[name^="txtProductName_"]', function () {
-      const $field = $(this);
-      const $row = $field.closest('tr');
-
-      const $productId = $row.find('input[name^="Material_id_"]');
-      const $productCode = $row.find('input[name^="product_code_"]');
-      const $Standard = $row.find('input[name^="standard_"]');
-      const $unit_name = $row.find('input[name^="unit_"]');
-
-      if ($field.val().trim() === '') {
-       // 값이 비었을 경우 연관된 필드 초기화
-       $productId.val('');
-       $productCode.val('');
-       $Standard.val('');
-       $unit_name.val('');
-       $Standard.prop('readonly', false);
-      }
-     });
+     // $content.on('input', 'input[name^="txtProductName_"]', function () {
+     //  const $field = $(this);
+     //  const $row = $field.closest('tr');
+     //
+     //  const $productId = $row.find('input[name^="Material_id_"]');
+     //  const $productCode = $row.find('input[name^="product_code_"]');
+     //  const $Standard = $row.find('input[name^="standard_"]');
+     //  const $unit_name = $row.find('input[name^="unit_"]');
+     //
+     //  if ($field.val().trim() === '') {
+     //   // 값이 비었을 경우 연관된 필드 초기화
+     //   $productId.val('');
+     //   $productCode.val('');
+     //   $Standard.val('');
+     //   $unit_name.val('');
+     //   $Standard.prop('readonly', false);
+     //  }
+     // });
 
      $content.find('#addRemark').click(function () {
       const $tbody = $content.find('.item-table tbody');

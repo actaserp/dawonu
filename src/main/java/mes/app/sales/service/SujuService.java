@@ -106,18 +106,24 @@ public class SujuService {
 				sh."Description",
 				sc_state."Value" AS "StateName",
 				sc_type."Value" AS "SujuTypeName",
-				-- 대표 제품명 + 외 N개
-				CASE
-					WHEN COUNT(DISTINCT s."Material_id") = 1 THEN
-						(array_agg(m."Name" ORDER BY s.id))[1]
-					ELSE
-						CONCAT(
-							(array_agg(m."Name" ORDER BY s.id))[1],
-							' 외 ',
-							COUNT(DISTINCT s."Material_id") - 1,
-							'개'
-						)
-				END AS product_name,
+				-- 대표 제품명 + 외 N개 
+				 CASE
+					 WHEN COUNT(DISTINCT COALESCE(NULLIF(TRIM(s."Material_Name"), ''), m."Name")) = 1 THEN
+						 (array_agg(
+							 COALESCE(NULLIF(TRIM(s."Material_Name"), ''), m."Name")
+							 ORDER BY s.id
+						 ))[1]
+					 ELSE
+						 CONCAT(
+							 (array_agg(
+								 COALESCE(NULLIF(TRIM(s."Material_Name"), ''), m."Name")
+								 ORDER BY s.id
+							 ))[1],
+							 ' 외 ',
+							 COUNT(DISTINCT COALESCE(NULLIF(TRIM(s."Material_Name"), ''), m."Name")) - 1,
+							 '개'
+						 )
+				 END AS product_name,			
 				sss.summary_state AS "State",
 				sc_ship."Value" AS "ShipmentStateName"
 				FROM suju_head sh

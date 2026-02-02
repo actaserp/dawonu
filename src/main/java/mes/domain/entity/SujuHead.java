@@ -55,7 +55,7 @@ public class SujuHead extends AbstractAuditModel {
 	String Description;
 
 	@Column(name="\"DeliveryName\"")
-	String DeliveryName;
+	String DeliveryName;	// 현장명
 
 	@Column(name="\"SuJuOrderId\"")
 	Integer SuJuOrderId;

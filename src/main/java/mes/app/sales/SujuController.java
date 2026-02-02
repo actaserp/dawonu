@@ -324,20 +324,20 @@ public class SujuController {
       suju.setStandard(standard);
       suju.setConfirm("0");
 
-      // 단가 변경 시 처리
-      Boolean unitPriceChanged = (Boolean) item.get("unitPriceChanged");
-      if (unitPriceChanged != null && unitPriceChanged) {
-        MultiValueMap<String, Object> priceData = new LinkedMultiValueMap<>();
-        priceData.add("Material_id", suju.getMaterialId());
-        priceData.add("Company_id", companyId);
-        priceData.add("UnitPrice", suju.getUnitPrice());
-        priceData.add("ApplyStartDate", LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME));
-        priceData.add("type", "02");
-        priceData.add("ChangerName", user.getUsername());
-        priceData.add("user_id", user.getId());
-
-        unitPriceService.saveCompanyUnitPrice(priceData);
-      }
+//      // 단가 변경 시 처리
+//      Boolean unitPriceChanged = (Boolean) item.get("unitPriceChanged");
+//      if (unitPriceChanged != null && unitPriceChanged) {
+//        MultiValueMap<String, Object> priceData = new LinkedMultiValueMap<>();
+//        priceData.add("Material_id", suju.getMaterialId());
+//        priceData.add("Company_id", companyId);
+//        priceData.add("UnitPrice", suju.getUnitPrice());
+//        priceData.add("ApplyStartDate", LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME));
+//        priceData.add("type", "02");
+//        priceData.add("ChangerName", user.getUsername());
+//        priceData.add("user_id", user.getId());
+//
+//        unitPriceService.saveCompanyUnitPrice(priceData);
+//      }
 
       SujuRepository.save(suju);
       Integer sujuId = suju.getId();
@@ -1042,9 +1042,8 @@ public class SujuController {
       @RequestParam("business_type") String businessType,
       @RequestParam("business_item") String businessItem,
       @RequestParam("address") String address,
-      @RequestParam("fax_number") String fax_number,
-      @RequestParam("sales_manager") String sales_manager,
-      @RequestParam("email") String email,
+      @RequestParam("account_manager") String account_manager,
+      @RequestParam("account_manager") String account_manager_phone,
       @RequestParam("spjangcd") String spjangcd,
       Authentication auth
   ) {
@@ -1080,9 +1079,8 @@ public class SujuController {
       company.setBusinessItem(businessItem);
       company.setRelyn("0");
       company.setAddress(address);
-      company.setFaxNumber(fax_number);
-      company.setSalesManager(sales_manager);
-      company.setEmail(email);
+      company.setAccountManager(account_manager);
+      company.setAccountManagerPhone(account_manager_phone);
       company.setSpjangcd(spjangcd);
       company.set_audit(user);
 
@@ -1093,6 +1091,7 @@ public class SujuController {
       Map<String, Object> data = new HashMap<>();
       data.put("id", saved.getId());
       data.put("name", saved.getName());
+      data.put("address", saved.getAddress());
 
       result.success = true;
       result.message = "저장되었습니다.";

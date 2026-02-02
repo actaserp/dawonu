@@ -66,32 +66,19 @@
                </tr>
                <tr>
                    <th style="text-align: center">
-                       <label for="fax_number">팩스</label>
+                       <label for="account_manager">계산서 담당자</label>
                    </th>
                    <td>
-                       <input id="fax_number" name="fax_number">
+                       <input type="text" id="account_manager" name="account_manager" >
                    </td>
                    <th style="text-align: center">
-                       <label for="sales_manager">영업담당자</label>
+                       <label for="account_manager_phone">담당자 연락처</label>
                    </th>
                    <td>
-                       <input type="text" id="sales_manager" name="sales_manager" >
+                       <input type="text" id="account_manager_phone" name="account_manager_phone" >
                    </td>
                </tr>
-               <tr>
-                  <th style="text-align: center">
-                    <label for="email">이메일</label>
-                  </th>
-                  <td>
-                     <input id="email" name="email">
-                 </td>
-                 <th style="text-align: center">
 
-                  </th>
-                  <td>
-
-                 </td>
-               </tr>
              </tbody>
            </table>
          </form>
@@ -148,7 +135,9 @@
           const required = [
             ['#cboCompanyType', '업체구분'],
             ['#name', '업체명'],
-            ['#business_number', '사업자번호']
+            ['#business_number', '사업자번호'],
+            ['#account_manager', '계산서담당자'],
+            ['#account_manager_phone', '계산서담당자연락처']
           ];
           for (const [sel, label] of required) {
             const $el = $content.find(sel);
