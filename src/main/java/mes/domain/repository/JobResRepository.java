@@ -50,7 +50,6 @@ public interface JobResRepository extends JpaRepository<JobRes, Integer> {
     JOIN Material m ON m.id = j.materialId
     WHERE j.workOrderNumber = :workOrderNumber
       AND j.workIndex > :workIndex
-      AND j.parentId IS NOT NULL
       AND j.state <> 'ordered'
       AND NOT (
             (m.class1 IS NULL OR m.class1 = '')
@@ -70,5 +69,16 @@ public interface JobResRepository extends JpaRepository<JobRes, Integer> {
     boolean existsByParentId(int id);
 
 
-    JobRes findByParentId(Integer parent_id);
+    @Query("""
+            SELECT j
+            FROM JobRes j
+            WHERE j.parentId = :parent_id
+            order by j.workIndex desc
+            """)
+    List<JobRes> previousByParentId(Integer parent_id);
+
+
+    List<JobRes> findByWorkOrderNumberAndWorkIndex(String workOrderNumber, int workIndex);
+
+    Optional<JobRes> findByWorkOrderNumberAndParentId(String workOrderNumber, Object o);
 }

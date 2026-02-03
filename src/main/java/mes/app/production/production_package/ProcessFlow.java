@@ -1,12 +1,10 @@
 package mes.app.production.production_package;
 
 import mes.Exception.CustomException;
-import mes.app.util.UtilClass;
-import mes.domain.entity.JobRes;
+import mes.app.production.Enum.ProcessType;
 import mes.domain.entity.Material;
 
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Stream;
 /**
  * 다원유는 1->2차는 관련이 있음,  3차는 관련이 없음

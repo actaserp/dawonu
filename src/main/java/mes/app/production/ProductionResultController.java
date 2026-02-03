@@ -336,7 +336,7 @@ public class ProductionResultController {
         if (jr.getMaterialId() == null) jr.setMaterialId(matPk);
         // -------------
         jr.setEndTime(end_time);
-        jr.setEndDate(Date.valueOf(endDate));
+        jr.setEndDate(StringUtils.hasText(endDate)? Date.valueOf(endDate) : null);
         jr.setShiftCode(shiftCode);
         jr.setWorkCenter_id(workcenterId);
         jr.setEquipment_id(equipmentId);
@@ -465,8 +465,6 @@ public class ProductionResultController {
                 mir.setRequestDate(DateUtil.getNowTimeStamp());
                 mir.setRequesterId(user.getId());
                 mir.set_audit(user);
-
-                if(1==1) throw new RuntimeException();
 
                 mir = this.matProcInputReqRepository.save(mir);
                 target.setMaterialProcessInputRequestId(mir.getId());
@@ -955,99 +953,11 @@ public class ProductionResultController {
             HttpServletRequest request,
             Authentication auth) {
 
-        AjaxResult result = new AjaxResult();
-
-        jrPk = Integer.parseInt(chasuList.get(0).get("jrPk").toString()); //그냥 아무 인덱스에서 뽑아와도됨 다 같은값
-
         User user = (User) auth.getPrincipal();
 
-        JobRes jr = this.jobResRepository.getJobResById(jrPk);
+        AjaxResult result = productionResultService.JobResDeleteChasu(chasuList, user, jrPk);
 
-        // mat_prod 마지막 차수 가져오기
-        List<MaterialProduce> mpList = this.matProduceRepository.findByJobResponseIdAndLotNumberIn(jrPk, chasuList.stream().map(t -> (String) t.get("lot_no")).toList());
-        if (mpList.isEmpty()) {
-            throw new CustomException("차수생산이력이 존재하지 않습니다.");
-        }
-
-        List<Integer> LotIndexList = chasuList.stream()
-                .map(t -> (Integer) t.get("chasu"))
-                .toList();
-
-
-        // mat_cons 가져오기
-        List<MaterialConsume> mcList = this.matConsuRepository.findByJobResponseIdAndLotIndexIn(jr.getId(), LotIndexList);
-
-        List<String> lotNumbers = mpList.stream().map(MaterialProduce::getLotNumber).toList();
-
-        //생산된 차수 LOT의 mat_lot_consu 존재 확인
-        List<MaterialLot> ml = this.matLotRepository.getByLotNumberIn(lotNumbers);
-
-        List<Integer> lotIds = ml.stream().map(MaterialLot::getId).toList();
-
-        //얘는 없어야함 --> 투입된 흔적이 없어야 삭제가능하므로
-        List<MatProcInput> mpiList = this.matProcInputRepository.findByMaterialLotIdIn(lotIds); //TODO: check
-        //얘도 없어야함 --> 생산한 완제품 lot가 소모 목록에 있으면 투입된 중이므로
-        List<MatLotCons> mlcList = this.matLotConsRepository.findByMaterialLotIdIn(lotIds);  //TODO : check
-
-        if(!mpiList.isEmpty()){
-            throw new CustomException("생산LOT에 투입요청 중에 있는 LOT가 있어 삭제가 불가능합니다.");
-        }
-        //차수 생산으로 발행된 로트가 mat_lot_consu에 존재하는지
-        if(!mlcList.isEmpty()){
-            throw new CustomException("생산LOT에 투입요청 중에 있는 LOT가 있어 삭제가 불가능합니다.");
-        }
-
-        // mat_lot 삭제
-        this.matLotRepository.deleteAllByIdIn(lotIds);
-
-        // mat_lot_cons 삭제
-        this.matLotConsRepository.deleteBySourceTableNameAndSourceDataPkIn("mat_produce", lotIds);
-
-        // mat_inout 삭제
-        List<Integer> matProduceIds = mpList.stream()
-                .map(MaterialProduce::getId)
-                .toList();
-        this.matInoutRepository.deleteBySourceTableNameAndSourceDataPksAndInOutAndInputType("mat_produce", matProduceIds, "in", "produced_in");
-
-        // 5.mat_inout 생산 재고 차감 이력 삭제 (자재원복), mat_cons 삭제
-        for(int i=0; i < mcList.size(); i++){ //TODO: 이거 반복문 보다는 한번에 하는게 나을듯? 일단은 이렇게 하고
-            this.matInoutRepository.deleteBySourceTableNameAndSourceDataPkAndInOutAndOutputType("mat_consu", mcList.get(i).getId(), "out", "consumed_out");
-            this.matConsuRepository.deleteById(mcList.get(i).getId());
-        }
-
-        //6.해당 차수 mat_prod 삭제
-        this.matProduceRepository.deleteByIdIn(mpList.stream().map(t -> t.getId()).toList());
-
-        this.productionResultService.calculate_balance_mat_lot_with_job_res(jr.getId());
-
-        // 양품량 합계 업데이트
-        Map<String, Object> mapSum = this.productionResultService.getJobResponseGoodDefectQty(jrPk);
-
-        float goodQtySum = Float.parseFloat(mapSum.get("good_qty").toString());
-        float defectQtySum = Float.parseFloat(mapSum.get("defect_qty").toString());
-
-        float removedGoodQty = mpList.stream().map(MaterialProduce::getGoodQty).filter(Objects::nonNull).reduce(0f, Float::sum);
-        float removedDefectQty = mpList.stream().map(MaterialProduce::getDefectQty).filter(Objects::nonNull).reduce(0f, Float::sum);
-
-        goodQtySum -= removedGoodQty;
-        defectQtySum -= removedDefectQty;
-
-        // 음수가 되지 않도록 보정
-        if (goodQtySum < 0) goodQtySum = 0;
-        if (defectQtySum < 0) defectQtySum = 0;
-
-        jr.setGoodQty(goodQtySum);
-        jr.setDefectQty(defectQtySum);
-        jr.set_audit(user);
-        jr = this.jobResRepository.save(jr);
-
-        Map<String, Object> item = new HashMap<String, Object>();
-        item.put("jr_pk", jrPk);
-        item.put("good_qty_sum", goodQtySum);
-        item.put("defect_qty_sum", defectQtySum);
-
-        result.data = item;
-        return result;
+        return AjaxResult.success(null, result);
     }
 
     @PostMapping("/chasu_save")

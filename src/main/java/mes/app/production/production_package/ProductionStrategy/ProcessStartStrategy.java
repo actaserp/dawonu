@@ -1,5 +1,8 @@
-package mes.app.production.production_package;
+package mes.app.production.production_package.ProductionStrategy;
 
+import mes.app.production.Enum.ProcessType;
+import mes.app.production.production_package.BomNode;
+import mes.app.production.production_package.ProcessFlow;
 import mes.domain.entity.JobRes;
 import mes.domain.entity.User;
 

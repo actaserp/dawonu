@@ -1,4 +1,4 @@
-package mes.app.production.production_package;
+package mes.app.production.Enum;
 
 import lombok.Getter;
 

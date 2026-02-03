@@ -61,10 +61,38 @@ public class BomNode {
 
     }
 
-    //현재 작업 상태 초기화
-    public void clearCursor(){
+    /**
+     * 특정 품목 공정을 완료 처리하고, 트리의 상태를 다음 단계로 전이시킵니다.
+     */
+    public void completeProcess(Integer targetMatPk) {
+        if (this.matPk != null && this.matPk.equals(targetMatPk)) {
+            this.complete = true;
+            this.current = false; // 완료되었으므로 더 이상 현재 활성 노드가 아님
+        }
+        for (BomNode child : this.children) {
+            child.completeProcess(targetMatPk);
+        }
+    }
+
+    /**
+     * 공정 취소 시 상태를 되돌립니다.
+     */
+    public void rollbackProcess(Integer targetMatPk) {
+        if (this.matPk != null && this.matPk.equals(targetMatPk)) {
+            this.complete = false;
+            this.current = true; // 취소된 공정을 다시 '현재 진행 중'으로 변경
+        }
+        for (BomNode child : this.children) {
+            child.rollbackProcess(targetMatPk);
+        }
+    }
+
+    /**
+     * 트리 전체에서 'current' 마킹을 초기화합니다. [2]
+     */
+    public void clearCursor() {
         this.current = false;
-        for(BomNode child : this.children){
+        for (BomNode child : this.children) {
             child.clearCursor();
         }
     }

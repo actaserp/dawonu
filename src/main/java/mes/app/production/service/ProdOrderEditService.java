@@ -5,26 +5,20 @@ import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
-import jdk.jshell.execution.Util;
 import mes.Exception.CustomException;
 import mes.app.definition.service.BomService;
+import mes.app.production.Enum.ProcessType;
 import mes.app.production.production_package.*;
+import mes.app.production.production_package.ProductionStrategy.ProcessStartStrategy;
 import mes.app.util.JsonUtil;
-import mes.app.util.UtilClass;
 import mes.domain.entity.JobRes;
 import mes.domain.entity.JobResProcessTree;
 import mes.domain.entity.Material;
-import mes.domain.entity.Process;
 import mes.domain.entity.User;
 import mes.domain.repository.JobResProcessTreeRepository;
 import mes.domain.repository.JobResRepository;
 import mes.domain.repository.MaterialRepository;
 import mes.domain.services.CommonUtil;
-import org.springframework.batch.core.Job;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.stereotype.Service;
 
@@ -474,12 +468,12 @@ public class ProdOrderEditService {
         //job_res_process_tree에 저장
         saveJobResProcessTree(savedHeader, JsonUtil.mapToJson(bomTree));
 
-        //자식 작업지시 생성 (1차 or 3차 단독이면 3차)
-        Map<ProcessType, BomNode> bomNode = resolveStartBomNodes(bomTree);
 
         ///  얘는 전략패턴임. 분기 if 제거용이 아니라 도메인 구조에 따라 동적인 코드를 구성하기 위한것
         /// 호출 클라이언트에서는 상세코드를 몰라도 된다. 그저 어떠한 공정인지만 알아내서 던져주면
         ///  내부에서 알아서 처리할 수 있게끔.
+        //자식 작업지시 생성 (1차 or 3차 단독이면 3차)
+        Map<ProcessType, BomNode> bomNode = resolveStartBomNodes(bomTree);
         strategy.start(header, flow, bomNode, user);
 
         //TODO: 트랜잭션 처리는 문제가 없는지?
