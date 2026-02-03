@@ -329,6 +329,7 @@ public class ProductionResultService {
                 			   , M."Code"                                     AS mat_code      -- 품목코드
                 			   , M."Name"                                     AS mat_name      -- 품목이름
                 			   , fn_code_name('mat_type', MG."MaterialType")  AS mat_type      --품목타입
+                			   , MG."Name"                                    AS mat_grp       --품목그룹 
                 			   , M."LotSize"                                  AS lot_size      --한 로트당 사이즈
                 			   , M."Weight"                                   AS weight        --품목무게
                 			   , U."Name"                                     AS unit          --단위이름

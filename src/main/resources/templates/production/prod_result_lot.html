@@ -118,11 +118,71 @@
         }
     </style>
     <style id="print_css">
-        @media print {
-            .pagebreak {
-                page-break-before: always;
-            }
-        }
+@media print {
+    @page {
+        size: 80mm 100mm;
+        margin: 0; /* 브라우저 머리글/바닥글(about:blank 등) 제거 핵심 */
+    }
+
+    html, body {
+        margin: 0;
+        padding: 0;
+        width: 80mm;
+        height: 100mm;
+    }
+
+    /* 상/하단 버튼 및 불필요한 요소 숨기기 */
+    button,
+    .btn-popup,
+    .title_box,
+    .popupcontent {
+        display: none !important;
+    }
+
+    /* 🔥 각 라벨을 하나의 페이지로 강제 격리 */
+    .print-section {
+        box-sizing: border-box;
+        width: 80mm;
+        height: 100mm; /* 라벨지 높이와 일치 */
+        page-break-after: always; /* 출력 시 다음 장으로 강제 이동 */
+        break-after: page;
+        display: block;
+        overflow: hidden; /* 영역 침범 방지 */
+    }
+
+    table {
+        width: 75mm;
+        /* height: 50mm;  불필요한 고정 높이는 제거하거나 줄임 */
+        margin: 4mm auto 0 auto; /* 상단 여백 확보 */
+        border-collapse: collapse;
+        table-layout: fixed;
+    }
+
+    td {
+        font-size: 12px;
+        padding: 2mm;
+        line-height: 1.2;
+        page-break-inside: avoid;
+        border: 1px solid #000;
+    }
+
+    .barcode_td {
+        padding-top: 0.2mm;
+        padding-bottom: 0.2mm;
+        height: 32mm; /* 바코드 영역 높이 확보 */
+        overflow: hidden;
+        vertical-align: middle;
+        text-align: center;
+    }
+
+    .barcode_td svg {
+        width: 100% !important;
+        max-height: 30mm !important;
+        height: auto !important;
+        display: block;
+        margin: 0 auto;
+    }
+}
 
         .bg_gray {
             background: #dedede;
@@ -248,6 +308,7 @@
             font-weight: 600;
             padding: 5px;
         }
+   
     </style>
 
 </head>
@@ -256,7 +317,7 @@
 
         <div class="page-title-wrap">
             <div class="left">
-                <h2>생산 실적 입력</h2>
+                <h2>생산 실적 입력1</h2>
                 <!--                <small2>라우팅이 없는 품목에 대한 실적 입력. 로트투입 가능</small2>-->
                 <a title="북마크" class="bookmark toggle">
                     내 메뉴
@@ -592,11 +653,17 @@
                                         <button type="button" class="btn" id="btnDeleteChasu" title="마지막 차수 삭제"
                                                 disabled><i class="fas fa-trash"></i></button>
                                     </li>
-                                    <li>
+                                    <!-- <li>
                                         <button type="button" class="btn" id="btnLOTbarcode" data-labelCd="제품확인서 출력"
                                                 disabled>제품확인서 출력
                                         </button>
-                                    </li>
+                                    </li> -->
+
+                                    <li>
+                                        <button type="button" class="btn" id="btnLOTbarcode2" data-labelCd="LOT바코드"
+                                                >LOT바코드
+                                        </button>
+                                    </li>                                    
                                 </ul>
                             </div>
                             <div class="content-wrap">
@@ -1110,6 +1177,9 @@
                         {binding: 'defect_qty', header: '부적합량', width: 80, format: 'n2', align: 'right'},
                         {binding: 'mat_code', header: '품목코드', width: 90, align: 'center'},
                         {binding: 'mat_type', header: '품목구분', width: 100, align: 'center'},
+                        {binding: 'mat_grp', header: '품목그룹', width: 100, align: 'center'},
+
+                        
                         {binding: 'unit', header: '단위', width: 80, align: 'center'},
                         {binding: 'workcenter', header: '워크센터', width: 100, align: 'center'},
                         {binding: 'memo', header: '비고', width: 190, align: 'left'},
@@ -2858,6 +2928,149 @@
                 });
             }
 
+showBarcode2() {
+    let _this = this;
+    // 바코드 출력
+    // 작업지시번호 바코드 설정
+    //
+    let select_jr = _this.grid.selectedItems[0];
+    let select_chasu = _this.chasuGrid.itemsSource.items;
+    let select_jr_array = [];
+    let totalHtml = [];
+
+    if (select_chasu.length > 0) {
+        for (let i = 0; i < select_chasu.length; i++) {
+            select_jr_array.push(this.object_copy(select_jr));
+            select_jr_array[i]['chasu_good_qty'] = select_chasu[i].good_qty;
+            // 로트번호와 날짜 데이터도 명시적으로 전달 (필요 시)
+            select_jr_array[i]['lot_no'] = select_chasu[i].lot_no;
+            select_jr_array[i]['input_time'] = select_chasu[i].input_time;
+        }
+    }
+
+    console.log('select_jr', select_jr);
+
+    let content = tmpl('barcode_tmpl', select_jr);
+    let $content = $(content);
+
+    // 바코드 갯수만큼 추가
+    for (let i = 0; i < select_jr_array.length; i++) {
+        // 🔥 각 출력물을 .print-section으로 감싸서 영역 침범 방지
+        $content.find('#barcodeArea').append(
+            "<div class='col-12 print-section' id='LotNumberContainerDiv_" + i + "'>" // class에 print-section 추가
+            + "<div class='title_box'>"
+            + "   <div class='left_align'>"
+            + "        Lot number"
+            + "        <button type='button' class='btn-cancel' id='btnPrintLotNumberBarcode_" + i + "' data-labelCd='프린트'>프린트</button>"
+            + "    </div>"
+            + "</div>"
+            + "<div class='col-12'>" // 내부 컨테이너
+            + "    <table class='table_1'>"
+            + "      <tr>"
+            + "          <td class='tac'>품명</td>"
+            + "          <td colspan='3'>" + select_jr_array[i].mat_name + "</td>"
+            + "      </tr>"
+            + "      <tr>"
+            + "          <td class='tac'>종류</td>"
+            + "          <td colspan='3'>" + select_jr_array[i].mat_grp + "</td>"
+            + "      </tr>"
+            + "      <tr>"
+            + "          <td class='tac'>발주처</td>"
+            + "          <td colspan='3'>" + select_jr_array[i].company_name + "</td>"
+            + "      </tr>"
+            + "      <tr>"
+            + "          <td class='tac'>수량</td>"
+            + "          <td colspan='3'>" + select_jr_array[i].chasu_good_qty + "</td> "
+            + "      </tr>"
+            + "      <tr>"
+            + "          <td class='tac'>날짜</td>"
+            + "          <td colspan='3'> " + select_jr_array[i].input_time + "</td>"
+            + "      </tr>"
+            + "      <tr>"
+            + "          <td colspan='4' class='barcode_td'>"
+            + "              <svg id='svgBarcodeLotNumber_" + i + "' style='width: 100% !important'></svg>"
+            + "          </td>"
+            + "      </tr>"
+            + "  </table>"
+            + "        </div>"
+            + "    </div> "
+        );
+    }
+
+    let modalContainer = null;
+    modalContainer = new PopupDraggable('바코드 출력');
+    modalContainer.open({ width: 500, height: 550, $content });
+
+    // scroll 처리
+    $('.ax-modal-body').css('overflow', 'auto');
+
+    //order_num
+    let barcodeLabelText = null;
+
+    for (let i = 0; i < select_jr_array.length; i++) {
+        let $LotNumberContainerDiv = $content.find('#LotNumberContainerDiv_' + i);
+
+        if (select_chasu.length > 0) {
+            barcodeLabelText = select_chasu[i].lot_no + "(" + select_jr_array[i].mat_name + ")";
+            $content.find("#svgBarcodeLotNumber_" + i).JsBarcode(select_chasu[i].lot_no, {
+                format: 'code128',
+                width: 1.5,
+                height: 45,        // 막대 높이는 유지하거나 살짝 키워도 됨
+                displayValue: true,
+                textMargin: 0,     // 🔥 2에서 0으로 줄여서 글자를 바코드에 붙임
+                fontSize: 12,
+                margin: 0,         // 🔥 1에서 0으로 줄임 (SVG 내부 여백 제거)
+                marginTop: 0,      // 상단 여백 제거
+                marginBottom: 0,   // 하단 여백 제거
+                background: '#ffffff',
+                lineColor: '#000000',
+            });
+
+            // 개별 프린트 버튼 클릭 시
+            $content.find('#btnPrintLotNumberBarcode_' + i).click(function (e) {
+                let popupWindow = window.open("", "_blank", "width=400px");
+                let css = $('#print_css')[0].outerHTML;
+
+                // 개별 출력 시에도 .print-section 스타일이 적용되도록 감쌈
+                let html = "<div class='print-section'>" + $LotNumberContainerDiv.html() + "</div>";
+                popupWindow.document.write('<html><head>' + css + '</head><body>');
+                popupWindow.document.write(html);
+                popupWindow.document.write('</body></html>');
+                popupWindow.document.close();
+                
+                // 브라우저 렌더링 대기 후 출력
+                setTimeout(function() {
+                    popupWindow.print();
+                    popupWindow.close();
+                }, 300);
+                return false;
+            });
+        }
+        // 전체 출력을 위해 각 섹션의 HTML 보관
+        totalHtml.push("<div class='print-section'>" + $LotNumberContainerDiv.html() + "</div>");
+    }
+
+    // 전체 출력 버튼 클릭 시
+    $content.find('#modal-printAll-button').click(function (e) {
+        let popupWindow = window.open("", "_blank", "width=400px");
+        let css = $('#print_css')[0].outerHTML;
+
+        let html = totalHtml.join('');
+
+        popupWindow.document.write('<html><head>' + css + '</head><body>');
+        popupWindow.document.write(html);
+        popupWindow.document.write('</body></html>');
+        popupWindow.document.close();
+
+        // 연속 출력 시 바코드 이미지가 모두 로드되도록 충분한 지연 시간 부여
+        setTimeout(function() {
+            popupWindow.print();
+            popupWindow.close();
+        }, 500);
+        return false;
+    });
+}
+
             printBarcodeReport(select_chasu, detail) {
                 const prod_mat_nm = ($('#tabBasic').find('#prod_mat_nm').val() || '').trim();
 
@@ -4107,6 +4320,10 @@
             // 차수 lot바코드 팝업
             $('#btnLOTbarcode').click(function (e) {
                 page.showBarcode();
+            });
+
+            $('#btnLOTbarcode2').click(function(e){
+                page.showBarcode2();
             });
 
             // 저장 메서드 호출
