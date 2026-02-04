@@ -1178,6 +1178,7 @@
                         {binding: 'mat_code', header: '품목코드', width: 90, align: 'center'},
                         {binding: 'mat_type', header: '품목구분', width: 100, align: 'center'},
                         {binding: 'mat_grp', header: '품목그룹', width: 100, align: 'center'},
+                        {binding: 'material_type', header: '품목종류', width: 100, align: 'center', visible: false},
 
                         
                         {binding: 'unit', header: '단위', width: 80, align: 'center'},
@@ -2967,12 +2968,12 @@ showBarcode2() {
             + "<div class='col-12'>" // 내부 컨테이너
             + "    <table class='table_1'>"
             + "      <tr>"
-            + "          <td class='tac'>품명</td>"
-            + "          <td colspan='3'>" + select_jr_array[i].mat_name + "</td>"
+            + "          <td class='tac'>종류</td>"
+            + "          <td colspan='3'>" + select_jr_array[i].material_type + "</td>"
             + "      </tr>"
             + "      <tr>"
-            + "          <td class='tac'>종류</td>"
-            + "          <td colspan='3'>" + select_jr_array[i].mat_grp + "</td>"
+            + "          <td class='tac'>품명</td>"
+            + "          <td colspan='3'>" + select_jr_array[i].mat_name + "</td>"
             + "      </tr>"
             + "      <tr>"
             + "          <td class='tac'>발주처</td>"

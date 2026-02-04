@@ -352,6 +352,8 @@ public class ProductionResultService {
                 			   , M."Class3" as class3                                          -- 3차공정
                 			   , COALESCE(C."Parent_id") as parent                             --부모아이디
                 			   , PM."Name" as parent_mat_name                                  --부모(마스터) 작업 품목 
+                			   , su.material_type as material_type                             --품목종류 
+                			   
                 			FROM S
                 			JOIN job_res       C  ON C.id = S.child_id              -- child = 대표행
                 			LEFT JOIN job_res P
