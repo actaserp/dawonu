@@ -321,12 +321,12 @@
                         <td>
                             <input type="text" id="StateName" name="StateName" readonly disabled>
                         </td>
-                        <th style="text-align: center">
+                        <!--<th style="text-align: center">
                             <label for="totalAmountSum">총액</label>
                         </th>
                         <td>
                             <input id="totalAmountSum" name="totalAmountSum" style="text-align:right;" readonly>
-                        </td>
+                        </td>-->
                     </tr>
                 </tbody>
             </table>
@@ -334,26 +334,22 @@
                 <table class="item-table">
                 <colgroup>
 <!--                    <col style="width: 6%">-->
-                    <col style="width: 20%">
-                    <col style="width: 11%">
+                    <col style="width: 15%">
+                    <col style="width: 15%">
+                    <col style="width: 10%">
+                    <col style="width: 6%">
                     <col style="width: 6%">
                     <col style="width: 13%">
-                    <col style="width: 9%">
-                    <col style="width: 9%">
-                    <col style="width: 9%">
-                    <col style="width: 11%">
                     <col style="width: 4%">
                 </colgroup>
                 <thead>
                 <tr id="itemHeaderRow">
-<!--                    <th>코드</th>-->
+               <!-- <th>코드</th>-->
+                    <th>품목종류</th>
                     <th>품목</th>
                     <th>규격</th>
+                    <th>수량(장)</th>
                     <th>수량(㎡)</th>
-                    <th>단가 <span style="font-size: 13px;">(선택시 부가세 포함)</span></th>
-                    <th>공급가액</th>
-                    <th>부가세</th>
-                    <th>합계</th>
                     <th>비고</th>
                     <th>
                         <a class="btn in_btn plus" id="addRemark" title="추가">
@@ -366,6 +362,7 @@
                     <!--<td>
                         <input type="text" style="text-align:center;" name="product_code" placeholder="코드" readonly/>
                     </td>-->
+                     <td><input type="text" name="material_type" placeholder="품목종류" /></td>
                     <td>
                         <div class="input-with-button">
                             <input type="hidden" name="suju_id" />
@@ -385,17 +382,18 @@
                         </a>
                       </div>
                     </td>
-                    <td><input type="text" style="text-align:right;" name="quantity" placeholder="수량(㎡)" /></td>
-                    <td>
-                        <div class="input-with-checkbox">
-                            <input style="text-align:right;" type="text" name="unitPrice" placeholder="단가" />
-                            <input type="hidden" name="originalUnitPrice" />
-                            <input type="checkbox" name="VatIncluded" />
-                        </div>
-                    </td>
-                    <td><input type="text" style="text-align:right;" name="supplyAmount" placeholder="공급가액" /></td>
+                    <td><input type="text" style="text-align:right;" name="quantity" placeholder="수량(장)" /></td>
+                    <td><input type="text" style="text-align:right;" name="quantity2" placeholder="수량(㎡)" /></td>
+<!--                    <td>-->
+<!--                        <div class="input-with-checkbox">-->
+<!--                            <input style="text-align:right;" type="text" name="unitPrice" placeholder="단가" />-->
+<!--                            <input type="hidden" name="originalUnitPrice" />-->
+<!--                            <input type="checkbox" name="VatIncluded" />-->
+<!--                        </div>-->
+<!--                    </td>-->
+                    <!--<td><input type="text" style="text-align:right;" name="supplyAmount" placeholder="공급가액" /></td>
                     <td><input type="text" style="text-align:right;" name="VatAmount" placeholder="부과세"/></td>
-                    <td><input type="text" style="text-align:right;" name="totalAmount" placeholder="합계" /></td>
+                    <td><input type="text" style="text-align:right;" name="totalAmount" placeholder="합계" /></td>-->
                     <td><input type="text" name="description" placeholder="비고" /></td>
                     <td class="al_c item_border">
                         <a class="btn in_btn" title="삭제" onclick="removeItemRow(this)">
@@ -508,7 +506,7 @@
        {binding: 'JumunDate', header: '수주일', width: 120, align: 'center'},
        {binding: 'JumunNumber', header: '수주 번호', width: 150, align: 'center', visible: false},
        {binding: 'product_name', header: '제품명', width: 400},
-       {binding: 'TotalPrice', header: '총액', width: 120, align: 'right', format: 'n0'},
+       // {binding: 'TotalPrice', header: '총액', width: 120, align: 'right', format: 'n0'},
        {binding: 'DueDate', header: '납기일', width: 120, align: 'center'},
        {binding: 'StateName', header: '작업상태', width: 100, align: 'center'},
        {binding: 'ShipmentStateName', header: '출하상태', width: 100, align: 'center'},
@@ -599,66 +597,6 @@
       }
      });
 
-     // ====== 유틸 ======
-     function toNum(v, d = 0) {
-      const n = Number.parseFloat(String(v ?? '').replace(/,/g, ''));
-      return Number.isFinite(n) ? n : d;
-     }
-
-     function toStr(v, d = '') {
-      return (v == null ? d : String(v)).trim();
-     }
-
-     // ====== 상세 호출 설정 ======
-     const DETAIL_URL = _this.url + '/print_list';
-     const buildDetailParams = (row) => ({id: row.id, _ts: Date.now()}); // 캐시 버스터
-
-     // AjaxUtil → Promise 래핑
-     function getDetailAsync(url, data) {
-      return new Promise((resolve, reject) => {
-       AjaxUtil.getAsyncData(url, data, (res) => resolve(res), (err) => reject(err));
-      });
-     }
-
-     // 응답 적응 + items 정규화(템플릿 키에 맞춤)
-     // - 품목명 꼬리표 " ... 외 N개" 방지(안전 차원 후처리)
-     function adaptDetailResponse(resp) {
-      const raw = resp?.data ?? resp ?? {};
-      const head = raw.head ?? {};
-      const rows = raw.items ?? raw.lines ?? raw.Rows ?? raw.rows ?? [];
-
-      let s = raw.supplier ?? raw.supplierSql ?? {};
-      if (Array.isArray(s)) s = s[0] ?? {};
-
-      const supplier = {
-       SupplierBizNo: toStr(s.biz_no ?? s.saupnum ?? s.SupplierBizNo ?? ''),
-       SupplierName: toStr(s.name ?? s.spjangnm ?? s.SupplierName ?? ''),
-       SupplierCeo: toStr(s.ceo ?? s.prenm ?? s.RepresentativeName ?? s.supplierceo ?? ''),
-       SupplierAddress: toStr(s.address ?? s.adresa ?? s.SupplierAddress ?? ''),
-       SupplierBizType: toStr(s.biz_type ?? s.biztype ?? s.SupplierBizType ?? ''),
-       SupplierBizItem: toStr(s.biz_item ?? s.item ?? s.SupplierBizItem ?? ''),
-       SupplierTel: toStr(s.tel ?? s.tel1 ?? s.SupplierTel ?? '')
-      };
-
-
-      const items = Array.isArray(rows) ? rows.map(r => ({
-       head_id: r.head_id ?? r.HEAD_ID,
-       suju_id: r.suju_id ?? r.SUJU_ID,
-       product_name: toStr(r.product_name ?? r.ProductName ?? r.PNAME).replace(/\s*외\s*\d+\s*개$/u, ''),
-       Standard: toStr(r.Standard ?? r.Spec ?? r.length ?? r.LEN ?? ''), // 인쇄 보존용 문자열
-       Qty: toNum(r.Qty ?? r.quantity ?? r.QTY),
-       UnitName: toStr(r.UnitName ?? r.Unit ?? r.unit ?? r.unit_name ?? ''),
-       UnitPrice: toNum(r.UnitPrice ?? r.unit_price ?? r.PRICE),
-       SupplyAmount: toNum(r.SupplyAmount ?? r.supply_amount ?? r.AMT),
-       VatAmount: toNum(r.VatAmount ?? r.vat_amount ?? r.VAT),
-       TotalAmount: toNum(r.TotalAmount ?? r.total_amount ?? (toNum(r.SupplyAmount) + toNum(r.VatAmount))),
-       Description: toStr(r.Description ?? r.head_description ?? ''),
-       SujuQty2: toNum(r.SujuQty2 ?? r.sujuqty2 ?? r.SUJUQTY2 ?? 0),
-      })) : [];
-
-      return {head, items, supplier};
-     }
-
      // 엔터키 검색
      $('#keyword').on('keypress', function (e) {
       if (e.keyCode === 13) {
@@ -690,16 +628,6 @@
 
      if (data.mode === 'new') {
       $btnProductSearch.removeAttr('disabled');
-     }
-
-     function getUnitVal($row) {
-      const $u = $row.find('input[name="unit"], input[name^="unit_"]');
-      return (($u.first().val() || '') + '').trim();
-     }
-
-     function isMeter(unit) {
-      const v = (unit || '').trim();
-      return v === 'm' || v === 'm(미터)' || v === 'meter' || v.includes('미터');
      }
 
      $content.find('#btnCompanySearch').click(function () {
@@ -898,7 +826,6 @@
 
        if (materialId !== null && materialId !== '') {
         const qty = data[`quantity_${index}`];
-        const price = data[`unitPrice_${index}`];
 
         if (!qty) {
          Alert.alert('', `(${index + 1}번째 행) 수량을 입력하세요.`);
@@ -936,13 +863,14 @@
          txtProductName: productName,
          //txtProductName: data[`txtProductName_${i}`] || '',
          quantity: (data[`quantity_${i}`] || '0').replace(/,/g, ''),
-         unitPrice: (data[`unitPrice_${i}`] || '0').replace(/,/g, ''),
-         supplyAmount: (data[`supplyAmount_${i}`] || '0').replace(/,/g, ''),
-         VatAmount: data[`VatAmount_${i}`] === '면세' ? '0' : (data[`VatAmount_${i}`] || '0').replace(/,/g, ''),
-         totalAmount: (data[`totalAmount_${i}`] || '0').replace(/,/g, ''),
+         quantity2: (data[`quantity2_${i}`] || '0').replace(/,/g, ''),
+         // unitPrice: (data[`unitPrice_${i}`] || '0').replace(/,/g, ''),
+         // supplyAmount: (data[`supplyAmount_${i}`] || '0').replace(/,/g, ''),
+         // VatAmount: data[`VatAmount_${i}`] === '면세' ? '0' : (data[`VatAmount_${i}`] || '0').replace(/,/g, ''),
+         // totalAmount: (data[`totalAmount_${i}`] || '0').replace(/,/g, ''),
          description: data[`description_${i}`] || '',
-         VatIncluded: data[`VatIncluded_${i}`] === undefined ? 'N' : 'Y',
-         projectHidden: data[`projectHidden_${i}`] || '',
+         // VatIncluded: data[`VatIncluded_${i}`] === undefined ? 'N' : 'Y',
+         material_type: data[`material_type_${i}`] || '',
          unitPriceChanged: (() => {
           const ori = parseFloat(data[`originalUnitPrice_${i}`] || '0');
           const cur = parseFloat((data[`unitPrice_${i}`] || '0').replace(/,/g, ''));
@@ -963,7 +891,7 @@
         DeliveryName: data.DeliveryName,
         SujuType: data.SujuType,
         spjangcd: data.spjangcd,
-        totalAmountSum: data.totalAmountSum,
+        // totalAmountSum: data.totalAmountSum,
         Description: data.Description,
         items: items
        };
@@ -1202,7 +1130,7 @@
      // 1) 입력 중: 포맷(천단위)만, 소수 고정 금지
      $content.off('input.numfmt')
      .on('input.numfmt',
-      'input[name^="quantity_"], input[name^="unitPrice_"],' +
+      'input[name^="quantity_"],input[name^="quantity2_"], input[name^="unitPrice_"],' +
       ' input[name^="supplyAmount_"], input[name^="VatAmount_"],' +
       ' input[name^="totalAmount_"]',
       function (e) {
@@ -1324,7 +1252,7 @@
      // 블러 시: totalAmount_는 조정 행에서 음수 유지
      $content.off('blur.numfmt')
      .on('blur.numfmt',
-      'input[name^="quantity_"], input[name^="unitPrice_"], ' +
+      'input[name^="quantity_"], input[name^="quantity2_"], input[name^="unitPrice_"], ' +
       'input[name^="supplyAmount_"], input[name^="VatAmount_"], ' +
       'input[name^="totalAmount_"]',
       function () {
@@ -1558,13 +1486,11 @@
       const nameAttr = $input.attr('name') || '';
 
       const focusOrder = [
+       'material_type_',
        'txtProductName_',
        'standard_',
        'quantity_',
-       'unitPrice_',
-       'supplyAmount_',
-       'VatAmount_',
-       'totalAmount_',
+       'quantity2_',
        'description_',
       ];
 

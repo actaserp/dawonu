@@ -114,4 +114,10 @@ public class Suju extends AbstractAuditModel {
 	@Column(name="\"Material_Name\"")
 	String Material_Name;
 
+	@Column(name="\"SujuAreaM2\"")
+	Double SujuAreaM2;
+
+	@Column(name= "material_type")
+	String material_type;// 품목 종류
+
 }

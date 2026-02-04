@@ -141,6 +141,7 @@ public class ProdOrderEditService {
                 on sm.id = jr."SourceDataPk"
                and jr."SourceTableName" = 'suju'
             where jr."State" <> 'canceled'
+             and jr."Parent_id" is null
             group by sm.id, jr."Description"
         )
         select
@@ -180,7 +181,7 @@ public class ProdOrderEditService {
             q.memo
         from sm
         left join q on q.suju_id = sm.id
-        where 1 = 1
+        where 1 = 1 
         """;
 
 			// not_flag (잔여량 > 0)
@@ -581,7 +582,8 @@ public class ProdOrderEditService {
 				where 1=1
 				AND m.spjangcd = :spjangcd
 				AND m."Useyn" = '0'
-				and ( m."Name" ilike concat('%',:keyword,'%') or m."Code" ilike concat('%',:keyword,'%'));
+				and ( m."Name" ilike concat('%',:keyword,'%') or m."Code" ilike concat('%',:keyword,'%'))
+				and mg."MaterialType" in('sub_mat','product' );
 		""";
 		return sqlRunner.getRows(sql, dicParam);
 		}

@@ -179,7 +179,7 @@ public class SujuController {
     User user = (User) auth.getPrincipal();
 
     AjaxResult result = new AjaxResult();
-    //log.info("수주등록 들어온 데이터: payload:{}", payload);
+    log.info("수주등록 들어온 데이터: payload:{}", payload);
     String jumunDateStr = (String) payload.get("JumunDate");
     String dueDateStr = (String) payload.get("DueDate");
 
@@ -192,16 +192,7 @@ public class SujuController {
     String sujuType = (String) payload.get("SujuType");
     String description = (String) payload.get("Description");
     String spjangcd = (String) payload.get("spjangcd");
-    String amountStr = payload.get("totalAmountSum").toString().replace(",", "");
 
-    double totalAmount = 0.0;
-    try {
-      if (amountStr != null && !amountStr.trim().isEmpty()) {
-        totalAmount = Double.parseDouble(amountStr.trim().replace(",", ""));
-      }
-    } catch (NumberFormatException e) {
-      // 무시하고 0 유지
-    }
     List<Map<String, Object>> items = (List<Map<String, Object>>) payload.get("items");
 
     SujuHead head;
@@ -222,7 +213,7 @@ public class SujuController {
     head.setSpjangcd(spjangcd);
     head.set_audit(user);
     head.setSujuType(sujuType);
-    head.setTotalPrice(totalAmount);
+//    head.setTotalPrice(totalAmount);
     head.setDescription(description);
 
     head.set_status("manual");
@@ -236,7 +227,6 @@ public class SujuController {
           ""
       );
 
-
       // ✅ 수정인지 확인
       if (item.containsKey("suju_id") && item.get("suju_id") != null && !item.get("suju_id").toString().isEmpty()) {
         Integer sujuId = Integer.parseInt(item.get("suju_id").toString());
@@ -249,11 +239,11 @@ public class SujuController {
           qty = Double.valueOf(String.valueOf(item.get("quantity")));
         } catch (Exception ignore) {
         }
-        Integer unitPrice = null;
-        try {
-          unitPrice = Integer.valueOf(String.valueOf(item.get("unitPrice")));
-        } catch (Exception ignore) {
-        }
+//        Integer unitPrice = null;
+//        try {
+//          unitPrice = Integer.valueOf(String.valueOf(item.get("unitPrice")));
+//        } catch (Exception ignore) {
+//        }
         Date newDueDate = dueDate; // 이미 위에서 만든 dueDate
 
         boolean isAdjustmentLine = (mid == null); // 단수정리 라인
@@ -262,8 +252,7 @@ public class SujuController {
         boolean coreChanged =
             !java.util.Objects.equals(suju.getMaterialId(), mid) ||
                 !java.util.Objects.equals(suju.getSujuQty(), qty) ||
-                !java.util.Objects.equals(suju.getSujuQty2(), qty) ||
-                !java.util.Objects.equals(suju.getUnitPrice(), unitPrice) ||
+//                !java.util.Objects.equals(suju.getUnitPrice(), unitPrice) ||
                 !java.util.Objects.equals(suju.getCompanyId(), companyId) ||
                 !java.util.Objects.equals(suju.getDueDate(), newDueDate);
 
@@ -306,20 +295,22 @@ public class SujuController {
       suju.setState("received");
       suju.set_audit(user);
 
-      String invatyn = item.get("VatIncluded").toString();
+//      String invatyn = item.get("VatIncluded").toString();
 
       //suju.setMaterialId(Integer.parseInt(item.get("Material_id").toString()));
       Integer mid = toIntegerOrNull(item.get("Material_id"));
       suju.setMaterialId(mid);
+      suju.setMaterial_type(item.get("material_type").toString());
       suju.setMaterial_Name((String) item.get("txtProductName"));
       suju.setSujuQty(Double.parseDouble(item.get("quantity").toString()));
       suju.setSujuQty2(Double.parseDouble(item.get("quantity").toString()));
-      suju.setUnitPrice(Integer.parseInt(item.get("unitPrice").toString()));
-      suju.setPrice(Integer.parseInt(item.get("supplyAmount").toString()));
-      suju.setVat(Integer.parseInt(item.get("VatAmount").toString()));
-      suju.setTotalAmount(Integer.parseInt(item.get("totalAmount").toString()));
-      suju.setProject_id(item.get("projectHidden").toString());
-      suju.setInVatYN(invatyn);
+      suju.setSujuAreaM2(Double.parseDouble(item.get("quantity2").toString())); //수량(㎡)
+//      suju.setUnitPrice(Integer.parseInt(item.get("unitPrice").toString()));
+//      suju.setPrice(Integer.parseInt(item.get("supplyAmount").toString()));
+//      suju.setVat(Integer.parseInt(item.get("VatAmount").toString()));
+//      suju.setTotalAmount(Integer.parseInt(item.get("totalAmount").toString()));
+
+//      suju.setInVatYN(invatyn);
       suju.setDescription((String) item.get("description"));
       suju.setStandard(standard);
       suju.setConfirm("0");
@@ -857,7 +848,7 @@ public class SujuController {
       suju.setVat((int) (total_price.intValue() * 0.1));
       suju.setTotalAmount(total_price.intValue() + (int) (total_price.intValue() * 0.1));
       suju.setInVatYN("N");
-      suju.setProject_id(project.getId().getProjno());
+
       suju.setSpjangcd(spjangcd);
       suju.setConfirm("0");
       suju.setSujuHeadId(sujuHead.getId());
