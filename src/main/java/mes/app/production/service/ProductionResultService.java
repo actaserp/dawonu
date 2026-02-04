@@ -382,7 +382,6 @@ public class ProductionResultService {
                             AND COALESCE(F.class1,'') <> ''
                             AND COALESCE(F.class2,'') = ''
                             AND COALESCE(F.class3,'') = ''
-                            AND 
                         )
                      OR (:jobProc = 2
                             AND COALESCE(F.class1,'') <> ''
@@ -399,7 +398,6 @@ public class ProductionResultService {
                             AND COALESCE(F.class2,'') <> ''
                             AND COALESCE(F.class3,'') <> ''
                         )
-                        
                     )
                     """;
         }
