@@ -1027,40 +1027,15 @@
                         }
                     },
                     columns: [
-                        {binding: 'misdate', header: '작성일자', width: 100, align: 'center', isReadOnly: true},
+                        {binding: 'misdate', header: '작성일자', width: 120, align: 'center', isReadOnly: true},
                         {binding: 'misnum', header: '작성번호', width: 90, visible: false},
                         {binding: 'cltcd', header: '회사id', width: 90, visible: false},
-                        {binding: 'ivercorpnum', header: '사업자 번호', width: 120, align: 'center', isReadOnly: true},
-                        {binding: 'ivercorpnm', header: '상호', width: 130, align: 'left', isReadOnly: true},
-                        {binding: 'item_summary', header: '품명', width: 100, isReadOnly: true},
-                        {
-                            binding: 'issuediv', header: '발행 구분', width: 120, align: 'center',
-                            dataMap: issueDivMap
-                        },
-                        {
-                            binding: 'totalamt',
-                            header: '합계금액',
-                            width: 110,
-                            align: 'right',
-                            format: 'n0',
-                            isReadOnly: true
-                        },
-                        {
-                            binding: 'supplycost',
-                            header: '공급가액',
-                            width: 110,
-                            align: 'right',
-                            format: 'n0',
-                            isReadOnly: true
-                        },
-                        {binding: 'taxtotal', header: '세액', width: 100, align: 'right', format: 'n0', isReadOnly: true},
-                        {binding: 'statecode', visible: false},
-                        {binding: 'statecode_name', header: '상태', width: 80, align: 'center', isReadOnly: true},
-                        {binding: 'taxtype', header: '구분', width: 80, align: 'center', isReadOnly: true},
-                        {binding: 'misgubun_name', header: '매출구분', width: 80, align: 'center', isReadOnly: true},
-                        {binding: 'iverceonm', header: '대표자', width: 90, align: 'center', isReadOnly: true},
+                        {binding: 'ivercorpnum', header: '사업자 번호', width: 150, align: 'center', isReadOnly: true},
+                        {binding: 'ivercorpnm', header: '상호', width: 150, align: 'left', isReadOnly: true},
+                        {binding: 'item_summary', header: '품명', width: 250, isReadOnly: true},
+                        {binding: 'snddate', header: '납기일자', width: 120, align: 'center', isReadOnly: true},
                         {binding: 'iveremail', header: '이메일', width: 130, align: 'center', isReadOnly: true},
-                        {binding: 'iveraddr', header: '주소', width: 150, align: 'center', isReadOnly: true},
+                        {binding: 'iveraddr', header: '주소', width: 200, align: 'center', isReadOnly: true},
                         {
                             binding: 'statedt_formatted',
                             header: '상태 변경일시',
@@ -2188,7 +2163,6 @@
                         $content.find('#InvoiceeContactName1').val(i.invoiceecontactname1);
                         $content.find('#InvoiceeTEL1').val(i.invoiceetel1).trigger('input');
                         $content.find('#InvoiceeEmail1').val(i.invoiceeemail1);
-                        $content.find('#snddate').val(i.snddate);
                         $content.find('#InvoiceeCorpNum').prop('readonly', true);
                     }
                     $content.find('#resultList').hide();
@@ -2224,6 +2198,10 @@
                     let $snddate = $content.find('#snddate');
 
                     $snddate.val(data?.snddate || tomorrow);
+
+                    let $remark1 = $content.find('#Remark1');
+
+                    $remark1.val(data?.remark1 || '');
 
                     // detailList의 PurchaseDT1 변경 → 전체 행에 동일하게 반영
                     $content.on('change', 'input[name^="detailList"][name$=".PurchaseDT1"]', function () {
@@ -2609,7 +2587,6 @@
                     $content.find('#InvoiceeEmail1').val(item.invoiceeemail1);
                     oldBusinessNumber = item.business_number;
                     $content.find('#InvoiceeCorpNum').prop('readonly', true);
-
                     setTimeout(() => {
                         $content.find('#Remark1').focus();
                     }, 0);
@@ -4059,7 +4036,8 @@
                         PurchaseDT2: day,
                         ItemName: item.mat_name || '',
                         Spec: item.standard,
-                        Qty2: item.qty.toLocaleString(),
+                        Qty: item.qty.toLocaleString(),
+                        Qty2: item.qty2.toLocaleString(),
                         Remark: item.Remark,
                         isParent: true
                     }));
@@ -4082,6 +4060,9 @@
                     const snddate =
                         sujuList.find(s => s?.snddate)?.snddate || null;
 
+                    const remark1 =
+                        sujuList.find(s => s?.remark1)?.remark1 || null;
+
                     // ✅ 최종 반환
                     return {
                         id: '',
@@ -4089,7 +4070,8 @@
                         sujuids: headIds,
                         detailList,
                         invoicee,
-                        snddate
+                        snddate,
+                        remark1
                     };
                 }
 

@@ -121,6 +121,7 @@ public class SalesInvoiceService {
                   
                   SELECT
                    TO_CHAR(TO_DATE(m.misdate, 'YYYYMMDD'), 'YYYY-MM-DD') AS misdate,
+                   TO_CHAR(TO_DATE(m.snddate, 'YYYYMMDD'), 'YYYY-MM-DD') AS snddate,
                    m.misnum,
                    m.misgubun,
                    sale_type_code."Value" AS misgubun_name,  -- fn_code_name 제거
@@ -890,7 +891,7 @@ public class SalesInvoiceService {
                 sh."JumunDate",
                 sh."DeliveryDate" as snddate,
                 sh."Company_id",
-                sh."Description" as "Remark1"
+                sh."Description" as "remark1"
             FROM suju_head sh
             WHERE sh.id = :suju_id
         """;
@@ -904,6 +905,7 @@ public class SalesInvoiceService {
                 s."Material_Name"   AS mat_name,
                 s."Standard"        AS standard,
                 s."SujuQty" as qty,
+                s."SujuAreaM2" as qty2,
                 s."Description" as "Remark"
             FROM suju s
             WHERE s."SujuHead_id" = :suju_id
