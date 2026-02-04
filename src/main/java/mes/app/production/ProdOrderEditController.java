@@ -1,27 +1,22 @@
 package mes.app.production;
 
-import java.awt.*;
-import java.sql.Timestamp;
-import java.util.List;
-import java.util.Map;
-import javax.servlet.http.HttpServletRequest;
-import javax.transaction.Transactional;
-
 import com.fasterxml.jackson.core.JsonProcessingException;
 import mes.Exception.CustomException;
-import mes.app.production.production_package.*;
-import mes.domain.entity.*;
-import mes.domain.repository.*;
+import mes.app.production.service.ProdOrderEditService;
+import mes.domain.entity.JobRes;
+import mes.domain.entity.User;
+import mes.domain.model.AjaxResult;
+import mes.domain.repository.JobResRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
-import mes.app.production.service.ProdOrderEditService;
-import mes.domain.model.AjaxResult;
+import javax.servlet.http.HttpServletRequest;
+import javax.transaction.Transactional;
+import java.sql.Timestamp;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/production/prod_order_edit")
@@ -193,6 +188,47 @@ public class ProdOrderEditController {
             result.success = false;
         }
 
+        return result;
+    }
+
+    @PostMapping("/save_mat_match")
+    @Transactional
+    public AjaxResult saveMatMatch(
+      @RequestParam("suju_item_id") Integer sujuItemId,
+      @RequestParam("material_id") Integer materialId,
+      @RequestParam("spjangcd") String spjangcd,
+      Authentication auth
+    ){
+        AjaxResult result = new AjaxResult();
+        User user = (User) auth.getPrincipal();
+
+        prodOrderEditService.saveMatMatch(sujuItemId, materialId, spjangcd, user);
+
+        // 프론트 그리드 갱신용(선택)
+//        Map<String,Object> mat = prodOrderEditService.getMatBasic(materialId, spjangcd);
+        result.success = true;
+//        result.data = mat; // {mat_code, mat_name, mat_type_name}
+        return result;
+    }
+
+
+    @GetMapping("/search_mat_match")
+    public AjaxResult getSearchMatMatch(
+      @RequestParam(value="keyword", required=false) String keyword,
+      @RequestParam(value="spjangcd", required=false) String spjangcd
+    ){
+        AjaxResult result = new AjaxResult();
+
+        if (keyword == null || keyword.trim().isEmpty()) {
+            result.success = true;
+            result.data = Collections.emptyList();
+            return result;
+        }
+
+        List<Map<String,Object>> rows = prodOrderEditService.searchMatMatch(keyword, spjangcd);
+
+        result.success = true;
+        result.data = rows;
         return result;
     }
 

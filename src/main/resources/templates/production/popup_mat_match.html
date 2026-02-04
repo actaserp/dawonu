@@ -1,0 +1,409 @@
+<th:block th:fragment="popup_mat_match">
+  <script type="text/x-tmpl" id="popup_mat_matchTemplate">
+    <style>
+      #div_mat_match.content_wrap.popup{
+        display:flex; flex-direction:column; height:100%;
+      }
+
+      #div_mat_match .table-wrap{
+        flex:1; min-height:0; overflow-y:auto; padding-right:5px;
+      }
+
+      #div_mat_match .popup-button{
+        flex-shrink:0; padding:10px; background:#fff; border-top:1px solid #ddd;
+        display:flex; justify-content:center; gap:10px;
+      }
+
+      #div_mat_match .btn-popup{ min-width:120px; padding:10px 24px; }
+
+      /* 검색 바 */
+      #div_mat_match .match-search{
+        display:flex; gap:8px; align-items:center;
+      }
+      #div_mat_match .match-search input{ flex:1; }
+
+      /* 테이블 헤더 sticky (후보 리스트) */
+      #div_mat_match .candidate-scroll{ max-height:360px; overflow-y:auto; }
+      #div_mat_match .candidate-scroll thead th{
+        position: sticky; top: 0; background:#EDEFF5; z-index:2;
+      }
+
+      /* 선택행 강조(원하면 js에서 .selected-row 붙이기) */
+      #div_mat_match tr.selected-row{ background:#fff6d6; }
+    </style>
+
+    <div class="content_wrap popup" id="div_mat_match">
+      <div class="table-wrap">
+        <form id="MatMatchForm">
+          <table class="write-table">
+            <caption>품목 매칭</caption>
+            <tbody>
+
+              <!-- 1) 현재 매칭 대상(수주 품목 원본) -->
+              <tr>
+                <th style="text-align:center; width:140px;">수주번호</th>
+                <td><input id="mm_suju_no" name="mm_suju_no" readonly></td>
+
+                <th style="text-align:center; width:140px;">판매처</th>
+                <td><input id="mm_company_name" name="mm_company_name" readonly></td>
+              </tr>
+
+              <tr>
+                <th style="text-align:center;">수주 품목명(원본)</th>
+                <td colspan="3">
+                  <input id="mm_src_name" name="mm_src_name" readonly style="width:100%;">
+                </td>
+              </tr>
+
+              <!-- 숨김키(필수) -->
+              <tr style="display:none;">
+                <td colspan="4">
+                  <input type="hidden" id="mm_suju_item_id" name="mm_suju_item_id">
+                  <input type="hidden" id="mm_selected_material_id" name="mm_selected_material_id">
+                </td>
+              </tr>
+
+              <!-- 2) 실제 품목 검색 -->
+              <tr>
+                <th style="text-align:center;">
+                  <span class="eq">*</span>실제 품목 검색
+                </th>
+                <td colspan="3">
+                  <div class="match-search">
+                    <input type="text" id="mm_keyword" placeholder="품목명/코드로 검색">
+                    <button type="button" class="btn-popup" id="btnMmSearch" style="min-width:90px;">검색</button>
+                  </div>
+                  <div style="margin-top:6px; color:#666;">
+                    ※ 후보에서 1개 선택 후 “매칭저장”을 누르세요.
+                  </div>
+                </td>
+              </tr>
+
+              <!-- 3) 후보 리스트 -->
+              <tr>
+                <th style="text-align:center;">후보 목록</th>
+                <td colspan="3">
+                  <div class="candidate-scroll">
+                    <table class="item-table" id="mmCandidateTable">
+                      <colgroup>
+                        <col style="width:8%">
+                        <col style="width:16%">
+                        <col style="width:36%">
+                        <col style="width:13%">
+                        <col style="width:13%">
+                        <col style="width:14%">
+                      </colgroup>
+                      <thead>
+                        <tr>
+                          <th>선택</th>
+                          <th>품목코드</th>
+                          <th>품목명</th>
+                          <th>1차공정</th>
+                          <th>2차공정</th>
+                          <th>3차공정</th>
+                        </tr>
+                      </thead>
+                      <tbody id="mmCandidateTbody">
+                        <!-- JS로 렌더링 -->
+                        <!-- 예)
+                        <tr data-id="123">
+                          <td><input type="radio" name="mm_pick"></td>
+                          <td>MAT-001</td>
+                          <td>알루미늄 케이스</td>
+                          <td>100x50</td>
+                          <td>EA</td>
+                        </tr>
+                        -->
+                      </tbody>
+                    </table>
+                  </div>
+                </td>
+              </tr>
+
+              <!-- 4) 선택된 실제 품목 표시(선택사항이지만 있으면 좋음) -->
+              <tr>
+                <th style="text-align:center;">선택 품목</th>
+                <td colspan="3">
+                  <input id="mm_selected_display" readonly style="width:100%;" placeholder="후보에서 선택하면 자동 표시">
+                </td>
+              </tr>
+
+            </tbody>
+          </table>
+        </form>
+      </div>
+
+      <div class="popup-button">
+        <button type="button" class="btn-popup y_write_auth" id="btnMmSave">매칭저장</button>
+        <button type="button" class="btn-popup" id="btnMmClose">닫기</button>
+      </div>
+    </div>
+  </script>
+
+  <script type="text/javascript">
+   class PopMatMatchComponent {
+    static currentInstance = null;
+
+    constructor(
+     { saveUrl = '/api/production/prod_order_edit/save_mat_match',
+      searchUrl = '/api/production/prod_order_edit/search_mat_match' } = {}) {
+     // 한 번에 하나만 열리게
+     if (PopMatMatchComponent.currentInstance) {
+      PopMatMatchComponent.currentInstance.close();
+     }
+     PopMatMatchComponent.currentInstance = this;
+
+     this.saveUrl = saveUrl;
+     this.searchUrl = searchUrl;
+
+     this.modalContainer = new PopupDraggable('품목 매칭');
+     this.$content = null;
+
+     this.onSaved = null;
+     this.focusAfterClose = null;
+     this.payload = null;
+
+     this._escHandler = null;
+    }
+
+    show({ payload = {}, onSaved = null, focusAfterClose = null } = {}) {
+     this.payload = payload || {};
+     this.onSaved = onSaved;
+     this.focusAfterClose = focusAfterClose || document.activeElement;
+
+     // 템플릿 렌더 + 팝업 오픈
+     const $content = $(tmpl('popup_mat_matchTemplate', {}));
+     this.$content = $content;
+
+     this.modalContainer.open({ width: 1100, height: 590, $content });
+
+     // 값 바인딩
+     this._bindPayload(this.payload);
+
+     // 이벤트 바인딩
+     this._bindEvents();
+
+     //검색
+     const kw = ($content.find('#mm_keyword').val() || '').trim();
+     if (kw && this.searchUrl) {
+      // 렌더링 타이밍 안정화
+      setTimeout(() => this._doSearch(kw), 0);
+     }
+
+     // ESC 닫기
+     this._escHandler = (e) => {
+      if (e.key === 'Escape' || e.keyCode === 27) this.close();
+     };
+     $(document).on('keydown.popupesc_matmatch', this._escHandler);
+
+     // 닫힐 때 정리 + 포커스 복원
+     this.modalContainer.onClose = () => {
+      $(document).off('keydown.popupesc_matmatch', this._escHandler);
+      this._escHandler = null;
+
+      if (this.focusAfterClose && document.body.contains(this.focusAfterClose)) {
+       setTimeout(() => this.focusAfterClose.focus(), 50);
+      }
+     };
+    }
+
+    _doSearch(keyword) {
+     const $c = this.$content;
+     if (!$c) return;
+     const spjangcd = (sessionStorage.getItem('spjangcd') || '').trim();
+     const kw = (keyword ?? '').trim();
+     if (!kw) return;
+
+     if (!this.searchUrl) {
+      Alert.alert('', '검색 API가 없어서 품목팝업으로 선택해주세요.');
+      return;
+     }
+
+     AjaxUtil.getAsyncData(this.searchUrl, { keyword: kw, spjangcd }, (res) => {
+      if (!res || !res.success) {
+       Alert.alert('', res?.message || '검색에 실패했습니다.');
+       return;
+      }
+      this._renderCandidates(res.data || []);
+     });
+    }
+
+    _bindPayload(p = {}) {
+     const $c = this.$content;
+     if (!$c) return;
+
+     $c.find('#mm_suju_item_id').val(p.suju_item_id || '');
+     $c.find('#mm_suju_no').val(p.jumun_no || '');
+     $c.find('#mm_company_name').val(p.company_name || '');
+     $c.find('#mm_src_name').val(p.src_name || '');
+     $c.find('#mm_src_spec').val(p.src_spec || '');
+
+     // 초기화
+     $c.find('#mm_selected_material_id').val('');
+     $c.find('#mm_selected_display').val('');
+     $c.find('#mmCandidateTbody').empty();
+
+     // 검색어 자동 세팅(원하면)
+     if (p.src_name) $c.find('#mm_keyword').val(p.src_name);
+    }
+
+    _bindEvents() {
+     const $c = this.$content;
+     if (!$c) return;
+
+     // 중복 방지
+     $c.off('.mm');
+
+     // 닫기
+     $c.on('click.mm', '#btnMmClose', () => this.close());
+
+     // 후보 검색 (searchUrl 있을 때만)
+     $c.on('click.mm', '#btnMmSearch', () => {
+      const keyword = ($c.find('#mm_keyword').val() || '').trim();
+      if (!keyword) {
+       Alert.alert('', '검색어를 입력해주세요.');
+       return;
+      }
+      this._doSearch(keyword);
+     });
+
+     //Enter로도 검색되게
+     $c.on('keydown.mm', '#mm_keyword', (e) => {
+      if (e.key === 'Enter' || e.keyCode === 13) {
+       e.preventDefault();
+       const keyword = ($c.find('#mm_keyword').val() || '').trim();
+       if (!keyword) return;
+       this._doSearch(keyword);
+      }
+     });
+
+     // 후보 행 클릭 → 선택
+     $c.on('click.mm', '#mmCandidateTbody tr', (e) => {
+      const $tr = $(e.currentTarget);
+      const id = $tr.data('id');
+      if (!id) return;
+
+      $c.find('#mmCandidateTbody tr').removeClass('selected-row');
+      $tr.addClass('selected-row');
+
+      $c.find('#mmCandidateTbody input[name="mm_pick"]').prop('checked', false);
+      $tr.find('input[name="mm_pick"]').prop('checked', true);
+
+      const code = $tr.data('code') || '';
+      const name = $tr.data('name') || '';
+      this._setSelected({ id, Code: code, Name: name });
+      const wcId = $tr.data('workcenter-id') || '';
+      this._setSelected({ id, Code: code, Name: name, WorkCenter_id: wcId });
+     });
+
+     // 매칭 저장
+     $c.on('click.mm', '#btnMmSave', () => {
+      const sujuItemId = ($c.find('#mm_suju_item_id').val() || '').trim();
+      const materialId = ($c.find('#mm_selected_material_id').val() || '').trim();
+
+      if (!sujuItemId) {
+       Alert.alert('', '수주 품목 키(suju_item_id)가 없습니다.');
+       return;
+      }
+      if (!materialId) {
+       Alert.alert('', '매칭할 품목을 선택해주세요.');
+       return;
+      }
+
+      const data = {
+       suju_item_id: sujuItemId,
+       material_id: materialId,
+       spjangcd: (sessionStorage.getItem('spjangcd') || '').trim()
+      };
+
+      AjaxUtil.postAsyncData(this.saveUrl, data, (res) => {
+       if (res && res.success) {
+        Notify.success('매칭되었습니다.');
+
+        if (typeof this.onSaved === 'function') {
+         this.onSaved({
+          suju_item_id: Number(sujuItemId),
+          material_id: Number(materialId),
+          WorkCenter_id: this._selectedWorkCenterId ? Number(this._selectedWorkCenterId) : null,
+          raw: res.data
+         });
+        }
+
+        this.close();
+       } else {
+        Alert.alert('', res?.message || '매칭 저장에 실패했습니다.');
+       }
+      });
+     });
+    }
+
+    _setSelected(item) {
+     const $c = this.$content;
+     if (!$c) return;
+
+     $c.find('#mm_selected_material_id').val(item.id || '');
+     $c.find('#mm_selected_display').val(`${item.Code || ''} / ${item.Name || ''}`.trim());
+     this._selectedWorkCenterId = item.WorkCenter_id || '';
+    }
+
+    _renderCandidates(rows) {
+     const $c = this.$content;
+     if (!$c) return;
+
+     const $tbody = $c.find('#mmCandidateTbody');
+     $tbody.empty();
+
+     if (!rows || !rows.length) {
+      $tbody.append(`<tr><td colspan="6" style="text-align:center; padding:12px;">검색 결과가 없습니다.</td></tr>`);
+      return;
+     }
+
+     rows.forEach(r => {
+      // ✅ SQL이 m.id를 내려주면 r.id가 제일 확실
+      const id = r.id ?? r.material_id ?? r.mat_pk ?? '';
+
+      // ✅ SQL alias가 mat_code / mat_name
+      const code = r.mat_code ?? '';
+      const name = r.mat_name ?? '';
+
+      // ✅ 1/2/3차 공정 표시명은 "class1Name" 형태로 내려옴
+      // (SQL 별칭이 "class1Name"이라서 Map key가 class1Name 으로 잡히는 경우가 일반적)
+      const p1 = r.class1Name ?? r.class1_name ?? r.class1 ?? '';
+      const p2 = r.class2Name ?? r.class2_name ?? r.class2 ?? '';
+      const p3 = r.class3Name ?? r.class3_name ?? r.class3 ?? '';
+      const wcId = r.WorkCenter_id ?? r.workcenter_id ?? '';
+
+      $tbody.append(`
+      <tr data-id="${id}"
+          data-code="${code}"
+          data-name="${name}"
+          data-workcenter-id="${wcId}">
+        <td style="text-align:center;"><input type="radio" name="mm_pick"></td>
+        <td style="text-align:center;">${code}</td>
+        <td>${name}</td>
+        <td style="text-align:center;">${p1}</td>
+        <td style="text-align:center;">${p2}</td>
+        <td style="text-align:center;">${p3}</td>
+      </tr>
+    `);
+     });
+    }
+
+    close() {
+     this.modalContainer.close();
+
+     if (this.$content) {
+      this.$content.remove();
+      this.$content = null;
+     }
+
+     $(document).off('keydown.popupesc_matmatch', this._escHandler);
+     this._escHandler = null;
+
+     if (PopMatMatchComponent.currentInstance === this) {
+      PopMatMatchComponent.currentInstance = null;
+     }
+    }
+   }
+  </script>
+</th:block>

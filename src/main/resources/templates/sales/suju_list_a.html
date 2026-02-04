@@ -1039,34 +1039,93 @@
      }
 
 
-     // function isAdjustmentRow($row) {
-     //  const code = (($row.find('input[name^="product_code_"]').val() ?? '') + '').trim();
-     //  return code === ''; // 상품코드 비어있으면 단수정리 행
-     // }
-
      let isInternalFormatting = false;
+     let isCalculatingAmounts = false;
 
      function calculateAmounts($row, source = null) {
-      if (isInternalFormatting) return;
-      isInternalFormatting = true;
+      if (isCalculatingAmounts) return;
+      isCalculatingAmounts = true;
 
       try {
-       const quantity  = getNumericValue($row.find('input[name^="quantity_"]'), 0);
-       const unitPrice = getNumericValue($row.find('input[name^="unitPrice_"]'), 0);
+       const $qty = $row.find('input[name^="quantity_"]').first();
+       const $up  = $row.find('input[name^="unitPrice_"]').first();
+       const $sup = $row.find('input[name^="supplyAmount_"]').first();
+       const $vat = $row.find('input[name^="VatAmount_"]').first();
+       const $tot = $row.find('input[name^="totalAmount_"]').first();
+       const $inc = $row.find('input[name^="VatIncluded_"]').first(); // checkbox
 
-       // 단가 입력 유무(빈칸이거나 NaN이면 자동계산 금지)
-       const unitPriceRaw = String($row.find('input[name^="unitPrice_"]').val() || '').replace(/,/g, '');
-       const hasUnitPrice = unitPriceRaw !== '' && !isNaN(Number(unitPriceRaw));
+       const qty = getNumericValue($qty, 0);
+       const unitPrice = getNumericValue($up, 0);
 
-       // ✅ 단위/규격 무시: 실제 계산 수량은 항상 quantity
-       const qtyForCalc = Number.isFinite(quantity) ? quantity : 0;
+       // 단가 입력 유무(빈칸이면 자동계산 금지)
+       const unitPriceRaw = String($up.val() || '').replace(/,/g, '').trim();
+       const hasUnitPrice = unitPriceRaw !== '' && Number.isFinite(Number(unitPriceRaw));
 
-       // 이하 기존 계산 로직에서 qtyForCalc 사용만 유지
-       // 예)
-       const supplyAmount = hasUnitPrice ? (qtyForCalc * unitPrice) : 0;
-       // VAT/total 계산 등 기존 로직 이어서...
+       // ✅ 단위/규격 무시: qtyForCalc는 항상 qty
+       const qtyForCalc = Number.isFinite(qty) ? qty : 0;
+
+       const vatIncluded = $inc.length ? $inc.is(':checked') : false;
+       const vatExempt = false; // 정책 필요하면 연결
+
+       const supplyEdited = $row.data('supplyEdited') === true;
+       const vatEdited    = $row.data('vatEdited') === true;
+
+       // (조정행 있으면 여기서 처리)
+       const adjustment = (typeof isAdjustmentRow === 'function') ? isAdjustmentRow($row) : false;
+       if (adjustment) {
+        const s = getNumericValue($sup, 0, true); // 음수 허용(지원 시)
+        isInternalFormatting = true;
+        $vat.val(''); // VAT=0
+        $tot.val(s === 0 ? '' : Number(s).toLocaleString('ko-KR'));
+        isInternalFormatting = false;
+
+        calculateTotalSum($row.closest('#div_excel_upload'));
+        return;
+       }
+
+       // ✅ 자동계산 조건:
+       // - source가 unit이면 강제 자동
+       // - 또는 supply/vat 모두 수동편집이 아닐 때 자동
+       const shouldAuto = hasUnitPrice && ((source === 'unit') || (!supplyEdited && !vatEdited));
+
+       let supply = getNumericValue($sup, 0);
+       let vat    = getNumericValue($vat, 0);
+
+       if (shouldAuto) {
+        const lineTotal = qtyForCalc * unitPrice;
+
+        if (vatExempt) {
+         supply = lineTotal;
+         vat = 0;
+        } else if (vatIncluded) {
+         supply = Math.round(lineTotal / 1.1);
+         vat = lineTotal - supply;
+        } else {
+         supply = lineTotal;
+         vat = Math.floor(supply * 0.1);
+        }
+
+        // ✅ 값 세팅(사용자 편집칸은 보호)
+        isInternalFormatting = true;
+        if (!supplyEdited) $sup.val(supply === 0 ? '' : Number(supply).toLocaleString('ko-KR'));
+        if (!vatEdited)    $vat.val(vatExempt ? '면세' : (vat === 0 ? '' : Number(vat).toLocaleString('ko-KR')));
+        isInternalFormatting = false;
+       }
+
+       // ✅ 합계는 항상 supply+vat로 세팅
+       const sNum = getNumericValue($sup, 0);
+       const vNum = getNumericValue($vat, 0);
+       const total = sNum + vNum;
+
+       isInternalFormatting = true;
+       $tot.val(total === 0 ? '' : Number(total).toLocaleString('ko-KR'));
+       isInternalFormatting = false;
+
+       calculateTotalSum($row.closest('#div_excel_upload'));
+
       } finally {
        isInternalFormatting = false;
+       isCalculatingAmounts = false;
       }
      }
 

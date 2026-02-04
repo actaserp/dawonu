@@ -54,33 +54,33 @@
                         </dd>
                     </dl>
 
-<!--                    <dl>-->
-<!--                        <dt>-->
-<!--                            <label for="cboMatType">-->
-<!--                                제품 구분<span class="eq"></span>-->
-<!--                            </label>-->
-<!--                        </dt>-->
-<!--                        <dd>-->
-<!--                            <div class="srch-box">-->
-<!--                                <select id="cboMatType" name="cboMatType">-->
-<!--                                    <option value="product">제품</option>-->
-<!--                                    <option value="semi">반제품</option>-->
-<!--                                </select>-->
-<!--                            </div>-->
-<!--                        </dd>-->
-<!--                    </dl>-->
-<!--                    <dl>-->
-<!--                        <dt>-->
-<!--                            <label for="Factory_id">-->
-<!--                                공장<span class="eq"></span>-->
-<!--                            </label>-->
-<!--                        </dt>-->
-<!--                        <dd>-->
-<!--                            <div class="srch-box">-->
-<!--                                <select style="width: 150px;" type="text" id="Factory_id" name="Factory_id" > </select>-->
-<!--                            </div>-->
-<!--                        </dd>-->
-<!--                    </dl>-->
+                    <!--                    <dl>-->
+                    <!--                        <dt>-->
+                    <!--                            <label for="cboMatType">-->
+                    <!--                                제품 구분<span class="eq"></span>-->
+                    <!--                            </label>-->
+                    <!--                        </dt>-->
+                    <!--                        <dd>-->
+                    <!--                            <div class="srch-box">-->
+                    <!--                                <select id="cboMatType" name="cboMatType">-->
+                    <!--                                    <option value="product">제품</option>-->
+                    <!--                                    <option value="semi">반제품</option>-->
+                    <!--                                </select>-->
+                    <!--                            </div>-->
+                    <!--                        </dd>-->
+                    <!--                    </dl>-->
+                    <!--                    <dl>-->
+                    <!--                        <dt>-->
+                    <!--                            <label for="Factory_id">-->
+                    <!--                                공장<span class="eq"></span>-->
+                    <!--                            </label>-->
+                    <!--                        </dt>-->
+                    <!--                        <dd>-->
+                    <!--                            <div class="srch-box">-->
+                    <!--                                <select style="width: 150px;" type="text" id="Factory_id" name="Factory_id" > </select>-->
+                    <!--                            </div>-->
+                    <!--                        </dd>-->
+                    <!--                    </dl>-->
 
                     <dl>
                         <dt>
@@ -296,6 +296,7 @@
     <!--    <script type="text/javascript" src="/js/grid.js"></script>-->
     <th:block th:replace="/common/print_report :: print_report"></th:block>
     <th:block th:replace="/production/print_daily_work :: print_daily_work_order"></th:block>
+    <th:block th:replace="/production/popup_mat_match.html :: popup_mat_match "></th:block>
     <script th:inline="javascript">
         const factory_id = [[${session.factory_id}]];
         const userid = [[${session.userid}]];
@@ -406,8 +407,8 @@
                         {binding: 'CompanyName', header: '판매처', width: 120, align: 'left', isReadOnly: true},
                         {binding: 'fac_name', header: '공장', width: 80, align: 'center', isReadOnly: true},
                         {binding: 'mat_name', header: '제품명', width: 180, align: 'left', isReadOnly: true},
-                        {binding: 'unit_name', header: '단위', width: 60, align: 'center', isReadOnly: true},
-                        {binding: 'Standard', header: '규격', width: 60, align: 'center', isReadOnly: true},
+                        {binding: 'unit_name', header: '단위', width: 60, align: 'center', isReadOnly: true ,visible: false},
+                        {binding: 'Standard', header: '규격', width: 100, align: 'center', isReadOnly: true},
                         {binding: 'SujuQty', header: '수주량', width: 80, format: 'n2', align: 'right', isReadOnly: true},
                         {
                             binding: 'ordered_qty',
@@ -474,15 +475,23 @@
                 this.grid.downloadFileName = '작업 지시 목록';
 
                 // FlexGrid 이벤트 설정
+                // FlexGrid 이벤트 설정
                 this.grid.hostElement.addEventListener('click', function (e) {
                     let ht = _this.grid.hitTest(e);
                     if (ht.cellType === wijmo.grid.CellType.Cell) {
                         let item = _this.grid.rows[ht.row]?.dataItem;
                         if (!item) return;
 
-                        _this.loadJobResList(item); //제품 지시내역
-                        _this.loadSemiJobResList(item); //반제품 지시내역
-                        _this.semiJobRes(); //반제품 작업지시
+                        _this.loadJobResList(item);      // 제품 지시내역
+                        _this.loadSemiJobResList(item);  // 반제품 지시내역
+
+                        // ✅ 매칭된 것만 반제품 작업지시/소요량 조회
+                        if (item.mat_pk) {               // 또는 item.is_matched === true
+                            _this.semiJobRes();
+                        } else {
+                            // 미매칭이면 반제품 목록 비우기
+                            _this.semiGrid.itemsSource = new wijmo.collections.CollectionView([]);
+                        }
                     }
                 });
 
@@ -501,7 +510,8 @@
                             btn.onclick = function () {
                                 let selectedItem = row.dataItem;
                                 _this.selectedIndex = s.rows.findIndex(r => r.dataItem === selectedItem);
-                                handleOrderClick(_this.selectedIndex, row.dataItem);
+                                // handleOrderClick(_this.selectedIndex, row.dataItem);
+                                handleOrderClick(_this.selectedIndex, selectedItem, btn);
                             };
                             e.cell.innerHTML = "";
                             e.cell.appendChild(btn);
@@ -510,8 +520,100 @@
                 });
 
                 // 수주목록내 작업지시 버튼 클릭
-                function handleOrderClick(rowIndex, selectedItem) {
+                function handleOrderClick(rowIndex, selectedItem, clickEl) {
                     if (!selectedItem) return;
+
+                    // ✅ 미매칭이면 먼저 매칭 → 성공하면 다시 handleOrderClick 실행
+                    if (!selectedItem.mat_pk) {
+                        openMatMatchPopup(rowIndex, selectedItem, clickEl, function (matched) {
+                            selectedItem.mat_pk = matched.material_id;
+
+                            // 그리드 반영
+                            _this.grid?.collectionView?.refresh();
+
+                            // ✅ 매칭 완료 후 기존 지시 로직을 그대로 다시 실행
+                            handleOrderClick(rowIndex, selectedItem, clickEl);
+
+                        });
+                        return;
+                    }
+
+                    // ===== 아래는 “기존 지시 로직” 그대로 =====
+
+                    if (!selectedItem.workshift) {
+                        Alert.alert('', '근무조를 선택해주세요.');
+                        return;
+                    }
+
+                    if (Number(selectedItem.AdditionalQty || 0) === 0) {
+                        Alert.alert('', '지시량을 입력해주세요.');
+                        return;
+                    }
+
+                    if (!selectedItem.workcenter_id) {
+                        Alert.alert('', '워크센터를 선택해주세요.');
+                        return;
+                    }
+
+                    let data = {
+                        suju_id: selectedItem.id,
+                        workshift: selectedItem.workshift,
+                        workcenter_id: selectedItem.workcenter_id,
+                        AdditionalQty: selectedItem.AdditionalQty,
+                        prod_date: selectedItem.prod_date,
+                        Material_id: selectedItem.mat_pk
+                    };
+
+                    Alert.confirm('', '작업지시를 생성하시겠습니까?', function () {
+                        _this.makeOrder(data);
+                    });
+                }
+
+                function openMatMatchPopup(rowIndex, selectedItem, clickEl) {
+                    const popup = new PopMatMatchComponent();
+
+                    popup.show({
+                        payload: {
+                            rowIndex,
+                            suju_item_id: selectedItem.id,
+                            src_name: selectedItem.mat_name || selectedItem.product_name || '',
+                            src_spec: selectedItem.spec || '',
+                            company_id: selectedItem.company_id,
+                            company_name: selectedItem.CompanyName,
+                            jumun_no: selectedItem.JumunNumber
+                        },
+
+                        onSaved: (saved) => {
+
+                            // console.log('[MatMatch] onSaved raw:', saved);
+                            // console.log('[MatMatch] keys:', saved ? Object.keys(saved) : null);
+
+                            if (!saved || !saved.material_id) {
+                                Alert.alert('', '매칭 결과를 확인할 수 없습니다.');
+                                return;
+                            }
+
+                            selectedItem.mat_pk = saved.material_id;
+                            selectedItem.workcenter_id = saved.WorkCenter_id;
+
+                            _this.grid?.collectionView?.refresh();
+
+                            handleOrderClick(rowIndex, selectedItem, clickEl);
+                        },
+
+                        focusAfterClose: clickEl || document.activeElement
+                    });
+                }
+
+                /*function handleOrderClick(rowIndex, selectedItem) {
+                    if (!selectedItem) return;
+
+                    // ✅ 미매칭이면 먼저 매칭
+                    if (!selectedItem.mat_pk) {
+                        openMatMatchPopup(rowIndex, selectedItem);
+                        return;
+                    }
+
                     if (!selectedItem.workshift) {
                         Alert.alert('', '근무조를 선택해주세요.');
                         return;
@@ -543,15 +645,15 @@
 
 
                     });
-                }
+                }*/
 
 
                 this.$cboMatType = $('#cboMatType');
                 this.$cboMatGroup = $('#cboMatGroup');
-                const $factory  = $('#Factory_id');
+                const $factory = $('#Factory_id');
 
                 // 공장
-                AjaxUtil.fillSelectOptions($factory,  'factory', 'all', false);
+                AjaxUtil.fillSelectOptions($factory, 'factory', 'all', false);
 
                 //품목유형
                 // product, semi 만
@@ -563,7 +665,7 @@
                     let matType = _this.$cboMatType.val();
                     AjaxUtil.fillSelectOptions(_this.$cboMatGroup, 'material_group', 'all', false, matType);
                 });
-                const now  = new Date();
+                const now = new Date();
                 const jan1 = new Date(now.getFullYear(), 0, 1);
                 const nextMonthLast = new Date(now.getFullYear(), now.getMonth() + 2, 0);
                 // 기간 초기화
@@ -588,7 +690,7 @@
                     if (result.success) {
                         Alert.alert('', '생성되었습니다.');
                         _this.sujuSearch();
-                    }else{
+                    } else {
                         Alert.alert('', result.message);
                     }
                 };
@@ -685,10 +787,20 @@
                             if (item) {
                                 _this.loadJobResList(item);
                                 _this.loadSemiJobResList(item);
+
+                                // ✅ 매칭된 것만 반제품 조회
+                                if (item.mat_pk) {
+                                    _this.semiJobRes();
+                                } else {
+                                    // 미매칭이면 반제품 그리드 비우기
+                                    _this.semiGrid.itemsSource = new wijmo.collections.CollectionView([]);
+                                    // Notify.warn('품목 매칭 후 반제품 조회가 가능합니다.');
+                                }
                             }
-                            _this.semiJobRes();
+
                             _this.selectedIndex = 0; // 초기화
                         }, 10);
+
                     }
                 };
 
@@ -782,10 +894,37 @@
                         {binding: 'mat_code', header: '제품코드', width: 120, align: 'center', isReadOnly: true},
                         {binding: 'mat_name', header: '제품명', width: 120, isReadOnly: true, align: 'left'},
                         {binding: 'unit_name', header: '단위', width: 120, isReadOnly: true, align: 'center'},
-                        {binding: 'order_qty', header: '필요량', width: 120, align: 'right', format: 'n2', isReadOnly: true},
-                        {binding: 'ordered_qty', header: '기지시량', width: 120, align: 'right', format: 'n2', isReadOnly: true},
-                        {binding: 'AdditionalQty', header: '지시량', width: 120, align: 'right', format: 'n2', isReadOnly: false},
-                        {binding: 'workcenter_id', header: '워크센터', width: 120, dataMap: workcenterMap, isReadOnly: false},
+                        {
+                            binding: 'order_qty',
+                            header: '필요량',
+                            width: 120,
+                            align: 'right',
+                            format: 'n2',
+                            isReadOnly: true
+                        },
+                        {
+                            binding: 'ordered_qty',
+                            header: '기지시량',
+                            width: 120,
+                            align: 'right',
+                            format: 'n2',
+                            isReadOnly: true
+                        },
+                        {
+                            binding: 'AdditionalQty',
+                            header: '지시량',
+                            width: 120,
+                            align: 'right',
+                            format: 'n2',
+                            isReadOnly: false
+                        },
+                        {
+                            binding: 'workcenter_id',
+                            header: '워크센터',
+                            width: 120,
+                            dataMap: workcenterMap,
+                            isReadOnly: false
+                        },
                         {binding: 'prod_date', header: '생산일', width: 140, align: 'center', isReadOnly: true},
                         {binding: 'workshift', header: '근무조', width: 120, dataMap: workshiftMap, isReadOnly: false},
                         //{binding: 'order_action', header: '지시', width: 80, align: 'center', isReadOnly: true}
@@ -990,7 +1129,7 @@
                         const date = head?.ProductionDate || '';
 
                         const data = {
-                            writerSign:   head.writerSign || '',
+                            writerSign: head.writerSign || '',
                             reviewerSign: head.reviewerSign || '',
                             approverSign: head.approverSign || '',
 
@@ -1171,7 +1310,7 @@
 
             // 해당제품 생산지시 조회
             loadJobResList(item) {
-                console.log('item', item);
+                // console.log('item', item);
 
                 $('#btnJobResDetail').attr('disabled', true);
 
@@ -1182,7 +1321,7 @@
                         result.data.forEach(row => {
                             row.CompanyName = item.CompanyName ?? ''; // item에 CompanyName이 있으면 복사
                         });
-                        console.log('jobResGrid result', result.data );
+                        console.log('jobResGrid result', result.data);
                         _this.jobResGrid.itemsSource = result.data;
                     }
                 };

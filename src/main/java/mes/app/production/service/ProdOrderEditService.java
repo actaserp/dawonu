@@ -5,6 +5,7 @@ import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import lombok.extern.slf4j.Slf4j;
 import mes.Exception.CustomException;
 import mes.app.definition.service.BomService;
 import mes.app.production.Enum.ProcessType;
@@ -24,6 +25,7 @@ import org.springframework.stereotype.Service;
 
 import io.micrometer.core.instrument.util.StringUtils;
 import mes.domain.services.SqlRunner;
+import org.springframework.transaction.annotation.Transactional;
 
 import javax.persistence.EntityManager;
 
@@ -54,138 +56,156 @@ public class ProdOrderEditService {
 
 
     // 수주 목록 조회
-    public List<Map<String, Object>> getSujuList(String date_kind, String start, String end, Integer mat_group, String mat_name, String not_flag, String spjangcd, Integer cboFactory) {
+		public List<Map<String, Object>> getSujuList(String date_kind, String start, String end, Integer mat_group, String mat_name, String not_flag, String spjangcd, Integer cboFactory) {
 
-        MapSqlParameterSource dicParam = new MapSqlParameterSource();
-        dicParam.addValue("start", Timestamp.valueOf(start + " 00:00:00"));
-        dicParam.addValue("end", Timestamp.valueOf(end + " 23:59:59"));
-        dicParam.addValue("mat_group", mat_group);
-        dicParam.addValue("mat_name", mat_name);
-        dicParam.addValue("cboFactory", cboFactory);
-        dicParam.addValue("spjangcd", spjangcd);
+			MapSqlParameterSource dicParam = new MapSqlParameterSource();
+			dicParam.addValue("start", Timestamp.valueOf(start + " 00:00:00"));
+			dicParam.addValue("end", Timestamp.valueOf(end + " 23:59:59"));
+			dicParam.addValue("mat_group", mat_group);
+			dicParam.addValue("mat_name", mat_name);
+			dicParam.addValue("cboFactory", cboFactory);
+			dicParam.addValue("spjangcd", spjangcd);
 
-        if (StringUtils.isEmpty(date_kind)) {
-            date_kind = "sales";
-        }
+			if (StringUtils.isEmpty(date_kind)) {
+				date_kind = "sales";
+			}
 
-        // 수주에서 수주량-예약량 = 수주량2(필요량)
-        String sql = """
-        		with s as (
-	                select s.id, s."JumunDate", s."DueDate", s."JumunNumber"
-	                , s."CompanyName"
-	                , s."Material_id"
-	                , s."Standard"
-	                , mg."Name" as "MaterialGroupName"
-	                , mg.id as "MaterialGroup_id"
-	                , m."Code" as mat_code
-	                , m."WorkCenter_id" as workcenter_id
-	                , m."Name" as mat_name
-	                , u."Name" as unit_name
-	                , s."SujuQty"
-	                , s."SujuQty2"
-	                , coalesce (s."ReservationStock",0) as "ReservationStock"
-	                , fn_code_name('suju_state', s."State") as "StateName"
-	                , fn_code_name('mat_type', mg."MaterialType") as mat_type_name
-	                , s."State"
-	                , s."Description" as description
-	                , m."Routing_id"
-	                , f."Name" as fac_name
-					, r."Name" as routing_nm
-	                from suju s
-	                inner join material m on m.id = s."Material_id"
-	                inner join mat_grp mg on mg.id = m."MaterialGroup_id"
-	                left join routing r on m."Routing_id" = r.id
-	                left join unit u on m."Unit_id" = u.id
-	                left join factory f on m."Factory_id" = f.id
-	                where 1 = 1 and mg."MaterialType"!='sangpum'
-	                and s.spjangcd = :spjangcd
-        		""";
-//		 and s.confirm = '1'
+			String sql = """
+        with s as (
+            select
+                s.id,
+                s."JumunDate",
+                s."DueDate",
+                s."JumunNumber",
+                s."CompanyName",
+                s."Material_id",
+                s."Standard",
+                s."SujuQty",
+                s."SujuQty2",
+                coalesce(s."ReservationStock", 0) as "ReservationStock",
+                fn_code_name('suju_state', s."State") as "StateName",
+                s."State",
+                s."Description" as description,
+                s."Material_Name" as suju_mat_name
+            from suju s
+            where 1 = 1
+              and s.spjangcd = :spjangcd
+        """;
 
-        if ("suju_date".equals(date_kind)) {
-            sql += " and s.\"JumunDate\" between :start and :end ";
-        } else {
-            sql += " and s.\"DueDate\" between :start and :end ";
-        }
+			if ("suju_date".equals(date_kind)) {
+				sql += " and s.\"JumunDate\" between :start and :end ";
+			} else {
+				sql += " and s.\"DueDate\" between :start and :end ";
+			}
 
-        if (cboFactory != null) {
-            sql += " and m.\"Factory_id\" = :cboFactory ";
-        }
+			// ✅ 품명 검색: 매칭/미매칭 둘 다 대응 (material.Name 우선, 없으면 suju.Material_Name)
+			if (StringUtils.isEmpty(mat_name) == false) {
+				sql += """
+            and (
+                upper(coalesce(s."Material_Name", '')) like concat('%%', upper(:mat_name), '%%')
+                or upper(coalesce(s."Material_Name", '')) = upper(:mat_name)
+            )
+        """;
+			}
 
-        if (mat_group != null) {
-            sql += " and mg.id = :mat_group ";
-        }
+			sql += """
+        )
+        , sm as (
+            select
+                s.*,
+                (s."Material_id" is not null) as is_matched,
+                m."Code" as mat_code,
+                m."WorkCenter_id" as workcenter_id,
+                coalesce(m."Name", s.suju_mat_name) as mat_name,
+                u."Name" as unit_name,
+                mg."Name" as "MaterialGroupName",
+                mg.id as "MaterialGroup_id",
+                fn_code_name('mat_type', mg."MaterialType") as mat_type_name,
+                f."Name" as fac_name,
+                r."Name" as routing_nm
+            from s
+            left join material m on m.id = s."Material_id"
+            left join mat_grp mg on mg.id = m."MaterialGroup_id"
+            left join unit u on u.id = m."Unit_id"
+            left join factory f on f.id = m."Factory_id"
+            left join routing r on r.id = m."Routing_id"
+        )
+        , q as (
+            select
+                sm.id as suju_id,
+                jr."Description" as memo,
+                sum(jr."OrderQty") as ordered_qty,
+                sum(sum(jr."OrderQty")) over (partition by sm.id) as total_ordered_qty
+            from job_res jr
+            inner join sm
+                on sm.id = jr."SourceDataPk"
+               and jr."SourceTableName" = 'suju'
+            where jr."State" <> 'canceled'
+            group by sm.id, jr."Description"
+        )
+        select
+            sm.id,
+            sm."JumunNumber",
+            to_char(sm."JumunDate", 'yyyy-mm-dd') as "JumunDate",
+            to_char(sm."DueDate", 'yyyy-mm-dd') as "DueDate",
+            sm."CompanyName",
+            sm."Standard",
 
-        if (StringUtils.isEmpty(mat_name) == false) {
-            sql += """
-        			and ( upper(m."Name") like concat('%%',upper(:mat_name),'%%')
-	                or upper(m."Code") = upper(:mat_name)
-	                )
-        			""";
-        }
+            sm."Material_id" as mat_pk,
+            sm."SujuQty" as "SujuQty",
+            sm."SujuQty2" as "SujuQty2",
+            sm."ReservationStock" as "ReservationStock",
 
-        sql += """
-        		)
-	            , q as (
-                        select
-                            s.id as suju_id
-                            , jr."Description" as memo
-                            , sum(jr."OrderQty") as ordered_qty
-                            , sum(sum(jr."OrderQty")) over (partition by s.id) as total_ordered_qty
-                        from job_res jr
-                        inner join s
-                            on s.id = jr."SourceDataPk"
-                           and jr."SourceTableName" = 'suju'
-                           and jr."Material_id" = s."Material_id"
-                        where jr."State" <> 'canceled'
-                        group by s.id, jr."Description"
-                    )
-	            select s.id
-	            , s."JumunNumber"
-	            , to_char(s."JumunDate", 'yyyy-mm-dd') as "JumunDate"
-	            , to_char(s."DueDate", 'yyyy-mm-dd') as "DueDate"
-	            , s."CompanyName"
-	            , s."Standard"
-	            , s.mat_type_name
-	            , s."MaterialGroupName"
-	            , s.mat_code
-	            , s.workcenter_id
-	            , s.mat_name
-	            , s.unit_name
-	            , s."Material_id" as mat_pk
-	            , s."SujuQty" as "SujuQty"
-	            , s."SujuQty2" as "SujuQty2"
-	            , s."ReservationStock" as "ReservationStock"
-	            , coalesce(q.ordered_qty,0) as ordered_qty
-	            , round(greatest(0, s."SujuQty2" - coalesce(q.total_ordered_qty, 0))::numeric, 2) as remain_qty  --잔여량
-	            , 0 as "AdditionalQty"                                                                              --지시량 
-	            , s.description
-	            , s."StateName", s."State"
-	            , s.routing_nm
-	            , s.fac_name
-	            , q.memo
-	            from s 
-	            left join q on q.suju_id = s.id
-	            
-	            where 1 = 1
-        		""";
+            coalesce(q.ordered_qty, 0) as ordered_qty,
+            round(greatest(0, sm."SujuQty2" - coalesce(q.total_ordered_qty, 0))::numeric, 2) as remain_qty,
+            0 as "AdditionalQty",
 
-        if (StringUtils.isEmpty(not_flag) == false) {
-            sql += "  and (s.\"SujuQty2\"- coalesce (q.ordered_qty,0)) > 0 ";
-        }
+            sm.description,
+            sm."StateName",
+            sm."State",
 
-        if ("suju_date".equals(date_kind)) {
-            sql += " order by s.\"DueDate\" desc, s.\"JumunNumber\" desc ";
-        } else {
-            sql += " order by s.\"JumunDate\" desc, s.\"JumunNumber\" desc ";
-        }
+            --매칭/미매칭 구분 + 제품명
+            sm.is_matched,
+            sm.mat_name,
 
-        List<Map<String, Object>> items = this.sqlRunner.getRows(sql, dicParam);
+            -- 매칭된 경우만 채워지는 컬럼들
+            sm.unit_name,
+            sm.workcenter_id,
+            sm.mat_type_name,
+            sm."MaterialGroupName",
+            sm.mat_code,
+            sm.routing_nm,
+            sm.fac_name,
 
-        return items;
-    }
+            q.memo
+        from sm
+        left join q on q.suju_id = sm.id
+        where 1 = 1
+        """;
 
-    public List<Map<String, Object>> makeProdOrder(Integer sujuId) {
+			// not_flag (잔여량 > 0)
+			if (StringUtils.isEmpty(not_flag) == false) {
+				sql += " and (sm.\"SujuQty2\" - coalesce(q.total_ordered_qty, 0)) > 0 ";
+			}
+
+			if (cboFactory != null) {
+				sql += " and sm.is_matched = true and sm.fac_name is not null and (select m2.\"Factory_id\" from material m2 where m2.id = sm.\"Material_id\") = :cboFactory ";
+			}
+			if (mat_group != null) {
+				sql += " and sm.is_matched = true and sm.\"MaterialGroup_id\" = :mat_group ";
+			}
+
+			if ("suju_date".equals(date_kind)) {
+				sql += " order by sm.\"DueDate\" desc, sm.\"JumunNumber\" desc ";
+			} else {
+				sql += " order by sm.\"JumunDate\" desc, sm.\"JumunNumber\" desc ";
+			}
+
+			return this.sqlRunner.getRows(sql, dicParam);
+		}
+
+
+	public List<Map<String, Object>> makeProdOrder(Integer sujuId) {
         MapSqlParameterSource dicParam = new MapSqlParameterSource();
         dicParam.addValue("sujuId", sujuId);
 
@@ -529,6 +549,69 @@ public class ProdOrderEditService {
 
         return result;
     }
+
+	public List<Map<String, Object>> searchMatMatch(String keyword, String spjangcd) {
+
+		MapSqlParameterSource dicParam = new MapSqlParameterSource();
+		dicParam.addValue("keyword", keyword);
+		dicParam.addValue("spjangcd", spjangcd);
+
+		String sql = """
+			select
+			 	  m.id
+				, fn_code_name('mat_type', mg."MaterialType" ) as mat_type_name
+				, mg."Name" as mat_grp_name
+				, m."Code" as mat_code
+				, m."Name" as mat_name
+				, m."Class1" as class1 --1차공정
+				, uc1."Value" as "class1Name"
+				, m."Class2" as class2 --2차공정
+				, uc2."Value" as "class2Name"
+				, m."Class3" as class3 --3차공정
+				, uc3."Value" as "class3Name"
+				, m."WorkCenter_id" 
+				, wc."Name" as workcenter_name
+				, m."StoreHouseLoc" as storehouse_loc
+				from material m
+				left join mat_grp mg on mg.id = m."MaterialGroup_id"
+				left join work_center wc on wc.id = m."WorkCenter_id"
+				left join user_code uc1 on m."Class1" = uc1."Code"
+				left join user_code uc2 on m."Class2" = uc2."Code"
+				left join user_code uc3 on m."Class3" = uc3."Code"
+				where 1=1
+				AND m.spjangcd = :spjangcd
+				AND m."Useyn" = '0'
+				and ( m."Name" ilike concat('%',:keyword,'%') or m."Code" ilike concat('%',:keyword,'%'));
+		""";
+		return sqlRunner.getRows(sql, dicParam);
+		}
+
+	@Transactional
+	public void saveMatMatch(Integer sujuItemId, Integer materialId, String spjangcd, User user) {
+
+		MapSqlParameterSource param = new MapSqlParameterSource();
+		param.addValue("suju_item_id", sujuItemId);
+		param.addValue("material_id", materialId);
+		param.addValue("spjangcd", spjangcd);
+
+		String sql = """
+        update suju
+           set "Material_id" = :material_id,
+               _modified = now(),
+               _modifier_id = :user_id
+         where id = :suju_item_id
+           and spjangcd = :spjangcd
+    """;
+
+		param.addValue("user_id", user.getId());
+
+		int updated = sqlRunner.execute(sql, param); // ← 너희 프로젝트 execute 메서드명에 맞게 수정
+
+		if (updated == 0) {
+			throw new CustomException("매칭 저장 실패(대상 수주가 없거나 사업장코드 불일치).");
+		}
+	}
+
 
     /*public JobRes makeJobRes(Integer materialId) {
 
