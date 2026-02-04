@@ -41,57 +41,58 @@ public class SujuService {
 		String sql = """
 			WITH
 				-- ✅ (1) suju(상세)별 job_res 집계
-				job_res_by_suju AS (
-				SELECT
-						jr."SourceDataPk" AS suju_id,
-						COUNT(*) FILTER (WHERE jr."State" <> 'canceled') AS active_job_cnt,
-						BOOL_OR(jr."State" = 'ordered')  FILTER (WHERE jr."State" <> 'canceled') AS has_ordered,
-						BOOL_OR(jr."State" = 'planned')  FILTER (WHERE jr."State" <> 'canceled') AS has_planned,
-						BOOL_OR(jr."State" = 'finished') FILTER (WHERE jr."State" <> 'canceled') AS has_finished   -- ✅ 추가
-				FROM job_res jr
-				WHERE jr."SourceTableName" = 'suju'
-				GROUP BY jr."SourceDataPk"
-				),
-				-- ✅ (2) suju_head(헤더) 상태 요약: job_res 기준으로 계산
-				suju_state_summary AS (
-				SELECT
-					sh.id AS suju_head_id,
-					CASE
-						-- 헤더 내 모든 suju 라인에 대해 유효 작업지시가 1건도 없으면
-						WHEN COALESCE(SUM(jbs.active_job_cnt), 0) = 0 THEN 'received'
-						-- ordered가 하나라도 있으면 (부분지시 포함)
-						WHEN BOOL_OR(COALESCE(jbs.has_ordered, false)) THEN 'part_ordered'
-						-- ordered는 없고 planned가 하나라도 있으면
-						WHEN BOOL_OR(COALESCE(jbs.has_planned, false)) THEN 'part_planned'
-						-- 그 외(예: received만 있다거나, 기타 상태 섞임)
-						ELSE '기타'
-					END AS summary_state
-				FROM suju_head sh
-				JOIN suju s ON s."SujuHead_id" = sh.id
-				LEFT JOIN job_res_by_suju jbs ON jbs.suju_id = s.id
-				GROUP BY sh.id
-				),
-				-- ✅ (3) 출하 상태 요약 (기존 그대로)
-				shipment_summary AS (
-				SELECT
-					s."SujuHead_id",
-					SUM(s."SujuQty") AS total_qty,
-					COALESCE(SUM(shp."shippedQty"), 0) AS total_shipped,
-					CASE
-						WHEN COUNT(shp."SourceDataPk") = 0 THEN ''                             -- 조인 안 됨
-						WHEN COALESCE(SUM(shp."shippedQty"), 0) = 0 THEN 'ordered'             -- 조인 됐는데 출하량 0
-						WHEN SUM(shp."shippedQty") >= SUM(s."SujuQty") THEN 'shipped'          -- 전량 출하
-						WHEN SUM(shp."shippedQty") < SUM(s."SujuQty") THEN 'partial'           -- 일부 출하
-						ELSE ''
-					END AS shipment_state
-				FROM suju s
-				LEFT JOIN (
-					SELECT "SourceDataPk", SUM("Qty") AS "shippedQty"
-					FROM shipment
-					GROUP BY "SourceDataPk"
-				) shp ON shp."SourceDataPk" = s.id
-				GROUP BY s."SujuHead_id"
-				)
+			 			job_res_by_suju AS (
+			 			  SELECT
+			 			    jr."SourceDataPk" AS suju_id,
+			 			    COALESCE(SUM(jr."OrderQty") FILTER (WHERE jr."State" <> 'canceled'), 0) AS ordered_qty,
+			 			    BOOL_OR(jr."State" = 'ordered')  FILTER (WHERE jr."State" <> 'canceled') AS has_ordered,
+			 			    BOOL_OR(jr."State" = 'planned')  FILTER (WHERE jr."State" <> 'canceled') AS has_planned,
+			 			    BOOL_OR(jr."State" = 'finished') FILTER (WHERE jr."State" <> 'canceled') AS has_finished
+			 			  FROM job_res jr
+			 			  WHERE jr."SourceTableName" = 'suju'
+			 			    AND jr."Parent_id" IS NULL         -- ✅ 대표지시만 합산 (중복 방지)
+			 			  GROUP BY jr."SourceDataPk"
+			 			),
+			 			-- ✅ (2) suju_head(헤더) 상태 요약: job_res 기준으로 계산
+			 			suju_state_summary AS (
+			 				  SELECT
+			 				    sh.id AS suju_head_id,
+			 				    CASE
+			 				      WHEN COALESCE(SUM(jbs.ordered_qty), 0) = 0 THEN 'received'				
+			 				      -- ✅ 전량 지시: (헤더 내 목표 지시수량 합) <= (헤더 내 누적 지시량 합)
+			 				      WHEN COALESCE(SUM(jbs.ordered_qty), 0) >= COALESCE(SUM(s."SujuQty2"), 0) THEN 'ordered'					
+			 				      -- ✅ planned만 있는 상태(ordered 없고 planned가 있으면)
+			 				      WHEN BOOL_OR(COALESCE(jbs.has_planned, false)) AND NOT BOOL_OR(COALESCE(jbs.has_ordered, false))
+			 				        THEN 'part_planned'					
+			 				      -- ✅ 그 외: 일부 지시
+			 				      ELSE 'part_ordered'
+			 				    END AS summary_state
+			 				  FROM suju_head sh
+			 				  JOIN suju s ON s."SujuHead_id" = sh.id
+			 				  LEFT JOIN job_res_by_suju jbs ON jbs.suju_id = s.id
+			 				  GROUP BY sh.id
+			 				),
+			 				-- ✅ (3) 출하 상태 요약 (기존 그대로)
+			 				shipment_summary AS (
+			 				SELECT
+			 					s."SujuHead_id",
+			 					SUM(s."SujuQty") AS total_qty,
+			 					COALESCE(SUM(shp."shippedQty"), 0) AS total_shipped,
+			 					CASE
+			 						WHEN COUNT(shp."SourceDataPk") = 0 THEN ''                             -- 조인 안 됨
+			 						WHEN COALESCE(SUM(shp."shippedQty"), 0) = 0 THEN 'ordered'             -- 조인 됐는데 출하량 0
+			 						WHEN SUM(shp."shippedQty") >= SUM(s."SujuQty") THEN 'shipped'          -- 전량 출하
+			 						WHEN SUM(shp."shippedQty") < SUM(s."SujuQty") THEN 'partial'           -- 일부 출하
+			 						ELSE ''
+			 					END AS shipment_state
+			 				FROM suju s
+			 				LEFT JOIN (
+			 					SELECT "SourceDataPk", SUM("Qty") AS "shippedQty"
+			 					FROM shipment
+			 					GROUP BY "SourceDataPk"
+			 				) shp ON shp."SourceDataPk" = s.id
+			 				GROUP BY s."SujuHead_id"
+			 				)
 				SELECT
 				sh.id,
 				sh."JumunNumber",
