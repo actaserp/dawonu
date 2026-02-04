@@ -89,9 +89,8 @@
         .header-left {
             display: flex;
             align-items: center;
-            gap: 10px;
+            margin-left: 20px;
             min-width: 0; /* ✅ grid 셀에서 줄어들도록 */
-            justify-content: flex-end;
         }
 
         /* 오른쪽 영역 */
@@ -99,6 +98,22 @@
             display: flex;
             align-items: center;
             gap: 10px;
+        }
+
+        .header-menu {
+            display: flex;
+            flex-wrap: nowrap;
+            gap: 8px;
+            overflow-x: auto;
+            overflow-y: hidden;
+            white-space: nowrap;
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+            max-width: 760px;
+        }
+
+        .header-menu::-webkit-scrollbar {
+            display: none; /* ✅ Chrome, Safari */
         }
 
         /* help 버튼 */
@@ -206,6 +221,11 @@
                 </div>
                 <div class="header-info">
                     <div class="header-left">
+                        <div class="header-menu">
+
+                        </div>
+                    </div>
+                    <div class="header-right">
                         <div class="weather">
                             <div class="wt-main">
                                 <p id="area"></p>
@@ -234,45 +254,6 @@
                                 </ul>
                             </div>
                         </div>
-                        <!-- 알람 -->
-                        <!--                    <a href="#" class="alarm" title="알람">-->
-                        <!--                        <img src="/images/icon/ico-bell.svg" alt="알람 아이콘">-->
-                        <!--                        <span>알람</span>-->
-                        <!--                        <span class="num">0</span>-->
-                        <!--                    </a>-->
-                        <!--                    <div class="alarm-box" style="width: 1000px;">-->
-                        <!--                        <ul class="alarm-tab-links">-->
-                        <!--                            <li class="active">-->
-                        <!--                                <a href="#alarm-tab1" title="주문의뢰">주문의뢰(0)</a> &lt;!&ndash; 동적으로 업데이트 &ndash;&gt;-->
-                        <!--                            </li>-->
-                        <!--                        </ul>-->
-                        <!--                        <div class="alarm-tab-contents">-->
-                        <!--                            <div class="alarm-tab-item" id="alarm-tab1">-->
-                        <!--                                <div class="table-wrap">-->
-                        <!--                                    <table>-->
-                        <!--                                        <caption>알람 테이블</caption>-->
-                        <!--                                        <colgroup>-->
-                        <!--                                            <col class="wp30"> &lt;!&ndash; 날짜 &ndash;&gt;-->
-                        <!--                                            <col class="wp45"> &lt;!&ndash; 업체 이름 &ndash;&gt;-->
-                        <!--                                            <col class="wp25"> &lt;!&ndash; 주문 상태 &ndash;&gt;-->
-                        <!--                                        </colgroup>-->
-                        <!--                                        <thead>-->
-                        <!--                                        <tr>-->
-                        <!--                                            <th>날 짜</th>-->
-                        <!--                                            <th>업체 이름</th>-->
-                        <!--                                            <th>주문 상태</th>-->
-                        <!--                                        </tr>-->
-                        <!--                                        </thead>-->
-                        <!--                                        <tbody>-->
-                        <!--                                        &lt;!&ndash; 알림 데이터가 여기 동적으로 추가됨 &ndash;&gt;-->
-                        <!--                                        </tbody>-->
-                        <!--                                    </table>-->
-                        <!--                                </div>-->
-                        <!--                            </div>-->
-                        <!--                            <a href="#" title="확인" class="btn-gray" id="AlarmOk" onclick="AlarmOk()">확인</a>-->
-                        <!--                        </div>-->
-                        <!--                    </div>-->
-                        <!-- 알람 -->
                         <a class="help" title="유지보수" href="#" id="">
                             유지보수
                         </a>
@@ -288,11 +269,6 @@
                                 </li>
                             </ul>
                         </div>
-                        <div class="header-menu">
-
-                        </div>
-                    </div>
-                    <div class="header-right">
                         <a class="user" title="사용자">
                             <span style="padding:0 5px">·</span>
                             <span th:text="${ groupname }"></span>
@@ -742,16 +718,30 @@
         $.getJSON('/api/system/bookmark', function (result) {
             let _data = result.data;
             var litagbook = '';
+            var btnHtml = '';
 
             // 북마크 메뉴 생성
             for (var i = 0; i < _data.length; i++) {
-                litagbook += '<li><a href="#" data-objid="' + _data[i].code + '" menuurl="' + _data[i].url + '">' + i18n.getMenuText(_data[i].name) + '</a></li>';
+                let name = i18n.getMenuText(_data[i].name);
+                let code = _data[i].code;
+                let url = _data[i].url;
+
+                // 기존 ul/li 메뉴
+                litagbook += '<li><a href="#" data-objid="' + code + '" menuurl="' + url + '">' + name + '</a></li>';
+
+                // header-menu 버튼 추가
+                btnHtml += `
+                    <button class="menu-btn" data-objid="${code}" menuurl="${url}" draggable="true">
+                        ${name}
+                    </button>
+                `;
             }
 
             $('#bookmark-menu').html(litagbook);
+            $('.header-menu').html(btnHtml);
 
             // 클릭 이벤트 바인딩
-            $('#bookmark-menu').on('click', 'a', function (e) {
+            $(document).on('click', '#bookmark-menu a, .header-menu .menu-btn', function (e) {
                 e.preventDefault();
                 $('#bookmark-menu li').removeClass('on');
                 $(this).parent('li').addClass('on');
@@ -774,6 +764,89 @@
                     });
                 }
             });
+
+            document.querySelector('.header-menu').addEventListener('wheel', function (e) {
+                // 세로 스크롤 값이 있으면 가로로 전환
+                if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+                    this.scrollLeft += e.deltaY;
+                    e.preventDefault();
+                }
+            }, {passive: false});
+
+            // 🔹 드래그 가능하도록 설정
+            const headerMenu = document.querySelector('.header-menu');
+            let draggedBtn = null;
+
+            headerMenu.addEventListener('dragstart', (e) => {
+                if (e.target.classList.contains('menu-btn')) {
+                    draggedBtn = e.target;
+                    e.target.classList.add('dragging');
+                }
+            });
+
+            headerMenu.addEventListener('dragend', (e) => {
+                if (draggedBtn) {
+                    draggedBtn.classList.remove('dragging');
+                    draggedBtn = null;
+                    saveBookmarkOrder(); // 🔹 드래그 끝나면 순서 저장
+                }
+            });
+
+            headerMenu.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                const afterElement = getDragAfterElement(headerMenu, e.clientX);
+                const dragging = document.querySelector('.dragging');
+                if (afterElement == null) {
+                    headerMenu.appendChild(dragging);
+                } else {
+                    headerMenu.insertBefore(dragging, afterElement);
+                }
+            });
+
+            function getDragAfterElement(container, x) {
+                const draggableElements = [...container.querySelectorAll('.menu-btn:not(.dragging)')];
+                return draggableElements.reduce((closest, child) => {
+                    const box = child.getBoundingClientRect();
+                    const offset = x - box.left - box.width / 2;
+                    if (offset < 0 && offset > closest.offset) {
+                        return {offset: offset, element: child};
+                    } else {
+                        return closest;
+                    }
+                }, {offset: Number.NEGATIVE_INFINITY}).element;
+            }
+
+            // 🔹 순서 저장 AJAX
+            function saveBookmarkOrder() {
+                const buttons = document.querySelectorAll('.header-menu .menu-btn');
+                const newOrder = [];
+                buttons.forEach((btn, index) => {
+                    newOrder.push({
+                        menucode: btn.getAttribute('data-objid'),
+                        order: index + 1
+                    });
+                });
+
+                let csrf = document.querySelector('[name=_csrf]').value;
+
+                $.ajax({
+                    url: '/api/system/bookmark/reorder',
+                    type: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify(newOrder),
+                    headers: {'X-CSRF-TOKEN': csrf},
+                    success: function (res) {
+                        if (res.success) {
+                            console.log('북마크 순서 저장 완료');
+                        } else {
+                            console.error('북마크 순서 저장 실패');
+                        }
+                    },
+                    error: function () {
+                        console.error('서버 통신 중 오류 발생');
+                    }
+                });
+            }
 
             // default_menu 처리
             $.getJSON('/api/system/usergroup/defaultmenu', function (result) {

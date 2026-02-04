@@ -66,6 +66,21 @@ public class SalesInvoiceController {
 		return result;
 	}
 
+	@GetMapping("/suju_head_list")
+	public AjaxResult getSujuHeadList(
+			@RequestParam("srchStartDt") String dateFrom,
+			@RequestParam("srchEndDt") String dateTo,
+			@RequestParam(value="comp_id", required=false) Integer cltcd
+	) {
+
+		List<Map<String, Object>> items = this.salesInvoiceService.getSujumentHeadList(dateFrom, dateTo, cltcd);
+
+		AjaxResult result = new AjaxResult();
+		result.data = items;
+
+		return result;
+	}
+
 	@GetMapping("/get_material")
 	public AjaxResult getMaterialName(
 			@RequestParam("material_id") Integer id
@@ -408,11 +423,11 @@ public class SalesInvoiceController {
 			String corpNum = (String) form.get("InvoiceeCorpNum");
 
 			// 2. 사업자번호 유효성 체크
-			if (salesInvoiceService.validateSingleBusiness(corpNum) == null) {
-				result.success = false;
-				result.message = "휴/폐업 사업자번호입니다.\n공급받는자 등록번호를 확인해주세요.";
-				return result;
-			}
+//			if (salesInvoiceService.validateSingleBusiness(corpNum) == null) {
+//				result.success = false;
+//				result.message = "휴/폐업 사업자번호입니다.\n공급받는자 등록번호를 확인해주세요.";
+//				return result;
+//			}
 
 			// 3. company 테이블에 존재 확인
 			Optional<Company> comp = companyRepository.findByBusinessNumber(corpNum);

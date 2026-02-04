@@ -91,6 +91,9 @@ public class SalesInvoiceService {
     private ShipmentHeadRepository shipmentHeadRepository;
 
     @Autowired
+    private SujuHeadRepository sujuHeadRepository;
+
+    @Autowired
     private SysCodeRepository sysCodeRepository;
 
     @Autowired
@@ -276,7 +279,10 @@ public class SalesInvoiceService {
             TB_Salesment saved = saveSalesInvoiceInternal(form);
 
             // 출고 리스트에 저장
-            updateShipmentLinks(form, saved);
+//            updateShipmentLinks(form, saved);
+
+            // 수주에 저장
+            updateSujuLinks(form, saved);
 
             result.success = true;
 
@@ -379,6 +385,7 @@ public class SalesInvoiceService {
         salesment.setIvertel(sanitizeNumericString(form.get("InvoiceeTEL1"))); // 담당자 연락처
         salesment.setIveremail((String) form.get("InvoiceeEmail1")); // 이메일
         String misdate = sanitizeNumericString(form.get("writeDate"));
+        String snddate = sanitizeNumericString(form.get("snddate"));
 //        salesment = tb_salesmentRepository.save(salesment);
 
 
@@ -389,6 +396,7 @@ public class SalesInvoiceService {
 
         salesment.setMgtkey("TAX-" + misdate + "-" + salesment.getMisnum());
         salesment.setMisdate(misdate);
+        salesment.setSnddate(snddate);
 
         BigDecimal totalAmount = parseMoney(form.get("TotalAmount"));
         if (totalAmount != null) {
@@ -448,6 +456,7 @@ public class SalesInvoiceService {
             boolean hasOtherValues = Stream.of(
                     form.get(prefix + ".Spec"),
                     form.get(prefix + ".Qty"),
+                    form.get(prefix + ".Qty2"),
                     form.get(prefix + ".SupplyCost"),
                     form.get(prefix + ".Tax"),
                     form.get(prefix + ".TotalAmount"),
@@ -470,6 +479,9 @@ public class SalesInvoiceService {
             detail.setSpec((String) form.get(prefix + ".Spec"));
             BigDecimal qty = parseMoney(form.get(prefix + ".Qty"));
             if (qty != null) detail.setQty(qty);
+
+            BigDecimal qty2 = parseMoney(form.get(prefix + ".Qty2"));
+            if (qty2 != null) detail.setQty2(qty2);
 
             BigDecimal unitCost = parseMoney(form.get(prefix + ".UnitCost"));
             if (unitCost != null) detail.setUnitcost(unitCost.intValue());
@@ -523,6 +535,28 @@ public class SalesInvoiceService {
             }
 
             shipmentHeadRepository.saveAll(shipments);
+        }
+    }
+
+    private void updateSujuLinks(Map<String, Object> form, TB_Salesment salesment) {
+        // 5. shipment_head 업데이트
+        Object sujuIdsObj = form.get("sujuids");
+
+        if (sujuIdsObj != null) {
+            String sujuIdsStr = sujuIdsObj.toString(); // "165,162,164"
+            List<Integer> sujuIds = Arrays.stream(sujuIdsStr.split(","))
+                    .map(String::trim)
+                    .filter(s -> !s.isEmpty())
+                    .map(Integer::parseInt)
+                    .toList();
+
+            // shipment_head 엔티티들 조회 후 misnum 설정
+            List<SujuHead> sujus = sujuHeadRepository.findAllById(sujuIds);
+            for (SujuHead suju : sujus) {
+                suju.setMisnum(salesment.getMisnum()); // misnum은 auto-generated 이거나 업데이트 대상
+            }
+
+            sujuHeadRepository.saveAll(sujus);
         }
     }
 
@@ -683,6 +717,7 @@ public class SalesInvoiceService {
                 SELECT
                     s.id,
                     s."Qty" AS qty,
+                    s."Qty2" AS qty2,
                     s."Price" AS price,
                     s."Vat" AS vat,
                     (s."Price" + s."Vat") AS amount,
@@ -703,42 +738,177 @@ public class SalesInvoiceService {
         return items;
     }
 
+    public List<Map<String, Object>> getSujumentHeadList(String start, String end, Integer cltcd) {
+
+        MapSqlParameterSource dicParam = new MapSqlParameterSource();
+        dicParam.addValue("start", start);
+        dicParam.addValue("end", end);
+        dicParam.addValue("cltcd", cltcd);
+
+        String sql = """
+			WITH
+				-- ✅ (1) suju(상세)별 job_res 집계
+				job_res_by_suju AS (
+				SELECT
+						jr."SourceDataPk" AS suju_id,
+						COUNT(*) FILTER (WHERE jr."State" <> 'canceled') AS active_job_cnt,
+						BOOL_OR(jr."State" = 'ordered')  FILTER (WHERE jr."State" <> 'canceled') AS has_ordered,
+						BOOL_OR(jr."State" = 'planned')  FILTER (WHERE jr."State" <> 'canceled') AS has_planned,
+						BOOL_OR(jr."State" = 'finished') FILTER (WHERE jr."State" <> 'canceled') AS has_finished   -- ✅ 추가
+				FROM job_res jr
+				WHERE jr."SourceTableName" = 'suju'
+				GROUP BY jr."SourceDataPk"
+				),
+				-- ✅ (2) suju_head(헤더) 상태 요약: job_res 기준으로 계산
+				suju_state_summary AS (
+				SELECT
+					sh.id AS suju_head_id,
+					CASE
+						-- 헤더 내 모든 suju 라인에 대해 유효 작업지시가 1건도 없으면
+						WHEN COALESCE(SUM(jbs.active_job_cnt), 0) = 0 THEN 'received'
+						-- ordered가 하나라도 있으면 (부분지시 포함)
+						WHEN BOOL_OR(COALESCE(jbs.has_ordered, false)) THEN 'part_ordered'
+						-- ordered는 없고 planned가 하나라도 있으면
+						WHEN BOOL_OR(COALESCE(jbs.has_planned, false)) THEN 'part_planned'
+						-- 그 외(예: received만 있다거나, 기타 상태 섞임)
+						ELSE '기타'
+					END AS summary_state
+				FROM suju_head sh
+				JOIN suju s ON s."SujuHead_id" = sh.id
+				LEFT JOIN job_res_by_suju jbs ON jbs.suju_id = s.id
+				GROUP BY sh.id
+				),
+				-- ✅ (3) 출하 상태 요약 (기존 그대로)
+				shipment_summary AS (
+				SELECT
+					s."SujuHead_id",
+					SUM(s."SujuQty") AS total_qty,
+					COALESCE(SUM(shp."shippedQty"), 0) AS total_shipped,
+					CASE
+						WHEN COUNT(shp."SourceDataPk") = 0 THEN ''                             -- 조인 안 됨
+						WHEN COALESCE(SUM(shp."shippedQty"), 0) = 0 THEN 'ordered'             -- 조인 됐는데 출하량 0
+						WHEN SUM(shp."shippedQty") >= SUM(s."SujuQty") THEN 'shipped'          -- 전량 출하
+						WHEN SUM(shp."shippedQty") < SUM(s."SujuQty") THEN 'partial'           -- 일부 출하
+						ELSE ''
+					END AS shipment_state
+				FROM suju s
+				LEFT JOIN (
+					SELECT "SourceDataPk", SUM("Qty") AS "shippedQty"
+					FROM shipment
+					GROUP BY "SourceDataPk"
+				) shp ON shp."SourceDataPk" = s.id
+				GROUP BY s."SujuHead_id"
+				)
+				SELECT
+				sh.id,
+				sh."JumunNumber",
+				to_char(sh."JumunDate", 'yyyy-mm-dd') AS "JumunDate",
+				to_char(sh."DeliveryDate", 'yyyy-mm-dd') AS "DueDate",
+				sh."Company_id" as company_id,
+				c."BusinessNumber",
+				SUM(s."Price") AS "sujuPrice",
+				SUM(s."Vat") AS "sujuVat",
+				c."Name" AS "CompanyName",
+				sh."TotalPrice",
+				sh."Description",
+				sh.misnum,
+				sc_state."Value" AS "StateName",
+				sc_type."Value" AS "SujuTypeName",
+				-- 대표 제품명 + 외 N개
+				CASE
+                     WHEN COUNT(DISTINCT s."Material_Name") = 1 THEN
+                         (array_agg(s."Material_Name" ORDER BY s.id))[1]
+                     ELSE
+                         CONCAT(
+                             (array_agg(s."Material_Name" ORDER BY s.id))[1],
+                             ' 외 ',
+                             COUNT(DISTINCT s."Material_Name") - 1,
+                             '개'
+                         )
+                 END AS product_name,
+				sss.summary_state AS "State",
+				sc_ship."Value" AS "ShipmentStateName",
+				sh.misnum
+				FROM suju_head sh
+				JOIN suju s ON s."SujuHead_id" = sh.id
+				LEFT JOIN material m ON m.id = s."Material_id"
+				LEFT JOIN (
+				SELECT "SourceDataPk", SUM("Qty") AS "shippedQty"
+				FROM shipment
+				GROUP BY "SourceDataPk"
+				) shp ON shp."SourceDataPk" = s.id
+				LEFT JOIN company c ON c.id = sh."Company_id"
+				LEFT JOIN shipment_summary ss ON ss."SujuHead_id" = sh.id
+				LEFT JOIN suju_state_summary sss ON sss.suju_head_id = sh.id
+				LEFT JOIN sys_code sc_state
+				ON sc_state."Code" = sss.summary_state
+				AND sc_state."CodeType" = 'suju_state'
+				LEFT JOIN sys_code sc_type
+				ON sc_type."Code" = sh."SujuType"
+				AND sc_type."CodeType" = 'suju_type'
+				LEFT JOIN sys_code sc_ship
+				ON sc_ship."Code" = ss.shipment_state
+				AND sc_ship."CodeType" = 'shipment_state'
+				WHERE 1 = 1
+				AND ( :cltcd::integer IS NULL OR sh."Company_id" = :cltcd::integer )
+				and sh."JumunDate" BETWEEN :start::date AND :end::date
+				GROUP BY
+				sh.id,
+				sh."JumunNumber",
+				sh."JumunDate",
+				sh."DeliveryDate",
+				sh."Company_id",
+				sh.misnum,
+				c."Name",
+				c."BusinessNumber",
+				sh."TotalPrice",
+				sh."Description",
+				sh."SujuType",
+				sss.summary_state,
+				sc_state."Value",
+				sc_type."Value",
+				sc_ship."Value"
+				ORDER BY sh."JumunDate" DESC, sh.id DESC;
+			""";
+
+
+        List<Map<String, Object>> itmes = this.sqlRunner.getRows(sql, dicParam);
+
+        return itmes;
+    }
+
+
     public Map<String, Object> getSuju(Integer suju_id) {
 
         MapSqlParameterSource dicParam = new MapSqlParameterSource();
         dicParam.addValue("suju_id", suju_id);
 
         String sql = """
-			select s.id as id
-			, s."Standard" as standard
-			, m."Name" as material_name
-			, s."UnitPrice" as unit_price
-			, u."Name" as unit_name
-			from suju s
-			inner join material m on m.id = s."Material_id" 
-			inner join mat_grp mg on mg.id = m."MaterialGroup_id" 
-			LEFT JOIN unit      u  ON u.id  = m."Unit_id"
-			where s.id=:suju_id
-			order by s.id
-			""";
+            SELECT
+                sh.id,
+                sh."JumunNumber",
+                sh."JumunDate",
+                sh."DeliveryDate" as snddate,
+                sh."Company_id",
+                sh."Description" as "Remark1"
+            FROM suju_head sh
+            WHERE sh.id = :suju_id
+        """;
 
         Map<String, Object> suju = this.sqlRunner.getRow(sql, dicParam);
 
         String sql_suju_detail = """
-			SELECT
-				sd.id,
-				sd."suju_id",
-				sd."Standard",
-				sd."UnitName",
-				sd."Qty",
-				sd."UnitPrice",
-				sd."Price",
-				sd."Vat",
-				sd."TotalAmount"
-			FROM suju_detail sd
-			WHERE sd."suju_id" = :suju_id
-			ORDER BY sd.id
-		""";
+            SELECT
+                s.id,
+                s."SujuHead_id"      AS suju_head_id,
+                s."Material_Name"   AS mat_name,
+                s."Standard"        AS standard,
+                s."SujuQty" as qty,
+                s."Description" as "Remark"
+            FROM suju s
+            WHERE s."SujuHead_id" = :suju_id
+            ORDER BY s.id
+        """;
 
         List<Map<String, Object>> suju_detail = this.sqlRunner.getRows(sql_suju_detail, dicParam);
         if (suju_detail == null) {
@@ -758,6 +928,7 @@ public class SalesInvoiceService {
                 	m.misdate,
                 	m.vercode,
                 	TO_CHAR(TO_DATE(m.misdate, 'YYYYMMDD'), 'YYYY-MM-DD') AS "writeDate",
+                	TO_CHAR(TO_DATE(m.snddate, 'YYYYMMDD'), 'YYYY-MM-DD') AS "snddate",
                 	m.misdate AS "mowriteDate",
                 	m.misnum,
                 	m.issuetype AS "IssueType",
@@ -865,6 +1036,7 @@ public class SalesInvoiceService {
                 	 d.itemnm AS "ItemName",
                 	 d.spec AS "Spec",
                 	 d.qty AS "Qty",
+                	 d.qty2 AS "Qty2",
                 	 d.unitcost AS "UnitCost",
                 	 d.supplycost AS "SupplyCost",
                 	 d.taxtotal AS "Tax",
@@ -1222,11 +1394,17 @@ public class SalesInvoiceService {
                 .toList();
 
         // 1. 관련된 shipment_head의 misnum 컬럼을 null로 변경
-        List<ShipmentHead> relatedShipments = shipmentHeadRepository.findByMisnumIn(idList);
-        for (ShipmentHead shipment : relatedShipments) {
-            shipment.setMisnum(null);
+//        List<ShipmentHead> relatedShipments = shipmentHeadRepository.findByMisnumIn(idList);
+//        for (ShipmentHead shipment : relatedShipments) {
+//            shipment.setMisnum(null);
+//        }
+//        shipmentHeadRepository.saveAll(relatedShipments);
+
+        List<SujuHead> relatedSujus = sujuHeadRepository.findByMisnumIn(idList);
+        for (SujuHead suju : relatedSujus) {
+            suju.setMisnum(null);
         }
-        shipmentHeadRepository.saveAll(relatedShipments);
+        sujuHeadRepository.saveAll(relatedSujus);
 
         // 2. salesdetail 삭제
         deleteBySalesdetailIds(idList);
@@ -1545,6 +1723,7 @@ public class SalesInvoiceService {
                     newDetail.setItemnm(detail.getItemnm());
                     newDetail.setSpec(detail.getSpec());
                     newDetail.setQty(detail.getQty());
+                    newDetail.setQty2(detail.getQty2());
                     newDetail.setUnitcost(detail.getUnitcost());
                     newDetail.setSupplycost(detail.getSupplycost());
                     newDetail.setTaxtotal(detail.getTaxtotal());
@@ -1986,13 +2165,13 @@ public class SalesInvoiceService {
             String year = misdate.substring(0, 4);
 
             // 사업자 번호일때만 휴폐업 조회
-            if (ivercorpnum.length() != 13 && validateSingleBusiness(ivercorpnum) == null) {
-                Map<String, Object> err = new HashMap<>();
-                err.put("row", r + 2);
-                err.put("message", "휴/폐업 사업자번호입니다. 공급받는자 등록번호를 확인해주세요.");
-                errorList.add(err);
-                continue;
-            }
+//            if (ivercorpnum.length() != 13 && validateSingleBusiness(ivercorpnum) == null) {
+//                Map<String, Object> err = new HashMap<>();
+//                err.put("row", r + 2);
+//                err.put("message", "휴/폐업 사업자번호입니다. 공급받는자 등록번호를 확인해주세요.");
+//                errorList.add(err);
+//                continue;
+//            }
 
             try {
                 TB_Salesment sm = new TB_Salesment();
@@ -2183,11 +2362,36 @@ public class SalesInvoiceService {
                 	m.totalamt,
                 	m.remark1,
                 	TO_CHAR(TO_DATE(m.misdate, 'YYYYMMDD'), 'YYYY-MM-DD') AS misdate,
+                	TO_CHAR(TO_DATE(m.snddate, 'YYYYMMDD'), 'YYYY-MM-DD') AS snddate,
+                	to_char(to_date(m.misdate, 'YYYYMMDD'), 'YY"년 "FMMM"월 "FMDD"일(') ||
+                 CASE extract(dow from to_date(m.misdate, 'YYYYMMDD'))
+                     WHEN 0 THEN '일'
+                     WHEN 1 THEN '월'
+                     WHEN 2 THEN '화'
+                     WHEN 3 THEN '수'
+                     WHEN 4 THEN '목'
+                     WHEN 5 THEN '금'
+                     WHEN 6 THEN '토'
+                 END || ')'
+                 AS misdate_format,
+                 to_char(to_date(m.snddate, 'YYYYMMDD'), 'YY"년 "FMMM"월 "FMDD"일(') ||
+                 CASE extract(dow from to_date(m.snddate, 'YYYYMMDD'))
+                     WHEN 0 THEN '일'
+                     WHEN 1 THEN '월'
+                     WHEN 2 THEN '화'
+                     WHEN 3 THEN '수'
+                     WHEN 4 THEN '목'
+                     WHEN 5 THEN '금'
+                     WHEN 6 THEN '토'
+                 END || ')'
+                 AS snddate_format,
                 	sc6."SalesManager" as sales_manager,
                  	sc6."SalesManagerPhone" as sales_manager_phone,
+                 	sc6."AccountManager" as account_manager,
+                 	sc6."AccountManagerPhone" as account_manager_phone,
                  	sc6."TelNumber" as tel_number,
                  	sc6."FaxNumber" as fax_number,
-                 	x.tel1, x.fax, x.emailadres
+                 	x.tel1, x.fax, x.emailadres, x.agnertel2
                 FROM tb_salesment m
                 left join company sc6 on sc6.id = m.cltcd
                 left join tb_xa012 x on x.spjangcd = :spjangcd
@@ -2202,6 +2406,7 @@ public class SalesInvoiceService {
                    sh."ShipDate",
                 sh.misnum,
                 s."Qty" as qty,
+                s."Qty2" as qty2,
                 s."UnitPrice" as unitcost,
                 s."Price" as supplycost,
                 s."Vat" as tax,
@@ -2223,6 +2428,7 @@ public class SalesInvoiceService {
                 d.misseq,
                 d.itemnm as name,
                 d.qty,
+                d.qty2,
                 d.unitcost,
                 d.spec,
                 d.supplycost,

@@ -66,4 +66,8 @@ public class SujuHead extends AbstractAuditModel {
 	@Column(name="\"EstimateMemo\"")
 	String EstimateMemo;
 
+	@Column(name = "\"misnum\"")
+	Integer misnum; // 세금계산서 pk
+
+
 }

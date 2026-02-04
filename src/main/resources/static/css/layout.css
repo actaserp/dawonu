@@ -296,6 +296,7 @@ header .right .weather .wt-main {
     padding: 4px 10px;
     border-radius: 10px;
     gap: 10px;
+    width: 245px;
 }
 
 header .right .weather .wt-main .area {

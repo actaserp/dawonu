@@ -664,18 +664,23 @@
                                                 <th class="al_c" colspan="8">종사업장</th>
                                                 <td class="al_l pdl_3" colspan="8"><input class="in_txt numeric letspc_0" maxlength="4" type="text" id="InvoiceeTaxRegID" name="InvoiceeTaxRegID"></td>
 
-                                                <th class="al_c bold" colspan="8">작성일자</th>
+                                                <th class="al_c bold" colspan="8">출고요청일</th>
                                                 <td class="al_l pdl_3" colspan="17">
                                                     <input type="date" id="writeDate" name="writeDate" class="in_txt numeric al_c dp-applied" maxlength="10" style="width: 190px; padding: 0 14px 0 5px;">
                                                 </td>
 
-                                                <th class="al_c" colspan="8">작성 방법</th>
+                                                <th class="al_c bold" colspan="8">납기예정일</th>
                                                 <td class="al_l pdl_3" colspan="17">
-                                                    <select class="in_txt" id="WriteTypeSelect" name="WriteTypeSelect" style="width:190px; line-height:1;">
-
-                                                    </select>
-                                                    <button id="totalAmountAct" type="button" class="btn_white_gradient" style="display: none;">계산 창 열기</button>
+                                                    <input type="date" id="snddate" name="snddate" class="in_txt numeric al_c dp-applied" maxlength="10" style="width: 190px; padding: 0 14px 0 5px;">
                                                 </td>
+
+<!--                                                <th class="al_c" colspan="8">작성 방법</th>-->
+<!--                                                <td class="al_l pdl_3" colspan="17">-->
+<!--                                                    <select class="in_txt" id="WriteTypeSelect" name="WriteTypeSelect" style="width:190px; line-height:1;">-->
+
+<!--                                                    </select>-->
+<!--                                                    <button id="totalAmountAct" type="button" class="btn_white_gradient" style="display: none;">계산 창 열기</button>-->
+<!--                                                </td>-->
                                             </tr>
                                             <tr>
                                                 <th class="al_c bold" colspan="8"><span>상호</span></th>
@@ -764,13 +769,13 @@
                                                 <th class="splitline noborder_t" colspan="50"></th>
                                             </tr>
                                             <tr>
-                                                <th class="al_c noborder_l" colspan="11"><span class="bold">비고</span></th>
-                                                <td class="al_l pdl_3 gray_border_l" colspan="89"><textarea style="height:60px;" class="in_txt kr" maxlength="150" type="text" id="Remark1" name="Remark1" ></textarea></td>
-<!--                                                <td class="al_c item_l_border gray_border_l" colspan="4">-->
-<!--                                                    <a class="btn in_btn plus" title="추가" id="addRemark">-->
-<!--                                                        <img src="/images/icon/ico-plus.svg" alt="등록 아이콘">-->
-<!--                                                    </a>-->
-<!--                                                </td>-->
+                                                <th class="al_c noborder_l" colspan="11"><span class="bold">비고1</span></th>
+                                                <td class="al_l pdl_3 gray_border_l" colspan="85"><input class="in_txt kr" maxlength="150" type="text" id="Remark1" name="Remark1" ></td>
+                                                <td class="al_c item_l_border gray_border_l" colspan="4">
+                                                    <a class="btn in_btn plus" title="추가" id="addRemark">
+                                                        <img src="/images/icon/ico-plus.svg" alt="등록 아이콘">
+                                                    </a>
+                                                </td>
                                             </tr>
                                             <tr id="remark2" class="none">
                                                 <th class="al_c noborder_l gray_border_t" colspan="11"><span class="bold">비고2</span></th>
@@ -797,13 +802,13 @@
                                             <tr>
                                                 <th class="al_c noborder_l" colspan="4"><span class="bold">월</span></th>
                                                 <th class="al_c item_l_border" colspan="4"><span class="bold">일</span></th>
-                                                <th class="al_c item_l_border" colspan="28"><span class="bold">품목 / 규격</span></th>
-                                                <th class="al_c item_l_border" colspan="10"><span class="bold">단위</span></th>
-                                                <th class="al_c pet2 item_l_border" colspan="8"><span class="bold">수량</span></th>
-                                                <th class="al_c pet3 item_l_border" colspan="8"><span class="bold">단가</span></th>
-                                                <th class="al_c pet4 item_l_border" colspan="12"><span class="bold">공급가액</span></th>
-                                                <th class="al_c pet5 item_l_border tax-related" colspan="10"><span class="bold">세액</span></th>
-                                                <th class="al_c item_l_border" colspan="12"><span class="bold">비고</span></th>
+                                                <th class="al_c item_l_border" colspan="24"><span class="bold">품목</span></th>
+                                                <th class="al_c item_l_border" colspan="14"><span class="bold">규격</span></th>
+                                                <th class="al_c pet2 item_l_border" colspan="8"><span class="bold">수량(장)</span></th>
+                                                <th class="al_c pet3 item_l_border" colspan="8"><span class="bold">수량(㎡)</span></th>
+<!--                                                <th class="al_c pet4 item_l_border" colspan="12"><span class="bold">공급가액</span></th>-->
+<!--                                                <th class="al_c pet5 item_l_border tax-related" colspan="10"><span class="bold">세액</span></th>-->
+                                                <th class="al_c item_l_border" colspan="34"><span class="bold">비고</span></th>
                                                 <th class="al_c item_l_border" colspan="4">
                                                     <a class="btn in_btn plus" title="추가" id="btnAddFiveDetails">
                                                         <img src="/images/icon/ico-plus.svg" alt="등록 아이콘">
@@ -819,7 +824,7 @@
                                                 <td class="al_l pdl_3 item_border" colspan="4">
                                                     <input class="in_txt numeric al_c in_detail" maxlength="2" type="text" id="detailList0.PurchaseDT2" name="detailList[0].PurchaseDT2">
                                                 </td>
-                                                <td class="al_l pdl_3 item_border" colspan="28">
+                                                <td class="al_l pdl_3 item_border" colspan="24">
                                                     <div class="align-center-wrap">
                                                         <input type="hidden" id="detailList0.ItemId" name="detailList[0].ItemId">
                                                         <textarea class="txt_ar" style="width: 88%; margin-right: 3px;" maxlength="100" id="detailList0.ItemName" name="detailList[0].ItemName" placeholder="입력 후 엔터"></textarea>
@@ -828,12 +833,12 @@
                                                         </a>
                                                     </div>
                                                 </td>
-                                                <td class="al_l pdl_3 item_border" colspan="10"><textarea class="txt_ar al_c" maxlength="60" id="detailList0.Spec" name="detailList[0].Spec"></textarea></td>
+                                                <td class="al_l pdl_3 item_border" colspan="14"><textarea class="txt_ar" maxlength="60" id="detailList0.Spec" name="detailList[0].Spec"></textarea></td>
                                                 <td class="al_l pdl_3 item_border pet2" colspan="8"><input class="in_txt numeric number al_r in_detail" maxlength="16" type="text" id="detailList0.Qty" name="detailList[0].Qty" ></td>
-                                                <td class="al_l pdl_3 item_border pet3" colspan="8"><input class="in_txt numeric number al_r in_detail" maxlength="22" type="text" id="detailList0.UnitCost" name="detailList[0].UnitCost" ></td>
-                                                <td class="al_l pdl_3 item_border pet4" colspan="12"><input class="in_txt numeric money al_r in_detail" maxlength="22" type="text" id="detailList0.SupplyCost" name="detailList[0].SupplyCost" ></td>
-                                                <td class="al_l pdl_3 item_border pet5 tax-related" colspan="10"><input class="in_txt numeric money al_r in_detail" maxlength="22" type="text" id="detailList0.Tax" name="detailList[0].Tax" ></td>
-                                                <td class="al_l pdl_3 item_border" colspan="12"><textarea class="txt_ar" maxlength="100" id="detailList0.Remark" name="detailList[0].Remark"></textarea></td>
+                                                <td class="al_l pdl_3 item_border pet3" colspan="8"><input class="in_txt numeric number al_r in_detail" maxlength="16" type="text" id="detailList0.Qty2" name="detailList[0].Qty2" ></td>
+<!--                                                <td class="al_l pdl_3 item_border pet4" colspan="12"><input class="in_txt numeric money al_r in_detail" maxlength="28" type="text" id="detailList0.SupplyCost" name="detailList[0].SupplyCost" ></td>-->
+<!--                                                <td class="al_l pdl_3 item_border pet5 tax-related" colspan="10"><input class="in_txt numeric money al_r in_detail" maxlength="22" type="text" id="detailList0.Tax" name="detailList[0].Tax" ></td>-->
+                                                <td class="al_l pdl_3 item_border" colspan="34"><textarea class="txt_ar" maxlength="100" id="detailList0.Remark" name="detailList[0].Remark"></textarea></td>
                                                 <td class="al_c item_border" colspan="4">
                                                     <a class="btn in_btn" title="삭제" id="btnDelItem_0">
                                                         <img src="/images/icon/ico-delete.svg" alt="삭제 아이콘">
@@ -1328,6 +1333,7 @@
             const writeType = $('#WriteTypeSelect').val();   // 단가 유형
 
             const $qty = $row.find('input[id$="Qty"]');
+            const $qty2 = $row.find('input[id$="Qty2"]');
             const $unitCost = $row.find('input[id$="UnitCost"]');
             const $supplyCost = $row.find('input[id$="SupplyCost"]');
             const $tax = $row.find('input[id$="Tax"]');
@@ -1341,16 +1347,15 @@
 
                 if (writeType === '부가세 포함' && taxMode === '과세') {
                     const total = qty * unitCost;
-                    const supply = total / 1.1;
-                    supplyCost = Math.floor(supply);
+                    supplyCost = total / 1.1;
                     tax = total - supplyCost;
                 } else {
                     supplyCost = qty * unitCost;
-                    tax = (taxMode === '과세') ? Math.floor(supplyCost * 0.1) : 0;
+                    tax = (taxMode === '과세') ? supplyCost * 0.1 : 0;
                 }
 
-                $supplyCost.val(supplyCost.toLocaleString());
-                $tax.val(tax.toLocaleString());
+                $supplyCost.val(Math.round(supplyCost).toLocaleString());
+                $tax.val(Math.round(tax).toLocaleString());
             }
         }
 
@@ -1457,7 +1462,7 @@
             const $tax = $row.find('input[id$="Tax"]');
 
             let supplyCost = parseFloat($supplyCost.val().replace(/,/g, '').trim()) || 0;
-            let tax = taxMode === '과세' ? Math.floor(supplyCost * 0.1) : 0;
+            let tax = taxMode === '과세' ? Math.round(supplyCost * 0.1) : 0;
 
             $tax.val(tax.toLocaleString());
             updateTotals();
@@ -1800,6 +1805,7 @@
                 'ItemName',
                 'Spec',
                 'Qty',
+                'Qty2',
                 'UnitCost',
                 'SupplyCost',
                 'Tax',

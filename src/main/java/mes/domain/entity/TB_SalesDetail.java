@@ -26,6 +26,8 @@ public class TB_SalesDetail {
 
     @Column(name = "qty", precision = 12, scale = 2)
     private BigDecimal qty;
+    @Column(name = "qty2", precision = 12, scale = 1)
+    private BigDecimal qty2;
     private Integer unitcost;
     private Integer supplycost;
     private Integer taxtotal;

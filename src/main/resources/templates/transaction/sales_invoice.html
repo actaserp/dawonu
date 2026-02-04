@@ -71,6 +71,7 @@
                 size: A4 portrait;
                 margin: 10mm;
             }
+
         }
     </style>
 
@@ -277,29 +278,35 @@
                                 발행
                             </a>
                         </li>
-                        <li>
-                            <a class="btn" title="거래명세서 출력" id="btnWritePrint">
-                                거래명세서 출력
-                            </a>
-                        </li>
-                        <li>
-                            <a class="btn" title="엑셀 다운로드" id="btnExcelExport">
-                                엑셀 다운로드
-                            </a>
-                        </li>
 <!--                        <li>-->
-<!--                            <a class="btn" title="계산서 일괄 등록" id="btnAddBatch">-->
-<!--                                일괄 등록-->
-<!--                            </a>-->
-<!--                        </li>-->
-<!--                        <li>-->
-<!--                            <a class="btn" title="매출 복사" id="btnCopy">-->
-<!--                                매출 복사-->
+<!--                            <a class="btn" title="거래명세서 출력" id="btnWritePrint">-->
+<!--                                거래명세서 출력-->
 <!--                            </a>-->
 <!--                        </li>-->
                         <li>
-                            <a class="btn-blue btn" title="출고 리스트" id="btnShipList">
-                                출고 리스트
+                            <a class="btn" title="출고장 출력" id="btnWritePrint2">
+                                출고장 출력
+                            </a>
+                        </li>
+                        <li>
+                            <a class="btn" title="계산서 일괄 등록" id="btnAddBatch">
+                                일괄 등록
+                            </a>
+                        </li>
+                        <li>
+                            <a class="btn" title="매출 복사" id="btnCopy">
+                                매출 복사
+                            </a>
+                        </li>
+<!--                        <li>-->
+<!--                            <a class="btn-blue btn" title="출고 리스트" id="btnShipList">-->
+<!--                                출고 리스트-->
+<!--                            </a>-->
+<!--                        </li>-->
+
+                        <li>
+                            <a class="btn-blue btn" title="수주 리스트" id="btnSujuList">
+                                수주 리스트
                             </a>
                         </li>
 
@@ -443,6 +450,67 @@
             </div>
             <div class="popup-button">
                 <button type="button" class="btn-popup y_write_auth" id="btnShipAction">등록</button>
+                <button type="button" class="btn-popup" id="modal-close-button">닫기</button>
+            </div>
+
+        </div>
+    </script>
+
+    <script type="text/x-tmpl" id="addSujuListPopup">
+        <div class="content_wrap popup">
+            <div class="section-top">
+                <div class="search-wrap" style="justify-content: flex-start;">
+                  <dl>
+                    <dt style="display:flex;">
+                      조회기간
+                    </dt>
+                    <dd>
+                      <ul class="date-box">
+                        <li>
+                          <input type="date" id="srchStartDt" name="srchStartDt">
+                          <label for="srchStartDt" class="hide">시작일</label>
+                        </li>
+                        <li>
+                          <input type="date" id="srchEndDt" name="srchEndDt">
+                          <label for="srchEndDt" class="hide">종료일</label>
+                        </li>
+                      </ul>
+                    </dd>
+                  </dl>
+                  <dl>
+                    <dt style="text-align: left;">
+                        <label for="btnCompanySearch_ship">
+                            거래처
+                        </label>
+                    </dt>
+                    <dd>
+                        <div class="input-clear">
+                            <input type="text" id="btnCompanySearch_ship" name="btnCompanySearch_ship" placeholder="클릭하여 검색"
+                               style="width: 160px;">
+                            <span class="btn-clear" style="display: none;">×</span>
+                        </div>
+                        <input type="hidden" id="cboCompanyHidden_ship">
+                    </dd>
+                  </dl>
+                  <dl>
+                    <dt>&nbsp;</dt>
+                    <dd>
+                      <li>
+                        <a class="btn btn-delete" title="검색" id="btnSearch_ship">
+                          <!--                                        class 쓰이는 곳 찾고 없으면 클래스명 수정하기-->
+                          <img src="/images/icon/btn-srch.svg" alt="검색 아이콘">
+                          검색
+                        </a>
+                      </li>
+                    </dd>
+                  </dl>
+                </div>
+            </div>
+            <div class="container-fluid">
+                <div id="suju-list-grid" style="height: 400px;"></div>
+            </div>
+            <div class="popup-button">
+                <button type="button" class="btn-popup y_write_auth" id="btnSujuAction">등록</button>
                 <button type="button" class="btn-popup" id="modal-close-button">닫기</button>
             </div>
 
@@ -677,159 +745,211 @@
     <script type="text/x-tmpl" id="writPrint_Template">
         <div id="printArea">
 
-          <!-- 상단 정보 (공급자 / 공급받는자) : 100열 -->
-          <table style="width:100%; table-layout:fixed; border-collapse:collapse;">
-            <!-- 100열(1%씩) -->
-            <colgroup>
-              ${[...Array(100)].map(()=>'<col style="width:0.8em;">').join('')}
-            </colgroup>
-
-            <!-- 제목 -->
+        <table style="width: 100%; table-layout: fixed; border-collapse: collapse;">
+            <tr style="height: 0; font-size: 0; line-height: 0; border: none;">
+              <th style="border: none; padding: 0; width: 4%;"></th>
+              <th style="border: none; padding: 0; width: 9%;"></th>
+              <th style="border: none; padding: 0; width: 18%;"></th>
+              <th style="border: none; padding: 0; width: 7%;"></th>
+              <th style="border: none; padding: 0; width: 12%;"></th>
+              <th style="border: none; padding: 0; width: 4%;"></th>
+              <th style="border: none; padding: 0; width: 9%;"></th>
+              <th style="border: none; padding: 0; width: 18%;"></th>
+              <th style="border: none; padding: 0; width: 7%;"></th>
+              <th style="border: none; padding: 0; width: 12%;"></th>
+            </tr>
             <tr>
-                <!-- 기존 제목 영역 -->
-                <td colspan="50" rowspan="2" style="text-align:center; font-weight:bold; height:35px; border:1px solid #000;">
-                  <span style="font-size:16px;">거래 명세서</span>
-                  <span style="font-size:12px;">(공급받는자용)</span>
+                <td colspan="8" style="text-align: center; font-weight: bold; height: 35px;">
+                   <span style="font-size: 16px;">거래 명세서</span>
+                   <span style="font-size: 12px;">(공급받는자용)</span>
                 </td>
-
-                <!-- 새로 추가될 오른쪽 영역 (일자행의 제목 / 데이터) -->
-                <th colspan="15">일자</th>
-                <td colspan="35">${misdate}</td>
+                <td colspan="2"  style="text-align: left;">
+                   <span>날짜 : ${misdate_fmt} </span>
+                </td>
               </tr>
 
               <tr>
-                <!-- 아래쪽 To + 연락처 정보 행 -->
-                <td colspan="50" style="padding-left:5px; font-size:12px; border:1px solid #000;">
-                  To. ${sales_manager}님
-                  <span style="margin-left:5px;">☎ ${sales_manager_phone}, </span>
-                  <span style="margin-left:5px;">${tel_number}</span>
-                  <span style="margin-left:5px;">Fax. ${fax_number}</span>
-                </td>
+                <th rowspan="4" class="vertical-text">공<br/>급<br/>자</th>
+                <th>등록번호</th><td colspan="3">${icercorpnum}</td>
+                <th rowspan="4" class="vertical-text">공<br/>급<br/>받<br/>는<br/>자</th>
+                <th>등록번호</th><td colspan="3">${ivercorpnum}</td>
               </tr>
 
-            <!-- 행 1: 등록번호 (rowspan 포함) -->
-            <!-- 기준 10열: [4|9|18|7|12 | 4|9|18|7|12]
-                 C1=4, C2=9, C3-5=18+7+12=37, C6=4, C7=9, C8-10=37 -->
+              <tr>
+                <th>상호명</th><td class="text-left">${icercorpnm}</td>
+                <th>성명</th><td class="text-left">${icerceonm}</td>
+                <th>상호명</th><td class="text-left">${ivercorpnm}</td>
+                <th>성명</th><td class="text-left">${iverceonm}</td>
+              </tr>
+
+              <tr>
+                <th>주소</th><td class="text-left" colspan="3">${iceraddr}</td>
+                <th>주소</th><td class="text-left" colspan="3">${iveraddr}</td>
+              </tr>
+
+              <tr>
+                <th>업태</th><td class="text-left">${icerbiztype}</td>
+                <th>종목</th><td class="text-left">${icerbizclass}</td>
+                <th>업태</th><td class="text-left">${iverbiztype}</td>
+                <th>종목</th><td class="text-left">${iverbizclass}</td>
+              </tr>
+        </table>
+
+        <table style="width: 100%; table-layout: fixed; border-collapse: collapse; border-top: none;">
+          <!-- 열 너비 고정용 헤더 -->
+          <tr style="height: 0; font-size: 0; line-height: 0; border: none;">
+            <th style="border: none; padding: 0; width: 5%;"></th>   <!-- No -->
+<!--            <th style="border: none; padding: 0; width: 6%;"></th>   &lt;!&ndash; 월 &ndash;&gt;-->
+<!--            <th style="border: none; padding: 0; width: 6%;"></th>   &lt;!&ndash; 일 &ndash;&gt;-->
+            <th style="border: none; padding: 0; width: 35%;"></th>  <!-- 품목 -->
+            <th style="border: none; padding: 0; width: 8%;"></th>   <!-- 수량 -->
+            <th style="border: none; padding: 0; width: 10%;"></th>  <!-- 단가 -->
+            <th style="border: none; padding: 0; width: 12%;"></th>  <!-- 공급가액 -->
+            <th style="border: none; padding: 0; width: 12%;"></th>  <!-- 부가세액 -->
+            <th style="border: none; padding: 0; width: 10%;"></th>   <!-- 비고1 -->
+            <th style="border: none; padding: 0; width: 8%;"></th>   <!-- 비고2 -->
+          </tr>
             <tr>
-              <th rowspan="3" colspan="4" class="vertical-text">공<br/>급<br/>자</th>                       <!-- 4 -->
-              <th colspan="9">등록번호</th>                                                                <!-- 9 -->
-              <td colspan="37">${icercorpnum}</td>                                                         <!-- 18+7+12 -->
-              <th rowspan="3" colspan="4" class="vertical-text">공<br/>급<br/>받<br/>는<br/>자</th>        <!-- 4 -->
-              <th colspan="9">등록번호</th>                                                                <!-- 9 -->
-              <td colspan="37">${ivercorpnum}</td>                                                         <!-- 18+7+12 -->
+                <td colspan="10" style="font-weight: bold; text-align: center; border-top: none;">내&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;용</td>
+            </tr>
+            <tr style="background-color: #EDEFF5;">
+                <th>No</th>
+<!--                <th>월</th>-->
+<!--                <th>일</th>-->
+                <th>품목</th>
+                <th>수량</th>
+                <th>단가</th>
+                <th>공급가액</th>
+                <th>부가세액</th>
+                <th colspan="2">비고</th>
             </tr>
 
-            <!-- 행 2: 상호명 / 성명 -->
-            <!-- 이 행에서 C1(4)과 C6(4)은 위에서 rowspan으로 점유 중 → 남은 폭 합계 92 -->
-            <!-- 좌측: C2=9, C3=18, C4=7, C5=12 / 우측: C7=9, C8=18, C9=7, C10=12 -->
-            <tr>
-              <th colspan="9">상호명</th>
-                <td colspan="18" class="text-left">${icercorpnm}</td>
-                <th colspan="7">성명</th>
-                <td colspan="12" class="text-left"
-                    style="overflow:visible; position:relative; z-index:999;">
-                  <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <span>${icerceonm}</span>
-                    <div style="position:relative; display:inline-block; margin-right:4px; z-index:10;">
-                      <span style="font-size:0.9em; color:#555;">(인)</span>
-                      <img src="/images/sample/stamp.png" alt="인감"
-                           style="position:absolute; top:-7px; left:-6px; width:30px; height:30px;
-                                  object-fit:contain; opacity:0.85; pointer-events:none;
-                                  z-index:9999; transform:rotate(-6deg);
-                                  filter:drop-shadow(0 1px 1px rgba(0,0,0,0.2));">
-                    </div>
-                  </div>
-                </td>
-                <th colspan="9">상호명</th>
-                <td colspan="18" class="text-left">${ivercorpnm}</td>
-                <th colspan="7">성명</th>
-                <td colspan="12" class="text-left">
-                  <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <span>${iverceonm}</span>
-                    <span style="margin-left:4px; font-size:0.9em; color:#555;">(인)</span>
-                  </div>
-                </td>
-            </tr>
+            <tbody id="detailRows">
+                <!-- JS에서 detailList로 행 추가 -->
+            </tbody>
 
-            <!-- 행 3: 주소 -->
-            <!-- 좌측: C2=9, (C3-5)=37 / 우측: C7=9, (C8-10)=37 -->
-            <tr>
-              <th colspan="9">주소</th><td colspan="37" class="text-left">${iceraddr}</td>
-              <th colspan="9">주소</th><td colspan="37" class="text-left">${iveraddr}</td>
-            </tr>
-
-            <!-- 행 4: 업태 / 종목 -->
-            <!-- 좌측: 9,18,7,12 / 우측: 9,18,7,12 -->
-<!--            <tr>-->
-<!--              <th colspan="9">업태</th><td colspan="18" class="text-left">${icerbiztype}</td>-->
-<!--              <th colspan="7">종목</th><td colspan="12" class="text-left">${icerbizclass}</td>-->
-
-<!--              <th colspan="9">업태</th><td colspan="18" class="text-left">${iverbiztype}</td>-->
-<!--              <th colspan="7">종목</th><td colspan="12" class="text-left">${iverbizclass}</td>-->
-<!--            </tr>-->
-          </table>
-
-          <!-- 하단 내용 테이블 : 100열 -->
-          <!-- 기준 10열: [5,6,6,23,8,10,12,12,10,8] = 100 -->
-          <table style="width:100%; table-layout:fixed; border-collapse:collapse; border-top:none;">
-            <colgroup>
-              ${[...Array(100)].map(()=>'<col style="width:0.8em;">').join('')}
-            </colgroup>
-
-            <!-- 내용 타이틀 -->
-            <tr>
-              <td colspan="100" style="font-weight:bold; text-align:center; border-top:none;">
-                내&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;용
-              </td>
-            </tr>
-
-            <!-- 헤더: (5,6,6,23,8,10,12,12, (비고=10+8=18)) -->
-            <tr style="background-color:#EDEFF5; font-weight:bold;">
-              <th colspan="5">No</th>
-              <th colspan="5">월</th>
-              <th colspan="5">일</th>
-              <th colspan="23">품목 / 규격</th>
-              <th colspan="8">단위</th>
-              <th colspan="8">수량</th>
-              <th colspan="8">단가</th>
-              <th colspan="11">공급가액</th>
-              <th colspan="11">부가세액</th>
-              <th colspan="16">비고</th>
-            </tr>
-
-            <tbody id="detailRows"><!-- JS에서 행 추가 --></tbody>
-
-            <!-- 푸터: 첫 6칸(=5+6+6+23+8+10=58), 합계값 칸(=C7=12), 나머지 3칸(=C8..C10=12+10+8=30) -->
             <tfoot>
-              <tr>
-                <td colspan="10" style="text-align:center; font-weight:bold;">합계</td>
-                <td colspan="80" class="text-right">${supplycost}</td>
-                <td colspan="10"></td>
-              </tr>
-              <tr>
-                <td colspan="10" style="text-align:center;">메모</td>
-                <td colspan="90" class="text-left">${accountList}</td>
-              </tr>
+                <tr></tr>
             </tfoot>
-          </table>
-          <div style="margin-top:5px; margin-left: 5px;">
-            ${invo_des}
-            From.
-            ☎ ${tel1},
-            Fax. ${fax}
-            email. ${emailadres}
-          </div>
+        </table>
+    </div>
+    </script>
 
-        </div>
+    <!-- 출고장 -->
+    <script type="text/x-tmpl" id="writPrint_Template2">
+        <div id="printArea">
+
+        <table style="width: 100%; table-layout: fixed; border-collapse: collapse;">
+            <tr style="height: 0; font-size: 0; line-height: 0; border: none;">
+              <th style="border: none; padding: 0; width: 20%;"></th>
+              <th style="border: none; padding: 0; width: 20%;"></th>
+              <th style="border: none; padding: 0; width: 20%;"></th>
+              <th style="border: none; padding: 0; width: 10%;"></th>
+              <th style="border: none; padding: 0; width: 10%;"></th>
+              <th style="border: none; padding: 0; width: 20%;"></th>
+            </tr>
+            <tr>
+                <td rowspan="7" colspan="2" style="text-align: center; font-weight: bold; height: 35px;">
+                   <span style="font-size: 24px;">출고장</span>
+
+                </td>
+            </tr>
+
+              <tr>
+                <th>사업자번호</th><td colspan="3">${icercorpnum}</td>
+              </tr>
+
+              <tr>
+                <th>상호</th>
+                    <td colspan="3" style="overflow:visible; position:relative; z-index:999;">
+                        ${icercorpnm} &nbsp;&nbsp;&nbsp;대표 &nbsp;${icerceonm}&nbsp;&nbsp; (인)
+                        <img src="/images/sample/stamp.png" alt="인감"
+                         style="
+                            position:absolute;
+                            top:-95px;
+                            right:-35px;
+                            width:150px;
+                            height:200px;
+                            object-fit:contain;
+                            opacity:0.85;
+                            pointer-events:none;
+                            z-index:10;
+                            transform:rotate(-6deg);
+                            filter:drop-shadow(0 1px 1px rgba(0,0,0,0.2));
+                         ">
+                    </td>
+
+              </tr>
+
+              <tr>
+                <th>주소</th><td class="text-left" colspan="3">${iceraddr}</td>
+              </tr>
+
+              <tr>
+                <th>업종</th><td class="text-left" colspan="3">${icerbizclass}</td>
+              </tr>
+
+              <tr>
+                <th>연&락처</th><td class="text-left" colspan="3">TEL : ${tel1} FAX : ${fax}</td>
+              </tr>
+
+              <tr>
+                <th style="font-weight:800; background-color: yellow;">도착사진요청</th><td style="font-weight:800; background-color: yellow;" class="text-left" colspan="3">다원유 ${agnertel2}</td>
+              </tr>
+        </table>
+
+        <table style="width: 100%; table-layout: fixed; border-collapse: collapse; border-top: none;">
+          <!-- 열 너비 고정용 헤더 -->
+          <tr style="height: 0; font-size: 0; line-height: 0; border: none;">
+              <th style="border: none; padding: 0; width: 16%;"></th>
+              <th style="border: none; padding: 0; width: 24%;"></th>
+              <th style="border: none; padding: 0; width: 16%;"></th>
+              <th style="border: none; padding: 0; width: 14%;"></th>
+              <th style="border: none; padding: 0; width: 14%;"></th>
+              <th style="border: none; padding: 0; width: 16%;"></th>
+          </tr>
+            <tr>
+                <th class="text-left">1. 출고요청일</th><td class="text-left" colspan="5">${misdate_format}</td>
+            </tr>
+            <tr>
+                <th class="text-left" colspan="6">2. 출고품목</th>
+            </tr>
+            <tr style="background-color: #EDEFF5;">
+                <th colspan="2">품명</th>
+                <th>규격</th>
+                <th>수량(장)</th>
+                <th>수량(㎡)</th>
+                <th>비고</th>
+            </tr>
+
+            <tbody id="detailRows">
+                <!-- JS에서 detailList로 행 추가 -->
+            </tbody>
+            <tfoot>
+                <tr>
+                    <th class="text-left">3. 업체명</th><td colspan="5" style="font-weight:800">${ivercorpnm}</td>
+                </tr>
+                <tr>
+                    <th class="text-left">4. 현장주소</th><td colspan="5" style="font-weight:800">${iveraddr}</td>
+                </tr>
+                <tr style="height:50px;">
+                    <th class="text-left">5. 담당자</th><td colspan="2" style="font-weight:800">${account_manager_phone_display}</td>
+                    <th class="text-left">검수 및 인계</th><td colspan="2" class="text-right" style="padding-right:20px;"> (인)</td>
+                </tr>
+                <tr>
+                    <td colspan="2">상차 : ${misdate_format}</td> <td colspan="4">하차 : ${snddate_format}</td>
+                </tr>
+
+            </tfoot>
+
+        </table>
+    </div>
     </script>
 
 
 </th:block>
 
 <th:block layout:fragment="scripts">
-    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/exceljs/dist/exceljs.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
     <!--<th:block th:replace="/common/columns_setting :: columns_setting"></th:block>-->
     <th:block th:replace="/common/multiform_material :: multiform_material"></th:block>
     <th:block th:replace="/common/popup_company :: popup_company"></th:block>
@@ -1185,7 +1305,6 @@
                     for (const item of items) {
                         const result = await getInvoiceData(item.misnum);
                         const htmlBase = renderInvoiceHtml(result.data);
-                        console.log('print result.data', result.data);
 
                         // 상단: 공급받는자용
                         const htmlForBuyer = htmlBase.replace('(공급받는자용)', '(공급받는자용)');
@@ -1203,6 +1322,7 @@
                                                 `;
                     }
 
+
                     allHtml += `</body></html>`;
 
                     const printWindow = window.open('', '_blank', 'width=850,height=1000');
@@ -1213,7 +1333,7 @@
                     printWindow.onload = function () {
                         printWindow.focus();
                         printWindow.print();
-                        // setTimeout(() => printWindow.close(), 300);
+                        setTimeout(() => printWindow.close(), 300);
                     };
                 });
 
@@ -1226,9 +1346,10 @@
                     });
                 }
 
+
                 function renderInvoiceHtml(data) {
                     let template = document.getElementById('writPrint_Template').innerHTML;
-
+                    console.log('renderInvoiceHtml(data)', data);
                     function formatNumber(value) {
                         if (value == null || value === '') return '';
                         return Number(value).toLocaleString();
@@ -1239,386 +1360,206 @@
                         return data[key.trim()] ?? '';
                     });
 
-                    template = template.replace('(공급받는자용)', data.copyType || '(공급받는자용)');
-
                     // detailList 행 추가
                     const tempDiv = document.createElement('div');
                     tempDiv.innerHTML = template;
 
-                    // 상세 행 생성 부분만 교체
                     const tbody = tempDiv.querySelector('#detailRows');
+                    let totalQty = 0;
+                    let supplyTotal = 0;
+                    let taxTotal = 0;
+
                     if (tbody && Array.isArray(data.detailList)) {
                         const list = data.detailList;
                         const minRows = 10;
-                        const trList = [];
-
-                        let emptyStartIndex = null;
 
                         for (let i = 0; i < Math.max(list.length, minRows); i++) {
-                            const item = list[i] || {};
-                            const isEmptyRow =
-                                !item.name && !item.qty && !item.supplycost && !item.tax;
+                            const item = list[i] || {};  // 없는 항목은 빈 객체 처리
 
-                            // 첫 번째 빈행 인덱스 기록
-                            if (isEmptyRow && emptyStartIndex === null) {
-                                emptyStartIndex = i;
-                            }
+                            const qty = parseFloat(item.qty) || 0;
+                            totalQty += qty;
 
                             const tr = document.createElement('tr');
                             tr.innerHTML = `
-                              <td colspan="5">${i + 1}</td>
-                              <td colspan="5">${item.month || ''}</td>
-                              <td colspan="5">${item.day || ''}</td>
-                              <td colspan="23" class="text-left">${item.name || ''}</td>
-                              <td colspan="8">${item.spec || ''}</td>
-                              <td colspan="8" class="text-right">${formatNumber(item.qty)}</td>
-                              <td colspan="8" class="text-right">${formatNumber(item.unitcost)}</td>
-                              <td colspan="11" class="text-right">${formatNumber(item.supplycost)}</td>
-                              <td colspan="11" class="text-right">${formatNumber(item.tax)}</td>
-                              <td colspan="16" class="text-left">${item.remark || ''}</td>
-                            `;
-                            trList.push(tr);
-                        }
-
-                        // tbody 초기화 후 다시 추가
-                        tbody.innerHTML = '';
-
-                        // 빈칸 병합 처리
-                        if (data.remark1 && emptyStartIndex != null) {
-                            // 실제 데이터행까지만 추가
-                            for (let i = 0; i < emptyStartIndex; i++) {
-                                tbody.appendChild(trList[i]);
-                            }
-
-                            // 빈칸 영역 대신 Remark1 한 줄로 병합
-                            const remarkTr = document.createElement('tr');
-                            remarkTr.innerHTML = `
-                            <td colspan="100"
-                                style="text-align:left; font-size:12px; white-space:pre-line;">
-                                ${((data.remark1 || '').replace(/^\s*\r?\n/, '')).trimEnd()}
-                            </td>
-                                    `;
-                            tbody.appendChild(remarkTr);
-                        } else {
-                            // 병합할 게 없으면 전체 그대로 추가
-                            trList.forEach(tr => tbody.appendChild(tr));
+                                    <td>${i + 1}</td>
+                                    <td class="text-left">${item.name || ''}</td>
+                                    <td>${formatNumber(item.qty)}</td>
+                                    <td>${formatNumber(item.qty2)}</td>
+                                    <td class="text-right">${formatNumber(item.unitcost)}</td>
+                                    <td class="text-right">${formatNumber(item.supplycost)}</td>
+                                    <td class="text-right">${formatNumber(item.tax)}</td>
+                                    <td class="text-left" colspan="2">${item.remark || ''}</td>
+                                `;
+                            tbody.appendChild(tr);
                         }
                     }
 
-
-                    const tfoot = tempDiv.querySelector('tfoot tr');
+                    const tfoot = tempDiv.querySelector('tfoot');
                     if (tfoot) {
                         tfoot.innerHTML = `
-                            <td colspan="10" style="text-align:center; font-weight:bold;">합계</td>
-                            <td colspan="80" class="text-left">
-                              ₩${formatNumber(data.totalamt)}원정
-                              <span style="font-size:0.9em; color:#555; margin-left:8px;">
-                                (공급가: ${formatNumber(data.supplycost)}, 세액: ${formatNumber(data.taxtotal)})
-                              </span>
+                        <tr>
+                            <td colspan="2" style="text-align: center; font-weight: bold;">합계</td>
+                            <td style="text-align: center;">${formatNumber(totalQty)}</td>
+                            <td></td>
+                            <td style="text-align: right;">${formatNumber(data.supplycost)}</td>
+                            <td style="text-align: right;">${formatNumber(data.taxtotal)}</td>
+                            <td colspan="2" style="text-align: right;">${formatNumber(data.totalamt)}</td>
+                        </tr>
+                        <tr>
+                            <td colspan="8" style="text-align:right; padding-top:10px; font-weight:bold;">
+                                인수자: _________________________________
                             </td>
-                            <td colspan="10"></td>
-                          `;
+                        </tr>
+                    `;
                     }
 
                     return tempDiv.innerHTML;
+
                 }
 
-                // 거래명세서 엑셀 다운로드
-                $('#btnExcelExport').on('click', async function () {
+                // 출고장 출력
+                $('#btnWritePrint2').on('click', async function (e) {
                     const items = _this.grid.rows
                         .filter(row => row.isSelected)
                         .map(row => row.dataItem);
 
                     if (items.length === 0) {
-                        Alert.alert('', '엑셀로 내보낼 항목을 선택해주세요.');
+                        Alert.alert('', '출력할 항목을 선택해주세요.');
                         return;
                     }
 
-                    const workbook = new ExcelJS.Workbook();
+                    let allHtml = `
+                        <html>
+                        <head>
+                            <title>출고장 출력</title>
+                            ${$('#print_invoice_css')[0].outerHTML}
+                            <style>
+                                @media print {
+                                  @page {
+                                    size: A4 portrait;
+                                    margin: 5mm;
+                                  }
+
+                                  * {
+                                        -webkit-print-color-adjust: exact !important;
+                                        print-color-adjust: exact !important;
+                                        font-size: 14px;
+                                      }
+
+                                  /* 한 거래명세서 묶음 (공급받는자용 + 공급자용) */
+                                  .invoice-pair {
+                                    display: block;
+                                    page-break-inside: avoid;   /* ✅ 둘은 항상 한 페이지에 함께 */
+                                    break-inside: avoid-page;
+                                    page-break-after: always;   /* ✅ 다음 거래명세서로 넘어갈 때 새 페이지 */
+                                  }
+
+                                  .invoice-buyer,
+                                  .invoice-seller {
+                                    page-break-inside: avoid;   /* ✅ 내부 분리 방지 */
+                                    break-inside: avoid-page;
+                                  }
+
+                                  table, tr, td, thead, tbody, tfoot {
+                                    page-break-inside: avoid !important;
+                                    break-inside: avoid-page !important;
+                                  }
+
+                                  hr {
+                                    border: 1px dashed #aaa;
+                                    margin: 20px 0;
+                                  }
+                                }
+
+                            </style>
+                        </head>
+                        <body>
+                    `;
 
                     for (const item of items) {
                         const result = await getInvoiceData(item.misnum);
+                        const htmlBase = renderInvoiceHtml2(result.data);
 
-                        // HTML 생성 2벌 (공급자용 + 공급받는자용)
-                        const htmlSeller = renderInvoiceHtml({
-                            ...result.data,
-                            copyType: '(공급자용)'
-                        });
-                        const htmlBuyer = renderInvoiceHtml({
-                            ...result.data,
-                            copyType: '(공급받는자용)'
-                        });
+                        // 상단: 공급받는자용
+                        const htmlForSeller = htmlBase;
 
-                        // 하나의 시트 안에 두 개 붙이기
-                        const tempDivSeller = document.createElement('div');
-                        const tempDivBuyer = document.createElement('div');
-                        tempDivSeller.innerHTML = htmlSeller;
-                        tempDivBuyer.innerHTML = htmlBuyer;
+                        // 공급받는자용 (명칭 추가)
+                        const htmlForBuyer = htmlBase.replace(
+                            '<span style="font-size: 24px;">출고장</span>',
+                            '<span style="font-size: 24px;">출고장</span><br><span style="font-size: 20px; color: blue;">(공급받는자 보관용)</span>'
+                        );
 
-                        const safeSheetName = item.ivercorpnm
-                            .replace(/[\\\/\*\?\:\[\]]/g, '-')   // 금지된 특수문자를 하이픈(-)으로 변경
-                            .slice(0, 31);                        // Excel 시트명은 최대 31자 제한
-
-                        const sheet = workbook.addWorksheet(safeSheetName);
-
-                        // ✅ 용지 설정 (A4 + 세로 + 좁은 여백)
-                        sheet.pageSetup = {
-                            paperSize: 9, // A4 (Excel의 paperSize 번호)
-                            orientation: 'portrait', // 세로 방향
-                            margins: {
-                                left: 0.25,   // 기본은 인치 단위 (0.25inch ≈ 6.35mm)
-                                right: 0.25,
-                                top: 0.3,
-                                bottom: 0.3,
-                                header: 0.1,
-                                footer: 0.1
-                            },
-                            fitToPage: true,   // ✅ 자동으로 페이지에 맞춤
-                            fitToWidth: 1,
-                            fitToHeight: 0
-                        };
-
-                        const mergedCells = new Set();
-                        const occupied = new Set();
-                        const tablesSeller = tempDivSeller.querySelectorAll('table');
-                        const tablesBuyer = tempDivBuyer.querySelectorAll('table');
-                        let startRow = 1;
-
-                        // ---------- 공급자용 ----------
-                        for (const table of tablesSeller) {
-                            for (const row of table.rows) {
-                                const excelRow = sheet.getRow(startRow);
-                                let colIndex = 1;
-
-                                while (occupied.has(`${startRow},${colIndex}`)) colIndex++;
-
-                                for (const cell of row.cells) {
-                                    const cs = parseInt(cell.getAttribute('colspan') || 1);
-                                    const rs = parseInt(cell.getAttribute('rowspan') || 1);
-
-                                    // rowspan 점유 처리
-                                    if (rs > 1) {
-                                        for (let rr = startRow + 1; rr < startRow + rs; rr++) {
-                                            for (let cc = colIndex; cc < colIndex + cs; cc++) {
-                                                occupied.add(`${rr},${cc}`);
-                                            }
-                                        }
-                                    }
-
-                                    const excelCell = excelRow.getCell(colIndex);
-                                    let text = cell.innerText.replace(/\s*\n\s*/g, ' ').trim();
-
-                                    if (text === '공급자') {
-                                        text = '공\n급\n자';
-                                    } else if (text === '공급받는자') {
-                                        text = '공\n급\n받\n는\n자';
-                                    }
-
-                                    // 제목 셀 여부 플래그
-                                    let isTitleCell = false;
-
-                                    if (startRow === 1 && text.includes('거래 명세서')) {
-                                        isTitleCell = true;     // ← 이 셀만 제목 스타일
-                                    }
-                                    excelCell.value = text;
-
-                                    // 셀 스타일
-                                    excelCell.font = {
-                                        name: '맑은 고딕',
-                                        size: isTitleCell ? 16 : 9,                 // ← 제목 셀만 16
-                                        bold: isTitleCell || cell.tagName === 'TH'  // ← 제목/TH만 bold
-                                    };
-                                    excelCell.alignment = {
-                                        vertical: 'middle',
-                                        horizontal: cell.classList.contains('text-right')
-                                            ? 'right'
-                                            : cell.classList.contains('text-left')
-                                                ? 'left'
-                                                : 'center',
-                                        wrapText: true
-                                    };
-                                    excelCell.border = {
-                                        top: { style: 'thin' },
-                                        left: { style: 'thin' },
-                                        bottom: { style: 'thin' },
-                                        right: { style: 'thin' }
-                                    };
-
-                                    if (cs > 1 || rs > 1) {
-                                        const start = { r: startRow, c: colIndex };
-                                        const end = { r: startRow + rs - 1, c: colIndex + cs - 1 };
-                                        const mergeRange = `${start.r},${start.c},${end.r},${end.c}`;
-                                        if (!mergedCells.has(mergeRange)) {
-                                            try {
-                                                sheet.mergeCells(start.r, start.c, end.r, end.c);
-                                            } catch {}
-                                            mergedCells.add(mergeRange);
-                                        }
-                                    }
-
-                                    for (let c = colIndex; c < colIndex + cs; c++) {
-                                        occupied.add(`${startRow},${c}`);
-                                    }
-
-                                    colIndex += cs;
-                                    while (occupied.has(`${startRow},${colIndex}`)) colIndex++;
-                                }
-
-                                excelRow.height = startRow === 1 ? 30 : 16.5;
-                                startRow++;
-                            }
-                        }
-
-                        const footerSeller = tempDivSeller.querySelector('table + div');
-                        if (footerSeller) {
-
-                            // 모든 텍스트를 한 줄 문자열로 변환 (줄바꿈 제거)
-                            let footerText = footerSeller.innerText.replace(/\s*\n\s*/g, ' ').trim();
-
-                            const row = sheet.getRow(startRow);
-                            row.getCell(1).value = footerText;
-
-                            // 1번 컬럼부터 100번 컬럼까지 병합
-                            sheet.mergeCells(startRow, 1, startRow, 100);
-
-                            row.font = { name: '맑은 고딕', size: 10 };
-                            row.alignment = { vertical: 'middle', horizontal: 'left', wrapText: false };
-                            row.height = 16.5;
-
-                            startRow++;
-                        }
-
-                        // 절취선 추가
-                        startRow += 1;
-                        const divider = sheet.getRow(startRow);
-                        divider.getCell(1).value = '────────────────────── 절취선 ──────────────────────';
-                        sheet.mergeCells(startRow, 1, startRow, 100);
-                        divider.alignment = { horizontal: 'center', vertical: 'middle' };
-                        divider.font = { name: '맑은 고딕', size: 10, bold: true, color: { argb: '777777' } };
-                        divider.height = 15;
-
-                        // 여백
-                        startRow += 2;
-
-                        // ✅ 공급받는자용 타이틀 강제 스타일
-                        const buyerTitleRow = startRow;
-                        const titleCell = sheet.getCell(buyerTitleRow, 1);
-                        titleCell.font = { name: '맑은 고딕', size: 16, bold: true };
-                        titleCell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
-
-                        // ---------- 공급받는자용 ----------
-                        for (const table of tablesBuyer) {
-                            for (const row of table.rows) {
-                                const excelRow = sheet.getRow(startRow);
-                                let colIndex = 1;
-
-                                while (occupied.has(`${startRow},${colIndex}`)) colIndex++;
-
-                                for (const cell of row.cells) {
-                                    const cs = parseInt(cell.getAttribute('colspan') || 1);
-                                    const rs = parseInt(cell.getAttribute('rowspan') || 1);
-
-                                    if (rs > 1) {
-                                        for (let rr = startRow + 1; rr < startRow + rs; rr++) {
-                                            for (let cc = colIndex; cc < colIndex + cs; cc++) {
-                                                occupied.add(`${rr},${cc}`);
-                                            }
-                                        }
-                                    }
-
-                                    const excelCell = excelRow.getCell(colIndex);
-                                    let text = cell.innerText.replace(/\s*\n\s*/g, ' ').trim();
-
-                                    if (text === '공급자') {
-                                        text = '공\n급\n자';
-                                    } else if (text === '공급받는자') {
-                                        text = '공\n급\n받\n는\n자';
-                                    }
-
-                                    let isBuyerTitle = false;
-
-                                    // 제목 셀 판별
-                                    if (text.includes('거래 명세서')) {
-                                        isBuyerTitle = true;
-                                    }
-
-                                    excelCell.value = text;
-
-                                    // 제목 셀만 크게/굵게
-                                    excelCell.font = {
-                                        name: '맑은 고딕',
-                                        size: isBuyerTitle ? 16 : 9,
-                                        bold: isBuyerTitle || cell.tagName === 'TH'
-                                    };
-                                    excelCell.alignment = {
-                                        vertical: 'middle',
-                                        horizontal: cell.classList.contains('text-right')
-                                            ? 'right'
-                                            : cell.classList.contains('text-left')
-                                                ? 'left'
-                                                : 'center',
-                                        wrapText: true
-                                    };
-                                    excelCell.border = {
-                                        top: { style: 'thin' },
-                                        left: { style: 'thin' },
-                                        bottom: { style: 'thin' },
-                                        right: { style: 'thin' }
-                                    };
-
-                                    if (cs > 1 || rs > 1) {
-                                        const start = { r: startRow, c: colIndex };
-                                        const end = { r: startRow + rs - 1, c: colIndex + cs - 1 };
-                                        const mergeRange = `${start.r},${start.c},${end.r},${end.c}`;
-                                        if (!mergedCells.has(mergeRange)) {
-                                            try {
-                                                sheet.mergeCells(start.r, start.c, end.r, end.c);
-                                            } catch {}
-                                            mergedCells.add(mergeRange);
-                                        }
-                                    }
-
-                                    for (let c = colIndex; c < colIndex + cs; c++) {
-                                        occupied.add(`${startRow},${c}`);
-                                    }
-
-                                    colIndex += cs;
-                                    while (occupied.has(`${startRow},${colIndex}`)) colIndex++;
-                                }
-
-                                excelRow.height = startRow === divider.number + 2 ? 30 : 16.5;
-                                startRow++;
-                            }
-                        }
-
-                        const footerBuyer = tempDivBuyer.querySelector('table + div');
-                        if (footerBuyer) {
-
-                            let footerText = footerBuyer.innerText.replace(/\s*\n\s*/g, ' ').trim();
-
-                            const row = sheet.getRow(startRow);
-                            row.getCell(1).value = footerText;
-
-                            sheet.mergeCells(startRow, 1, startRow, 100);
-
-                            row.font = { name: '맑은 고딕', size: 10 };
-                            row.alignment = { vertical: 'middle', horizontal: 'left', wrapText: false };
-                            row.height = 16.5;
-
-                            startRow++;
-                        }
-
-
-                        sheet.properties.defaultColWidth = 1.1;
-                        sheet.columns = Array.from({ length: 100 }, () => ({ width: 1 }));
+                        // 하나의 페이지에 두 개 쌓기
+                        allHtml += `
+                            <div class="invoice-pair">
+                                <div class="invoice-seller">${htmlForSeller}</div>
+                                <hr>
+                                <div class="invoice-buyer">${htmlForBuyer}</div>
+                            </div>
+                                                `;
                     }
 
 
-                    const today = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-                    const buffer = await workbook.xlsx.writeBuffer();
-                    saveAs(new Blob([buffer]), `거래명세서_${today}.xlsx`);
+                    allHtml += `</body></html>`;
+
+                    const printWindow = window.open('', '_blank', 'width=850,height=1000');
+                    printWindow.document.open();
+                    printWindow.document.write(allHtml);
+                    printWindow.document.close();
+
+                    printWindow.onload = function () {
+                        printWindow.focus();
+                        printWindow.print();
+                        setTimeout(() => printWindow.close(), 300);
+                    };
                 });
 
+
+                function renderInvoiceHtml2(data) {
+                    let template = document.getElementById('writPrint_Template2').innerHTML;
+                    function formatNumber(value) {
+                        if (value == null || value === '') return '';
+                        return Number(value).toLocaleString();
+                    }
+
+                    // ${key} 를 data[key]로 치환
+                    template = template.replace(/\$\{(.*?)\}/g, function (match, key) {
+                        return data[key.trim()] ?? '';
+                    });
+
+                    // detailList 행 추가
+                    const tempDiv = document.createElement('div');
+                    tempDiv.innerHTML = template;
+
+                    const tbody = tempDiv.querySelector('#detailRows');
+
+                    if (tbody && Array.isArray(data.detailList)) {
+                        const list = data.detailList;
+                        const minRows = 4;
+
+                        for (let i = 0; i < Math.max(list.length, minRows); i++) {
+                            const item = list[i] || {};  // 없는 항목은 빈 객체 처리
+
+                            const tr = document.createElement('tr');
+                            tr.innerHTML = `
+                                    <td style="font-weight: 800;" colspan="2" class="text-left">${item.name || ''}</td>
+                                    <td style="font-weight: 800;">${item.spec|| ''}</td>
+                                    <td style="font-weight: 800;">${formatNumber(item.qty)}</td>
+                                    <td style="font-weight: 800;">${formatNumber(item.qty2)}</td>
+                                    <td class="text-left">${item.remark || ''}</td>
+                                `;
+                            tbody.appendChild(tr);
+                        }
+                    }
+
+                    data.account_manager_phone_display =
+                        (data.account_manager || data.account_manager_phone)
+                            ? `${data.account_manager || ''}${data.account_manager_phone ? `(${data.account_manager_phone})` : ''}`
+                            : '';
+
+                    return tempDiv.innerHTML;
+
+                }
 
                 // 수정 클릭
                 // this.$btnEdit.click(function (e) {
@@ -1916,7 +1857,6 @@
                     };
                     let fnsuccess = function (result) {
                         result.data['mode'] = 'edit';
-                        console.log('result.data', result.data);
                         _this.showInvoiceForm(result.data);
                     };
                     AjaxUtil.getAsyncData(_this.url + '/invoice_detail', data, fnsuccess);
@@ -2170,7 +2110,7 @@
             //     }, 0);
             // }
 
-
+            sujuheadids = [];
             shipmentheadids = [];
 
             // 등록 팝업
@@ -2234,7 +2174,6 @@
                     //     }
                     // };
                     // AjaxUtil.getAsyncData(url, data1, fnSaveSuccess);
-
                     // 출고리스트에서 작성시에는 신규이지만 거래처 정보가 있음
                     if (data.invoicee) {
                         const i = data.invoicee;
@@ -2249,6 +2188,7 @@
                         $content.find('#InvoiceeContactName1').val(i.invoiceecontactname1);
                         $content.find('#InvoiceeTEL1').val(i.invoiceetel1).trigger('input');
                         $content.find('#InvoiceeEmail1').val(i.invoiceeemail1);
+                        $content.find('#snddate').val(i.snddate);
                         $content.find('#InvoiceeCorpNum').prop('readonly', true);
                     }
                     $content.find('#resultList').hide();
@@ -2278,7 +2218,12 @@
                     // 작성일자
                     let $writeDate = $content.find('#writeDate');
                     let today = CommonUtil.getYYYYMMDD();
+                    let tomorrow = CommonUtil.getYYYYMMDD(1);
                     $writeDate.val(today).trigger('change');
+
+                    let $snddate = $content.find('#snddate');
+
+                    $snddate.val(data?.snddate || tomorrow);
 
                     // detailList의 PurchaseDT1 변경 → 전체 행에 동일하게 반영
                     $content.on('change', 'input[name^="detailList"][name$=".PurchaseDT1"]', function () {
@@ -2433,12 +2378,12 @@
 
                 }
                 const popInvoice = new PopInvoiceComponent();
-                let modalHeight = 630;
+                let modalHeight = 600;
 
                 if (ntscfnum || orgntscfnum) {
-                    modalHeight = 660;
+                    modalHeight = 630;
                     if (ntscodeDes) {
-                        modalHeight = 690;
+                        modalHeight = 660;
                     }
                 }
 
@@ -2543,45 +2488,46 @@
                         const compid = item.id;
 
                         // 사업자 등록번호 길이에 따라 구분
-                        if (businessNumber.length === 10) {
-                            // 사업자
-                            $content.find('input[name="InvoiceeType"][value="사업자"]').prop('checked', true).trigger('change');
-
-                            let data = {
-                                b_no: businessNumber,
-                                compid: compid,
-                            };
-
-                            let url = _this.url + '/invoicee_check';
-
-                            const fnSaveSuccess = function (result) {
-                                if (result.success) {
-                                    const data = result.data;
-                                    if (data.b_stt_cd === '01') {
-                                        bindInvoiceeData(item);
-                                    } else {
-                                        Alert.alert('', result.message);
-                                    }
-                                } else if (result.code === 'STOP_CONFIRM') {
-                                    Alert.confirm('', result.message, function () {
-                                        AjaxUtil.postAsyncData(_this.url + '/invoicee_stop', { compid: compid }, function (res) {
-                                            Alert.alert('', res.message);
-                                        });
-                                    });
-                                } else {
-                                    Alert.alert('', result.message);
-                                }
-                            };
-
-                            AjaxUtil.postAsyncData(url, data, fnSaveSuccess);
-
-                        } else if (businessNumber.length === 13) {
-                            // 개인
-                            $content.find('input[name="InvoiceeType"][value="개인"]').prop('checked', true).trigger('change');
-                            bindInvoiceeData(item);
-                        } else {
-                            Alert.alert('', '유효하지 않은 사업자 번호 형식입니다.');
-                        }
+                        // if (businessNumber.length === 10) {
+                        //     // 사업자
+                        //     $content.find('input[name="InvoiceeType"][value="사업자"]').prop('checked', true).trigger('change');
+                        //
+                        //     let data = {
+                        //         b_no: businessNumber,
+                        //         compid: compid,
+                        //     };
+                        //
+                        //     let url = _this.url + '/invoicee_check';
+                        //
+                        //     const fnSaveSuccess = function (result) {
+                        //         if (result.success) {
+                        //             const data = result.data;
+                        //             if (data.b_stt_cd === '01') {
+                        //                 bindInvoiceeData(item);
+                        //             } else {
+                        //                 Alert.alert('', result.message);
+                        //             }
+                        //         } else if (result.code === 'STOP_CONFIRM') {
+                        //             Alert.confirm('', result.message, function () {
+                        //                 AjaxUtil.postAsyncData(_this.url + '/invoicee_stop', { compid: compid }, function (res) {
+                        //                     Alert.alert('', res.message);
+                        //                 });
+                        //             });
+                        //         } else {
+                        //             Alert.alert('', result.message);
+                        //         }
+                        //     };
+                        //
+                        //     AjaxUtil.postAsyncData(url, data, fnSaveSuccess);
+                        //
+                        // } else if (businessNumber.length === 13) {
+                        //     // 개인
+                        //     $content.find('input[name="InvoiceeType"][value="개인"]').prop('checked', true).trigger('change');
+                        //
+                        // } else {
+                        //     Alert.alert('', '유효하지 않은 사업자 번호 형식입니다.');
+                        // }
+                        bindInvoiceeData(item);
                     };
 
                     const bindInvoiceeData = function (item) {
@@ -2607,44 +2553,46 @@
                     const businessNumber = item.business_number.replace(/-/g, '');
                     const compid = item.id;
 
-                    if (businessNumber.length === 13) {
-                        $content.find('input[name="InvoiceeType"][value="개인"]').prop('checked', true).trigger('change');
-                        bindInvoiceeData(item);
-                        return;
-                    }
+                    bindInvoiceeData(item);
 
-                    if (businessNumber.length === 10) {
-                        $content.find('input[name="InvoiceeType"][value="사업자"]').prop('checked', true).trigger('change');
+                    // if (businessNumber.length === 13) {
+                    //     $content.find('input[name="InvoiceeType"][value="개인"]').prop('checked', true).trigger('change');
+                    //     bindInvoiceeData(item);
+                    //     return;
+                    // }
 
-                        const data = { b_no: businessNumber, compid };
-                        const url = _this.url + '/invoicee_check';
-
-                        AjaxUtil.postAsyncData(url, data, function (result) {
-                            if (result.success) {
-                                const data = result.data;
-                                if (data.b_stt_cd === '01') {
-                                    bindInvoiceeData(item);
-                                } else {
-                                    Alert.alert('', result.message);
-                                }
-                            } else if (result.code === 'STOP_CONFIRM') {
-                                Alert.confirm('', result.message,
-                                    function onYes() {
-                                        AjaxUtil.postAsyncData(_this.url + '/invoicee_stop', { compid }, function (res) {
-                                            Alert.alert('', res.message);
-                                        });
-                                    },
-                                    function onCancel() {
-                                        $content.find('#InvoiceeCorpName').focus();
-                                    }
-                                );
-                            } else {
-                                Alert.alert('', result.message);
-                            }
-                        });
-                    } else {
-                        Alert.alert('', '유효하지 않은 사업자 번호입니다.');
-                    }
+                    // if (businessNumber.length === 10) {
+                    //     $content.find('input[name="InvoiceeType"][value="사업자"]').prop('checked', true).trigger('change');
+                    //
+                    //     const data = { b_no: businessNumber, compid };
+                    //     const url = _this.url + '/invoicee_check';
+                    //
+                    //     AjaxUtil.postAsyncData(url, data, function (result) {
+                    //         if (result.success) {
+                    //             const data = result.data;
+                    //             if (data.b_stt_cd === '01') {
+                    //                 bindInvoiceeData(item);
+                    //             } else {
+                    //                 Alert.alert('', result.message);
+                    //             }
+                    //         } else if (result.code === 'STOP_CONFIRM') {
+                    //             Alert.confirm('', result.message,
+                    //                 function onYes() {
+                    //                     AjaxUtil.postAsyncData(_this.url + '/invoicee_stop', { compid }, function (res) {
+                    //                         Alert.alert('', res.message);
+                    //                     });
+                    //                 },
+                    //                 function onCancel() {
+                    //                     $content.find('#InvoiceeCorpName').focus();
+                    //                 }
+                    //             );
+                    //         } else {
+                    //             Alert.alert('', result.message);
+                    //         }
+                    //     });
+                    // } else {
+                    //     Alert.alert('', '유효하지 않은 사업자 번호입니다.');
+                    // }
                 }
 
                 function bindInvoiceeData(item) {
@@ -2912,6 +2860,16 @@
                         $row.find('input[id$=".ItemId"]').val(item.id || '');
                         $row.find('textarea[id$=".ItemName"]').val(item.Name || '');
                         $row.find('textarea[id$=".Spec"]').val(item.Spec || '');
+
+                        setTimeout(() => {
+                            const company_id = $('#InvoiceeID').val();
+                            const today = new Date().getFullYear().toString();
+                            const month = $row.find('input[id$=".PurchaseDT1"]').val() || '01';
+                            const day = $row.find('input[id$=".PurchaseDT2"]').val() || '01';
+                            const JumunDate = `${today}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+
+                            tryShowPrice(item.id, company_id, $row, JumunDate);
+                        }, 0);
                     };
 
                     if (!keyword) {
@@ -2943,26 +2901,45 @@
                 $(document).off('click', 'a[id^="btnViewItem_"]').on('click', 'a[id^="btnViewItem_"]', function (e) {
                     e.preventDefault();
 
-                    const $btn = $(this);
-                    const $row = $btn.closest('tr');
+                    const $row = $(this).closest('tr');
 
                     const pop = new PopMatComponent();
                     pop.material_type = 'product,sangpum';
 
-                    pop.show(function (item) {
+                    const callback = function (item) {
                         $row.find('input[id$=".ItemId"]').val(item.id || '');
                         $row.find('textarea[id$=".ItemName"]').val(item.Name || '');
                         $row.find('textarea[id$=".Spec"]').val(item.Spec || '');
-                    });
 
+                        setTimeout(() => {
+                            const company_id = $('#InvoiceeID').val();
+                            const today = new Date().getFullYear().toString();
+                            const month = $row.find('input[id$=".PurchaseDT1"]').val() || '01';
+                            const day = $row.find('input[id$=".PurchaseDT2"]').val() || '01';
+                            const JumunDate = `${today}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+
+                            tryShowPrice(item.id, company_id, $row, JumunDate);
+                        }, 0);
+                    };
+
+                    pop.show(callback);
                     pop.searchDataBind();
                 });
+
 
                 if (data.shipids) {
                     if (Array.isArray(data.shipids)) {
                         _this.shipmentheadids = data.shipids.map(id => parseInt(id, 10));
                     } else if (typeof data.shipids === 'string') {
                         _this.shipmentheadids = data.shipids.split(',').map(id => parseInt(id.trim(), 10));
+                    }
+                }
+
+                if (data.sujuids) {
+                    if (Array.isArray(data.sujuids)) {
+                        _this.sujuheadids = data.sujuids.map(id => parseInt(id, 10));
+                    } else if (typeof data.sujuids === 'string') {
+                        _this.sujuheadids = data.sujuids.split(',').map(id => parseInt(id.trim(), 10));
                     }
                 }
 
@@ -2996,8 +2973,11 @@
                     //     });
                     //     return;
                     // }
-                    if (!data.TotalAmount || data.TotalAmount === '0') {
-
+                    if (
+                        data.TotalAmount === null ||
+                        data.TotalAmount === undefined ||
+                        data.TotalAmount === ''
+                    ) {
                         Alert.alert('', '금액이 없습니다.');
                         return;
                     }
@@ -3054,12 +3034,17 @@
                         data.shipids = _this.shipmentheadids.join(',');
                     }
 
+                    if (_this.sujuheadids.length > 0) {
+                        data.sujuids = _this.sujuheadids.join(',');
+                    }
+
                     const doSave = function () {
                         const url = _this.url + '/invoice_save';
                         AjaxUtil.postJsonAsyncData(url, data, function (result) {
                             if (result.success) {
                                 Notify.success("저장되었습니다.");
                                 _this.shipmentheadids = [];
+                                _this.sujuheadids = [];
                                 if ($btnInvoiceSave.text().trim() !== '수정') {
                                     _this.clearForm();
                                 }
@@ -3405,7 +3390,7 @@
                 });
 
 
-                // let data = FormUtil.extractForm($taxForm);
+                //   let data = FormUtil.extractForm($taxForm);
 
                 // $content.find('#InvoiceeID').change(function () {
                 //     $content.find('tr[id^="item_"]').each(function () {
@@ -3429,33 +3414,33 @@
                 //         tryShowPrice($Material_id.val(), $InvoiceeID.val(), $row, JumunDate);
                 //     }
                 // }
-
+                //
                 // $(document).on('change', 'input[id$=".PurchaseDT1"], input[id$=".PurchaseDT2"]', function () {
                 //     const $row = $(this).closest('tr');
                 //     checkAndTryShowPrice($row);
                 // });
 
-                // function tryShowPrice(mat_pk, company_id, row, JumunDate) {
-                //     let url = '/api/sales/suju/readPriceSuju';
-                //     let data = {
-                //         'mat_pk': mat_pk,
-                //         'company_id': company_id,
-                //         'JumunDate': JumunDate
-                //     };
-                //
-                //     if (mat_pk && company_id && JumunDate) {
-                //         let fnsuccess = function (result) {
-                //             if (result && result.data && result.data.length > 0) {
-                //                 let unitPrice = parseFloat(result.data[0].UnitPrice);
-                //                 row.find('input[id$=".UnitCost"]').val(unitPrice.toLocaleString());
-                //             } else {
-                //                 row.find('input[id$=".UnitCost"]').val('');
-                //             }
-                //         };
-                //
-                //         AjaxUtil.getAsyncData(url, data, fnsuccess);
-                //     }
-                // }
+                function tryShowPrice(mat_pk, company_id, row, JumunDate) {
+                    let url = '/api/sales/suju/readPriceSuju';
+                    let data = {
+                        'mat_pk': mat_pk,
+                        'company_id': company_id,
+                        'JumunDate': JumunDate
+                    };
+
+                    if (mat_pk && company_id && JumunDate) {
+                        let fnsuccess = function (result) {
+                            if (result && result.data && result.data.length > 0) {
+                                let unitPrice = parseFloat(result.data[0].UnitPrice);
+                                row.find('input[id$=".UnitCost"]').val(unitPrice.toLocaleString());
+                            } else {
+                                row.find('input[id$=".UnitCost"]').val('');
+                            }
+                        };
+
+                        AjaxUtil.getAsyncData(url, data, fnsuccess);
+                    }
+                }
 
             }
 
@@ -3705,128 +3690,110 @@
 
                 fnLoadShipList();
 
+                // 📦 세금계산서용 품목 리스트 구성 함수
                 $content.find('#btnShipAction').on('click', async function () {
-                    let items = _this.shipListGrid.rows
+                    const items = _this.shipListGrid.rows
                         .filter(row => row.isSelected)
                         .map(row => row.dataItem);
 
-                    console.log('items', items);
+                    const invoiceData = await buildInvoiceDetail(items);
+                    if (!invoiceData) return;
 
-                    if (items.length === 0) {
+                    _this.showInvoiceForm(invoiceData);
+                    modalContainer.close();
+                });
+
+                // 📦 세금계산서용 품목 리스트 구성 함수
+                async function buildInvoiceDetail(items) {
+                    if (!items || items.length === 0) {
                         Alert.alert('', '선택된 리스트가 없습니다.');
-                        return;
+                        return null;
                     }
 
+                    // ✅ 업체 중복 방지
                     const companyIds = [...new Set(items.map(item => item.company_id))];
                     if (companyIds.length > 1) {
                         Alert.alert('', '하나의 업체만 선택해주세요.');
-                        return;
+                        return null;
                     }
 
-                    // ✅ 모든 shipment에서 수주 ID를 모으기
-                    const allSujuIds = items
-                        .flatMap(head => (head.shipments || [])) // head.shipments 모두 펼침
-                        .map(s => s.suju_ids || '')
-                        .flatMap(ids => ids.split(',').map(id => id.trim()))
-                        .filter(id => id);
+                    const company_id = companyIds[0];
+                    const headIds = items.map(i => i.id); // ✅ 여러 출하전표 ID
+                    const order_date = items[0].order_date;
 
-                    if (allSujuIds.length === 0) {
-                        Alert.alert('', '수주 정보가 없습니다.');
-                        return;
-                    }
-
-                    const shipIds = items.map(item => item.id);
-
-                    let defaultData = {
-                        id: '',
-                        mode: 'new',
-                        shipids: shipIds,
-                        detailList: []
-                    };
-
-                    // ✅ /get_suju API
-                    const getSujuData = (suju_id) => {
-                        return new Promise(resolve => {
-                            AjaxUtil.getAsyncData(_this.url + '/get_suju', { suju_id }, result => {
-                                resolve(result?.data || null);
-                            });
+                    // ✅ Helper 함수
+                    const getShipmentItems = (head_id, company_id) =>
+                        new Promise(resolve => {
+                            AjaxUtil.getAsyncData(
+                                '/api/shipment/shipment_list/shipment_item_list',
+                                { head_id, company_id },
+                                result => resolve(result?.data || [])
+                            );
                         });
-                    };
 
-                    const getCompany = (id) => {
-                        return new Promise(resolve => {
+                    const getCompany = (id) =>
+                        new Promise(resolve => {
                             AjaxUtil.getAsyncData('/api/popup/get_Comp', { id }, result => {
                                 resolve(result?.data?.[0] || null);
                             });
                         });
-                    };
 
-                    // ✅ 여러 수주ID 병렬 요청
-                    const [sujuList, companyData] = await Promise.all([
-                        Promise.all(allSujuIds.map(id => getSujuData(id))),
-                        getCompany(companyIds[0])
-                    ]);
+                    // ✅ 모든 head_id에 대해 품목 목록 가져오기
+                    const shipmentItemLists = await Promise.all(
+                        headIds.map(head_id => getShipmentItems(head_id, company_id))
+                    );
 
+                    // ✅ 결과 통합
+                    const allItems = shipmentItemLists.flat();
+
+                    // ✅ 업체 정보
+                    const companyData = await getCompany(company_id);
                     if (!companyData) {
                         Alert.alert('', '업체 정보를 불러올 수 없습니다.');
-                        return;
+                        return null;
                     }
 
+                    // ✅ 날짜 정보
                     const now = new Date();
                     const month = String(now.getMonth() + 1).padStart(2, '0');
                     const day = String(now.getDate()).padStart(2, '0');
 
-                    // ✅ 수주 + 수주상세를 세금계산서용 detailList로 구성
-                    let detailList = [];
+                    // ✅ 품목 합치기 (자재 코드별 그룹핑)
+                    const grouped = {};
+                    for (const item of allItems) {
+                        const key = item.material_id;
+                        if (!grouped[key]) {
+                            grouped[key] = {
+                                mat_name: item.mat_name,
+                                unit_name: item.unit_name,
+                                qty: 0,
+                                qty2: 0,
+                                price: 0,
+                                vat: 0,
+                                unit_price: item.unit_price,
+                            };
+                        }
+                        grouped[key].qty += parseFloat(item.ship_qty || 0);
+                        grouped[key].price += parseFloat(item.price || 0);
+                        grouped[key].vat += parseFloat(item.vat || 0);
+                    }
 
-                    sujuList.forEach(suju => {
-                        if (!suju) return;
+                    // ✅ detailList 생성
+                    const detailList = Object.values(grouped).map(item => ({
+                        PurchaseDT1: month,
+                        PurchaseDT2: day,
+                        ItemName: item.mat_name,
+                        Spec: item.unit_name,
+                        Qty: item.qty.toLocaleString(),
+                        Qty2: item.qty2.toLocaleString(),
+                        UnitCost: parseFloat(item.unit_price || 0).toLocaleString(),
+                        SupplyCost: Math.round(parseFloat(item.price || 0)).toLocaleString(),
+                        Tax: Math.round(parseFloat(item.vat || 0)).toLocaleString(),
+                        isParent: true
+                    }));
 
-                        // ✅ 수주 ID가 포함된 shipment 찾기
-                        const relatedShipment = items
-                            .flatMap(h => h.shipments || [])
-                            .find(s => (s.suju_ids || '').split(',').includes(String(suju.id)));
-
-                        const total_price = relatedShipment?.price || 0;
-                        const total_vat = relatedShipment?.vat || 0;
-                        const total_qty = relatedShipment?.qty || 0;
-
-                        const hasDetailPrices = (suju.details || []).some(d =>
-                            d.UnitPrice || d.Price || d.Vat
-                        );
-
-                        detailList.push({
-                            PurchaseDT1: month,
-                            PurchaseDT2: day,
-                            ItemName: `${suju.material_name ?? ''} / ${suju.standard ?? ''}`,
-                            Spec: suju.unit_name,
-                            Qty: total_qty || '',
-                            SupplyCost: hasDetailPrices ? '' : (total_price ? total_price.toLocaleString() : ''),
-                            Tax: hasDetailPrices ? '' : (total_vat ? total_vat.toLocaleString() : ''),
-                            UnitCost: hasDetailPrices ? '' : (suju.unit_price ? suju.unit_price.toLocaleString() : ''),
-                            isParent: true
-                        });
-
-                        // ✅ 하위 상세 (수주 상세)
-                        (suju.details || []).forEach(detail => {
-                            detailList.push({
-                                PurchaseDT1: month,
-                                PurchaseDT2: day,
-                                ItemName: `/ ${detail.Standard ?? ''}`,
-                                Spec: detail.UnitName || '',
-                                Qty: detail.Qty || '',
-                                UnitCost: detail.UnitPrice ? detail.UnitPrice.toLocaleString() : '',
-                                SupplyCost: detail.Price ? detail.Price.toLocaleString() : '',
-                                Tax: detail.Vat ? detail.Vat.toLocaleString() : '',
-                                isParent: false,
-                                readonly: true
-                            });
-                        });
-                    });
-
-                    defaultData.detailList = detailList;
-
-                    defaultData.invoicee = {
+                    // ✅ 업체 정보 구성
+                    const invoicee = {
                         id: companyData.id,
                         business_number: companyData.business_number,
                         invoiceetaxregid: companyData.invoiceetaxregid,
@@ -3840,11 +3807,291 @@
                         invoiceeemail1: companyData.invoiceeemail1
                     };
 
-                    // ✅ 최종 팝업 띄우기
-                    _this.showInvoiceForm(defaultData);
+                    // ✅ 최종 반환
+                    return {
+                        id: '',
+                        mode: 'new',
+                        shipids: headIds,
+                        detailList,
+                        invoicee
+                    };
+                }
+
+
+            }
+
+            showSujuListPopup() {
+                let _this = this;
+
+                let content = tmpl('addSujuListPopup', {});
+                let $content = $(content);
+                let modalContainer = new PopupDraggable('수주 리스트');
+                modalContainer.open({width: 1100, height: 560, $content});
+
+                this.sujuListGrid = new wijmo.grid.FlexGrid('#suju-list-grid', {
+                    autoGenerateColumns: false,
+                    selectionMode: wijmo.grid.SelectionMode.Row,
+                    headersVisibility: wijmo.grid.HeadersVisibility.All,
+                    formatItem: (s, e) => {
+                        if (e.panel.cellType === wijmo.grid.CellType.Cell) {
+                            const col = s.columns[e.col];
+                            const item = s.rows[e.row].dataItem;
+
+                            // 기본 스타일 초기화
+                            e.cell.style.color = '';
+                            e.cell.style.textAlign = '';
+
+                            // 🔥 misnum 컬럼 처리
+                            if (col.binding === 'misnum') {
+                                if (item.misnum) {
+                                    e.cell.textContent = '등록';   // 또는 'O'
+                                    e.cell.style.fontWeight = 'bold';
+                                    e.cell.style.color = '#2e7d32'; // 선택 (초록)
+                                } else {
+                                    e.cell.textContent = '';        // 빈칸
+                                }
+                            }
+                        }
+
+                        if (e.panel.cellType === wijmo.grid.CellType.ColumnHeader) {
+                            e.cell.style.textAlign = 'center';
+
+                            const binding = s.columns[e.col].binding;
+                            if (binding === 'StoreHouse_id' || binding === 'inputQty' || binding === 'Description2') {
+                                e.cell.style.color = '#5567ff';
+                            }
+                        }
+                    },
+                    columns: [
+                        {
+                            binding: 'CompanyName',
+                            header: '거래처',
+                            width: 150,
+                            align: 'left',
+                            isReadOnly: true,
+                            allowMerging: true
+                        },
+                        {
+                            binding: 'JumunDate',
+                            header: '수주일',
+                            width: 120,
+                            align: 'center',
+                            isReadOnly: true,
+                            allowMerging: true
+                        },
+                        {
+                            binding: 'product_name',
+                            header: '제품명',
+                            width: 400,
+                            align: 'left',
+                            isReadOnly: true,
+                            allowMerging: true
+                        },
+                        {
+                            binding: 'DueDate',
+                            header: '납기일',
+                            width: 120,
+                            align: 'center',
+                            isReadOnly: true,
+                            allowMerging: true
+                        },
+                        {
+                            binding: 'misnum',
+                            header: '등록여부',
+                            width: 120,
+                            align: 'center',
+                            isReadOnly: true,
+                            allowMerging: true
+                        }
+                    ],
+                    itemsSource: new wijmo.collections.CollectionView([]),
+                });
+
+                new FlexGridContextMenu(this.sujuListGrid);
+                this.sujuListGrid.downloadFileName = '수주 리스트';
+
+                $content.find('#btnCompanySearch_ship').click(function () {
+                    let poppage = new PopCompComponent();
+                    let $poppage = $(poppage);
+                    let searchcallback = function (items) {
+                        $content.find('#btnCompanySearch_ship').val(items.compname);
+                        $content.find('#cboCompanyHidden_ship').val(items.id);
+
+                        // 수동으로 input 이벤트 발생
+                        $content.find('#btnCompanySearch_ship').trigger('input');
+                    };
+
+                    poppage.show(searchcallback);
+                });
+
+                $content.find('#btnSearch_ship').on('click', function () {
+                    fnLoadSujuList();
+                });
+
+                // input 감지 → x 버튼 표시/숨김, 히든값 클리어
+                $content.on('input', '#btnCompanySearch_ship', function () {
+                    let $clearBtn = $(this).closest('.input-clear').find('.btn-clear');
+                    let value = $(this).val().trim();
+
+                    if (value) {
+                        $clearBtn.show();
+                    } else {
+                        $clearBtn.hide();
+                        $content.find('#cboCompanyHidden_ship').val('');
+                    }
+                });
+
+                // x 버튼 클릭 → 텍스트 초기화 및 input 이벤트 트리거
+                $content.on('click', '.btn-clear', function () {
+                    const $input = $(this).siblings('input[type="text"]');
+                    $input.val('').trigger('input'); // input 이벤트 강제 발생
+                });
+
+                $content.on('click', '.radio-box-mo', function (e) {
+                    const $radio = $(this).find('input[type=radio]');
+                    $radio.prop('checked', true).trigger('change');
+                });
+
+                let start = $content.find('#srchStartDt');
+                let end = $content.find('#srchEndDt');
+
+
+                start.val(CommonUtil.getYYYYMMDD(-7));
+                end.val(CommonUtil.getYYYYMMDD());
+
+                let fnLoadSujuList = function () {
+                    let cltcd = $content.find('#cboCompanyHidden_ship').val();
+
+                    let fnsuccess = function (result) {
+
+                        if (result.data !== null) {
+                            _this.sujuListGrid.itemsSource = new wijmo.collections.CollectionView(result.data);
+                            _this.sujuSelector = new wijmo.grid.selector.Selector(_this.sujuListGrid);
+
+                        }
+                    };
+                    let shipParam = {
+                        'srchStartDt': start.val(),
+                        'srchEndDt': end.val(),
+                        'comp_id': cltcd
+                    };
+
+                    AjaxUtil.getAsyncData(_this.url + '/suju_head_list', shipParam, fnsuccess);
+
+                };
+
+                fnLoadSujuList();
+
+                // 📦 세금계산서용 품목 리스트 구성 함수
+                $content.find('#btnSujuAction').on('click', async function () {
+                    const items = _this.sujuListGrid.rows
+                        .filter(row => row.isSelected)
+                        .map(row => row.dataItem);
+
+                    const invoiceData = await buildInvoiceSujuDetail(items);
+                    if (!invoiceData) return;
+
+                    _this.showInvoiceForm(invoiceData);
                     modalContainer.close();
                 });
 
+                // 📦 세금계산서용 품목 리스트 구성 함수
+                async function buildInvoiceSujuDetail(items) {
+                    if (!items || items.length === 0) {
+                        Alert.alert('', '선택된 리스트가 없습니다.');
+                        return null;
+                    }
+
+                    // ✅ 업체 중복 방지
+                    const companyIds = [...new Set(items.map(item => item.company_id))];
+                    if (companyIds.length > 1) {
+                        Alert.alert('', '하나의 업체만 선택해주세요.');
+                        return null;
+                    }
+
+                    const company_id = companyIds[0];
+                    const headIds = items.map(i => i.id); // ✅ 여러 출하전표 ID
+                    const order_date = items[0].JumunDate;
+
+                    // ✅ Helper 함수
+                    const getSujuItems = (suju_id, company_id) =>
+                        new Promise(resolve => {
+                            AjaxUtil.getAsyncData(
+                                _this.url + '/get_suju',
+                                { suju_id, company_id },
+                                result => resolve(result?.data || [])
+                            );
+                        });
+
+                    const getCompany = (id) =>
+                        new Promise(resolve => {
+                            AjaxUtil.getAsyncData('/api/popup/get_Comp', { id }, result => {
+                                resolve(result?.data?.[0] || null);
+                            });
+                        });
+
+                    // ✅ 모든 suju 가져오기
+                    const sujuList = await Promise.all(
+                        headIds.map(suju_id => getSujuItems(suju_id, company_id))
+                    );
+
+                    // ✅ suju_detail만 flat
+                    const allDetails = sujuList
+                        .filter(suju => suju && Array.isArray(suju.details))
+                        .flatMap(suju => suju.details);
+
+
+                    // ✅ 업체 정보
+                    const companyData = await getCompany(company_id);
+                    if (!companyData) {
+                        Alert.alert('', '업체 정보를 불러올 수 없습니다.');
+                        return null;
+                    }
+
+                    // ✅ 날짜 정보
+                    const now = new Date();
+                    const month = String(now.getMonth() + 1).padStart(2, '0');
+                    const day = String(now.getDate()).padStart(2, '0');
+
+                    // ✅ detailList 생성
+                    const detailList = allDetails.map(item => ({
+                        PurchaseDT1: month,
+                        PurchaseDT2: day,
+                        ItemName: item.mat_name || '',
+                        Spec: item.standard,
+                        Qty2: item.qty.toLocaleString(),
+                        Remark: item.Remark,
+                        isParent: true
+                    }));
+
+                    // ✅ 업체 정보 구성
+                    const invoicee = {
+                        id: companyData.id,
+                        business_number: companyData.business_number,
+                        invoiceetaxregid: companyData.invoiceetaxregid,
+                        compname: companyData.compname,
+                        invoiceeceoname: companyData.invoiceeceoname,
+                        invoiceeaddr: companyData.invoiceeaddr,
+                        invoiceebiztype: companyData.invoiceebiztype,
+                        invoiceebizclass: companyData.invoiceebizclass,
+                        invoiceecontactname1: companyData.invoiceecontactname1,
+                        invoiceetel1: companyData.invoiceetel1,
+                        invoiceeemail1: companyData.invoiceeemail1
+                    };
+
+                    const snddate =
+                        sujuList.find(s => s?.snddate)?.snddate || null;
+
+                    // ✅ 최종 반환
+                    return {
+                        id: '',
+                        mode: 'new',
+                        sujuids: headIds,
+                        detailList,
+                        invoicee,
+                        snddate
+                    };
+                }
 
 
             }
@@ -3881,6 +4128,10 @@
 
             $('#btnShipList').on('click', function () {
                 page.showShipListPopup();
+            });
+
+            $('#btnSujuList').on('click', function () {
+                page.showSujuListPopup();
             });
 
             $('#btnCompanySearch').on('keydown', function (e) {

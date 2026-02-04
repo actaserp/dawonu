@@ -2,6 +2,7 @@ package mes.domain.repository;
 
 //import java.util.List;
 
+import mes.domain.entity.ShipmentHead;
 import mes.domain.entity.Suju;
 import mes.domain.entity.SujuHead;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -17,4 +18,6 @@ public interface SujuHeadRepository extends JpaRepository<SujuHead, Integer>{
 	Optional<SujuHead> findByJumunNumberAndSpjangcd(String jumunNumber, String spjangcd);
 
 	Optional<Object> findByJumunNumber(String jumunNumber);
+
+	List<SujuHead> findByMisnumIn(List<Integer> misnums);
 }
