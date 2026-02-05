@@ -129,6 +129,13 @@ public class ProdOrderEditService {
             left join unit u on u.id = m."Unit_id"
             left join factory f on f.id = m."Factory_id"
             left join routing r on r.id = m."Routing_id"
+            where 1 = 1
+					 and (sm.is_matched = false or sm.mat_type_name is not null)
+					 and (sm.is_matched = false or (select mg2."MaterialType"
+								 from material m2
+								 join mat_grp mg2 on mg2.id = m2."MaterialGroup_id"
+								 where m2.id = sm."Material_id") in ('semi','product')) -- 매칭 안되 리스트도 보이게 하기 위해
+
         )
         , q as (
             select
@@ -583,7 +590,7 @@ public class ProdOrderEditService {
 				AND m.spjangcd = :spjangcd
 				AND m."Useyn" = '0'
 				and ( m."Name" ilike concat('%',:keyword,'%') or m."Code" ilike concat('%',:keyword,'%'))
-				and mg."MaterialType" in('sub_mat','product' );
+				and mg."MaterialType" in('semi','product' ); -- 반제품, 제품만 조회
 		""";
 		return sqlRunner.getRows(sql, dicParam);
 		}
