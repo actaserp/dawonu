@@ -40,7 +40,7 @@ public class UtilClass {
         if (obj instanceof Integer) return (Integer) obj;
 
         try{
-            return Integer.parseInt(obj.toString());
+            return Double.valueOf(obj.toString()).intValue();
         }catch (NumberFormatException e){
             return null;
         }

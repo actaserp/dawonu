@@ -140,20 +140,27 @@ public class ProductionResultService {
 		this.sqlRunner.execute(sql, dicParam);
 	}
 
-	public void delete_jobres_defectqty_inout(Integer jrPk) {
-		MapSqlParameterSource dicParam = new MapSqlParameterSource();
-		dicParam.addValue("jrPk", jrPk);
 
-		String sql = """
-				delete from mat_inout
-		        where "SourceTableName"='job_res_defect'
-		        and "SourceDataPk" in (select id
-	            from job_res_defect
-	            where "JobResponse_id" = :jrPk)
-				""";
-		this.sqlRunner.execute(sql, dicParam);
 
-	}
+    public void delete_jobres_defectqty_inout(Integer jrPk) {
+        MapSqlParameterSource dicParam = new MapSqlParameterSource();
+        dicParam.addValue("jrPk", jrPk);
+
+        String sql = """
+        WITH deleted_defects AS (
+            -- 1. 먼저 job_res_defect에서 해당 jrPk 데이터를 삭제하고 그 ID들을 반환(RETURNING)함
+            DELETE FROM job_res_defect
+            WHERE "JobResponse_id" = :jrPk
+            RETURNING id
+        )
+        -- 2. 위에서 반환된 ID들을 SourceDataPk로 가지는 mat_inout 데이터를 삭제
+        DELETE FROM mat_inout
+        WHERE "SourceTableName" = 'job_res_defect'
+          AND "SourceDataPk" IN (SELECT id FROM deleted_defects);
+        """;
+
+        this.sqlRunner.execute(sql, dicParam);
+    }
 
 
 
@@ -1627,7 +1634,7 @@ public class ProductionResultService {
 
     /// chasu_add
     //endregion 차수별 생산 api
-    public AjaxResult chasu_add_service(Integer jrPk, Float goodQty, String spjangcd, User user){
+    public AjaxResult chasu_add_service(Integer jrPk, Float goodQty, String spjangcd, User user, boolean autoDivision){
 
         AjaxResult result = new AjaxResult();
         Timestamp now = DateUtil.getNowTimeStamp();
@@ -1652,16 +1659,37 @@ public class ProductionResultService {
         Integer storehouseId = m.getStoreHouseId();
 
         // 작업지시량 / lot당 수량 (올림해야댐) ==> 생성해야할 LOT 수
-        int totalLotCnt = (int) Math.ceil(jr.getOrderQty() / goodQty);
+        //int totalLotCnt = (int) Math.ceil(jr.getOrderQty() / goodQty);
 
         //각 LOT별 수량
         int orderQty =  jr.getOrderQty().intValue();
-        int lotQty = goodQty.intValue();
+
+
+        // --- 분기 처리 구간 시작 ---
+        int totalLotCnt;
+        List<Integer> lotQtyList;
+
+        if (autoDivision) {
+            // 기존 로직: 지정 갯수만큼 분할
+            totalLotCnt = (int) Math.ceil(jr.getOrderQty() / goodQty);
+            int lotSize = goodQty.intValue();
+            lotQtyList = IntStream.rangeClosed(1, totalLotCnt)
+                    .map(i -> i < totalLotCnt ? lotSize : orderQty - lotSize * (totalLotCnt - 1))
+                    .boxed().toList();
+        } else {
+            // 단일 로직: 한 번에 전체 등록
+            totalLotCnt = 1;
+            lotQtyList = new ArrayList<>();
+            lotQtyList.add(UtilClass.parseInteger(goodQty));
+        }
+        // --- 분기 처리 구간 끝 ---
+
+        /*int lotQty = goodQty.intValue();
         List<Integer> lotQtyList = IntStream.rangeClosed(1, totalLotCnt)
-                .map(i -> i < totalLotCnt ? lotQty : orderQty - lotQty * (totalLotCnt - 1)).boxed().toList();
+                .map(i -> i < totalLotCnt ? lotQty : orderQty - lotQty * (totalLotCnt - 1)).boxed().toList();*/
 
 
-        // matprods 개수로
+        // matprods 개수로asdasdadsdsdasd
         List<MaterialProduce> mpList = this.matProduceRepository.findByJobResponseId(jr.getId());
         Integer startChasu = mpList.size() + 1;
         List<Integer> lotChasuList = IntStream.rangeClosed(startChasu, startChasu + totalLotCnt).boxed().toList();
@@ -1713,21 +1741,24 @@ public class ProductionResultService {
             mpEntityList.add(mp);
             this.matProduceRepository.save(mp);
 
-            MaterialLot ml = new MaterialLot();
-            ml.setLotNumber(lotNumberList.get(i));
-            ml.setMaterialId(m.getId());
-            ml.setInputDateTime(now);
-            ml.setInputQty(mp.getGoodQty());
-            ml.setCurrentStock(mp.getGoodQty());
-            ml.setDescription(lotChasuList.get(i) + "차수생산");
-            ml.setSourceDataPk(mp.getId());
-            ml.setSourceTableName("mat_produce");
-            ml.setStoreHouseId(mp.getStoreHouseId());
-            ml.set_audit(user);
-            ml.setSpjangcd(spjangcd);
-            mlEntityList.add(ml);
+            //TODO: 다원유는 lot관리 안한다 해서 최종제품만 lot 생성. (최종제품은 parent_id가 null임.)
+            if(jr.getParentId() == null){
+                MaterialLot ml = new MaterialLot();
+                ml.setLotNumber(lotNumberList.get(i));
+                ml.setMaterialId(m.getId());
+                ml.setInputDateTime(now);
+                ml.setInputQty(mp.getGoodQty());
+                ml.setCurrentStock(mp.getGoodQty());
+                ml.setDescription(lotChasuList.get(i) + "차수생산");
+                ml.setSourceDataPk(mp.getId());
+                ml.setSourceTableName("mat_produce");
+                ml.setStoreHouseId(mp.getStoreHouseId());
+                ml.set_audit(user);
+                ml.setSpjangcd(spjangcd);
+                mlEntityList.add(ml);
 
-            this.matLotRepository.save(ml);
+                this.matLotRepository.save(ml);
+            }
         }
 
         // 차수생산량 만큼 good_qty량 만큼 BOM 수량조회
@@ -1748,13 +1779,8 @@ public class ProductionResultService {
             String lotUseYn = bomMap.get("lotUseYn").toString();
             float totalQty = 0f;
 
-            /*
-			 선입선출로 mat_lot 찾아서 차감
-             차감하면서 mat_lot_cons 생성
-             투입되어야할 수량보다 적으면 재고량 부족으로 return
-             */
 
-            if ("Y".equals(lotUseYn)) { //lot 관리를 할 경우 //TODO
+            if ("Y".equals(lotUseYn)) { //lot 관리를 할 경우
                 // 수정시작
                 // 1. mat_proc_input 에서 해당 품목의 로트리스트를 가져온다.
 
@@ -1867,6 +1893,7 @@ public class ProductionResultService {
                 this.matInoutRepository.save(mic);
             }
 
+
         } // bom List 반목문 끝, for문 끝
 
         // 2. mat_inout 생성=> 차수 수량만큼 재고를 증감한다.
@@ -1880,7 +1907,7 @@ public class ProductionResultService {
             mip.setInoutDate(LocalDate.parse(date.format(dateFormat)));
             mip.setInoutTime(LocalTime.parse(time.format(timeFormat)));
             mip.setInOut("in");
-            mip.setInputQty(lotQtyList.get(i).floatValue()); //TODO 얘는진짜주의
+            mip.setInputQty(lotQtyList.get(i).floatValue());
             mip.setInputType("produced_in");
             mip.setSourceDataPk(mpEntityList.get(i).getId());
             mip.setSourceTableName("mat_produce");
@@ -1892,7 +1919,7 @@ public class ProductionResultService {
             this.matInoutRepository.save(mip);
 
             //mat_lot 의 출고량과 현재고 수량 업데이트
-            this.calculate_balance_mat_lot_with_job_res(jr.getId()); //TODO: 성능개선포인트
+            this.calculate_balance_mat_lot_with_job_res(jr.getId());
         }
 
         // 양품량 합계 업데이트
@@ -2258,14 +2285,18 @@ public class ProductionResultService {
 
         /* =========================
          * 2. 차수 자동 생성 (부수공정) / 부모 -> 사용자가 직접  ,  부수공정 -> 자동으로 완료하면 생산저장
+         * ===> 수정, 만약 해당 작업지시 id로 lot가 할당된 적 있으면 해당과정 안함.
          * ========================= */
         boolean isMainProcess = jr.getParentId() == null;
-        if (!isMainProcess) {
+        boolean neddAutoChasu = !isMainProcess && matProduceRepository.findByJobResponseId(jr.getId()).isEmpty();
+
+        if (neddAutoChasu) {   //메인 프로세스가 아닌 부속공정인데 lot할당한거 없으면 자동으로 만들어주자.
             this.chasu_add_service(
                     jr.getId(),
                     jr.getOrderQty(),
                     jr.getSpjangcd(),
-                    user
+                    user,
+                    true
             );
         }
 
@@ -2411,9 +2442,9 @@ public class ProductionResultService {
         JobResCancelWithUpdate(jr, user);
 
         /* =========================
-         * 3. 불량창고에 등록한 불량품 취소 (완료 -> 완료취소)
+         * 3. 불량창고에 등록한 불량품 취소 (완료 -> 완료취소) JobResCancelWithUpdate 안에 들어있음.
          * ========================= */
-        add_jobres_defectqty_inout(jr.getId(), user.getId());
+
 
         /* =========================
          * 3. 장비 수정 (완료 -> 완료취소)

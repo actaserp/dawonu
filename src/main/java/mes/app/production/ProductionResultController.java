@@ -933,12 +933,13 @@ public class ProductionResultController {
             @RequestParam(value = "jr_pk", required = false) Integer jrPk,
             @RequestParam(value = "good_qty", required = false) Float goodQty,
             @RequestParam("spjangcd") String spjangcd,
+            @RequestParam boolean auto_division,
             HttpServletRequest request,
             Authentication auth) {
 
         User user  = (User) auth.getPrincipal();
 
-        AjaxResult result = productionResultService.chasu_add_service(jrPk, goodQty, spjangcd, user);
+        AjaxResult result = productionResultService.chasu_add_service(jrPk, goodQty, spjangcd, user, auto_division);
 
         return result;
 

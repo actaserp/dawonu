@@ -130,11 +130,9 @@ public class ProdOrderEditService {
             left join factory f on f.id = m."Factory_id"
             left join routing r on r.id = m."Routing_id"
             where 1 = 1
-					 and (sm.is_matched = false or sm.mat_type_name is not null)
-					 and (sm.is_matched = false or (select mg2."MaterialType"
-								 from material m2
-								 join mat_grp mg2 on mg2.id = m2."MaterialGroup_id"
-								 where m2.id = sm."Material_id") in ('semi','product')) -- 매칭 안되 리스트도 보이게 하기 위해
+            -- sm.is_matched 대신 s."Material_id" 직접 체크
+            and (s."Material_id" is null or mg."MaterialType" is not null)
+            and (s."Material_id" is null or mg."MaterialType" in ('semi','product'))
 
         )
         , q as (

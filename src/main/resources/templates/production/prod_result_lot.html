@@ -634,37 +634,33 @@
                     <section class="tab-item" id="tabChasu" style="border-top-left-radius: 0;">
                         <div class="grid_box">
                             <div class="button-wrap">
-                                <ul>
-                                    <li>
-                                        지시량 : <label id="ordqty">0</label>, LOT size :
-                                        <input type="number" class="w-80" id="chasuLotSize" name="chasuLotSize"
-                                               value="0"
-                                               min="0">
-                                    </li>
-                                    <li>
-                                        <button type="button" class="btn" id="btnAddChasu" title="차수 추가" disabled><i
-                                                class="fas fa-plus"></i></button>
-                                    </li>
-                                    <li>
-                                        <button type="button" class="btn" id="btnSaveChasu" title="생산수량수정" disabled>
-                                            <i class="fas fa-save"></i></button>
-                                    </li>
-                                    <li>
-                                        <button type="button" class="btn" id="btnDeleteChasu" title="마지막 차수 삭제"
-                                                disabled><i class="fas fa-trash"></i></button>
-                                    </li>
-                                    <!-- <li>
-                                        <button type="button" class="btn" id="btnLOTbarcode" data-labelCd="제품확인서 출력"
-                                                disabled>제품확인서 출력
-                                        </button>
-                                    </li> -->
+<ul>
+    <li>
+        지시량 : <label id="ordqty">0</label>, LOT size :
+        <input type="number" class="w-80" id="chasuLotSize" name="chasuLotSize" value="0" min="0">
+    </li>
+    <li>
+        <label style="display: inline-flex; align-items: center; cursor: pointer;">
+            <input type="checkbox" id="auto_division" name="auto_division" checked="" style="margin-right: 5px;">
+            차수별 자동 분할
+        </label>
+    </li>
+</ul>
 
-                                    <li>
-                                        <button type="button" class="btn" id="btnLOTbarcode2" data-labelCd="LOT바코드"
-                                                >LOT바코드
-                                        </button>
-                                    </li>                                    
-                                </ul>
+<ul style="margin-top: 10px;">
+    <li style="display: inline-block;">
+        <button type="button" class="btn" id="btnAddChasu" title="차수 추가" disabled><i class="fas fa-plus"></i></button>
+    </li>
+    <li style="display: inline-block;">
+        <button type="button" class="btn" id="btnSaveChasu" title="생산수량수정" disabled><i class="fas fa-save"></i></button>
+    </li>
+    <li style="display: inline-block;">
+        <button type="button" class="btn" id="btnDeleteChasu" title="마지막 차수 삭제" disabled><i class="fas fa-trash"></i></button>
+    </li>
+    <li style="display: inline-block;">
+        <button type="button" class="btn" id="btnLOTbarcode2" data-labelCd="LOT바코드">LOT바코드</button>
+    </li>
+</ul>
                             </div>
                             <div class="content-wrap">
                                 <div>
@@ -2691,10 +2687,12 @@
 
                 let item = this.grid.selectedItems;
 
-                if(item[0].parent != null){
-                    Alert.alert('', '마지막 공정만 차수별 생산이 가능합니다.');
-                    return;
-                }
+                // if(item[0].parent != null){
+                //     Alert.alert('', '마지막 공정만 차수별 생산이 가능합니다.');
+                //     return;
+                // }
+
+                
 
                 if (!workcenter_id) {
                     Alert.alert('차수저장오류', '기본정보 탭의 워크센터를 선택해주세요.');
@@ -2706,7 +2704,7 @@
                 }
 
 
-                let data = {jr_pk: jr_pk, good_qty: lotSize, defect_qty: 0, loss_qty: 0, scrap_qty: 0};
+                let data = {jr_pk: jr_pk, good_qty: lotSize, defect_qty: 0, loss_qty: 0, scrap_qty: 0, auto_division: $('#auto_division').is(":checked") };
                 const addChasuCallbackSuccess = function (result) {
                     if (!result.success) {
                         Alert.alert('차수 추가 오류', result.message);
