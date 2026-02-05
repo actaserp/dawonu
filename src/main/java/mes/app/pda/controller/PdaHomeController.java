@@ -23,7 +23,7 @@ public class PdaHomeController {
     @Autowired
     private ObjectMapper jacksonObjectMapper;
 
-    private static final String version_file = "C:/Temp/mes21/shinwoopda/version.json";
+    private static final String version_file = "C:/Temp/mes21/dawonupda/version.json";
 
     @GetMapping("/pda/app/version")
     public AjaxResult getVersion() {
@@ -52,10 +52,10 @@ public class PdaHomeController {
         return result;
     }
 
-    @GetMapping("/pda/app/version/shinwoopda_latest.apk")
+    @GetMapping("/pda/app/version/dawonupda_latest.apk")
     public ResponseEntity<Resource> downloadApk(@RequestParam String version){
         try{
-            String apkPath = "C:/Temp/mes21/shinwoopda/" + "app_" + version + ".apk";
+            String apkPath = "C:/Temp/mes21/dawonupda/" + "app_" + version + ".apk";
             File file = new File(apkPath);
 
             if(!file.exists()){
