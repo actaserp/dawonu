@@ -278,10 +278,23 @@
                           </select>
                         </td>
                       </tr>
+                      <tr id="type4-row" style="display: none;">
+                        <th><label for="type3">벽돌 개수</label></th>
+                        <td colspan="2" style="text-align: center;">
+                          <label>
+                            <input type="radio" name="type4" value="3"> 3구
+                          </label>
+                          &nbsp;&nbsp;
+                          <label>
+                            <input type="radio" name="type4" value="4"> 4구
+                          </label>
+                        </td>
+                      </tr>
+
                       <tr>
                         <th><label for="code2">코드</label></th>
                         <td colspan="2">
-                          <input type="text" id="code2" name="code" class="wp100" required readonly>
+                          <input type="text" id="code2" name="code2" class="wp100" required readonly>
                           <div style="text-align:left; ">
                                                         <span id="code-check-message2"
                                                               style="color: red; display: none; ">중복된 코드입니다.</span>
@@ -937,6 +950,7 @@
       data.name = data.name2;
       data.description = data.description2;
       data.type = 113;
+      data.type4 = $('input[name="type4"]:checked').val() || null;
 
       console.log('aid 값:', data.aid);
       console.log('parent_id 값:', data.parent_id2);
@@ -1430,23 +1444,60 @@
       });
       function updateCode2() {
         const parentVal = $('#parent_id2').val()?.trim() || '';
-        const type3Val = $('#type3').val()?.trim() || '';
-        const thickVal = $('#thick2').val()?.trim() || '';
+        const type2Val  = $('#type2').val(); // 원재료 (벽돌 여부 판단용)
+        const type3Val  = $('#type3').val()?.trim() || '';
+        const thickVal  = $('#thick2').val()?.trim() || '';
+        const type4Val  = $('input[name="type4"]:checked').val() || '';
 
         let newCode = '';
-        if (parentVal && type3Val && thickVal) {
-          newCode = `${parentVal}${type3Val}${thickVal}`;
-        } else if (parentVal && type3Val) {
-          newCode = `${parentVal}${type3Val}`;
-        } else if (parentVal) {
+
+        // parent + type3 까지는 기본 구성
+        if (parentVal && type3Val) {
+          newCode = parentVal + type3Val;
+
+          // 벽돌(B)일 경우 type4를 type3 뒤에 추가
+          if (type2Val === 'B' && type4Val) {
+            newCode += type4Val;
+          }
+
+          // 마지막에 두께 추가
+          if (thickVal) {
+            newCode += thickVal;
+          }
+        }
+        // parent만 있을 경우
+        else if (parentVal) {
           newCode = parentVal;
         }
 
         $('#code2').val(newCode);
       }
 
+
+      $('#type2').on('change', function() {
+        const selectedValue = $(this).val();
+        if (selectedValue === 'B') {
+          $('#type4-row').show();
+        } else {
+          $('#type4-row').hide();
+          $('input[name="type4"]').prop('checked', false);
+        }
+      });
+
       // 3가지 요소 모두 감시
       $('#parent_id2, #type3, #thick2').on('change input', updateCode2);
+      // 벽돌 개수 선택 감시
+      $('input[name="type4"]').on('change', updateCode2);
+      // type2 변경 시 벽돌 row 제어 + 코드 재계산
+      $('#type2').on('change', function () {
+        if ($(this).val() === 'B') {
+          $('#type4-row').show();
+        } else {
+          $('#type4-row').hide();
+          $('input[name="type4"]').prop('checked', false);
+        }
+        updateCode2(); // 상태 변경 후 코드 재계산
+      });
     });
   </script>
 
