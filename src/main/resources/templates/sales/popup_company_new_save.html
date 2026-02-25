@@ -66,23 +66,27 @@
                </tr>
                <tr>
                    <th style="text-align: center">
-                       <label for="account_manager">계산서 담당자</label>
+                       <label for="account_manager"><span class="eq">*</span>계산서 담당자</label>
                    </th>
                    <td>
                        <input type="text" id="account_manager" name="account_manager" >
                    </td>
                    <th style="text-align: center">
-                       <label for="account_manager_phone">담당자 연락처</label>
+                       <label for="account_manager_phone"><span class="eq">*</span>담당자 연락처</label>
                    </th>
                    <td>
                        <input type="text" id="account_manager_phone" name="account_manager_phone" >
                    </td>
                </tr>
-
              </tbody>
+
            </table>
          </form>
        </div>
+       <p style="margin-bottom:10px; color:#d9534f; font-size:13px;">
+        ※ 계산서 담당자와 담당자 연락처는 출고장 출력 시 사용되므로 반드시 입력해야 합니다.
+      </p>
+
        <div class="popup-button">
          <button type="button" class="btn-popup y_write_auth" id="btnPopCompanySave">저장</button>
          <button type="button" class="btn-popup" id="modal-close-button">닫기</button>
