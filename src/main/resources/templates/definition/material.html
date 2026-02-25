@@ -1443,9 +1443,6 @@
                     }
                 });
                 AjaxUtil.fillSelectOptions($('#searchClass1'), 'user_code', 'all', '', 'JFLAG');
-                setTimeout(() => {
-                    $('#searchClass1').val('ZL250').trigger('change');
-                }, 0);
                 AjaxUtil.fillSelectOptions($('#searchClass3'), 'user_code', 'all', '', 'JFLAG3');
                 // 1차공정 변경 시 2차공정 초기화 및 재로딩
                 $('#searchClass1').on('change', function () {
