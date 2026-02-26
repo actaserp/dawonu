@@ -1204,12 +1204,12 @@
         return;
        }
 
-       // ── 이하 기존 로직(수량 소수1자리, 그 외 정수) ──
+       // ── 이하 기존 로직(수량 소수2자리, 그 외 정수) ──
        let allowDecimal = false;
        let decimals = 0;
-       if (name.startsWith('quantity_')) {
+       if (name.startsWith('quantity2_')) {
         allowDecimal = true;
-        decimals = 2;
+        decimals = 3;
        }
 
        let raw = String($this.val() || '').replace(/,/g, '');
@@ -1364,6 +1364,29 @@
          return;
         }
         $this.val(Number(iv).toLocaleString('ko-KR'));
+       }
+       // quantity2_ 블러 처리 (소수 3자리)
+       if (name.startsWith('quantity2_')) {
+        v = v.replace(/[^0-9.]/g, '').replace(/\.(?=.*\.)/g, '');
+        if (v === '' || v === '.') { $this.val(''); return; }
+
+        let num = Number(v);
+        if (!isFinite(num)) { $this.val(''); return; }
+
+        // 3자리 반올림
+        num = Math.round(num * 1000) / 1000;
+
+        const parts = String(num).split('.');
+        const intStr = Number(parts[0]).toLocaleString('ko-KR');
+
+        if (parts.length === 1 || Number(parts[1]) === 0) {
+         $this.val(intStr);
+        } else {
+         // 최대 3자리, 뒤 0 제거
+         const frac = (parts[1] + '000').slice(0, 3).replace(/0+$/, '');
+         $this.val(frac ? `${intStr}.${frac}` : intStr);
+        }
+        return;
        }
       }
      );
