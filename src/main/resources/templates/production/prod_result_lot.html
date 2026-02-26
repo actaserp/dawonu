@@ -391,7 +391,7 @@
 
                     <div class="button-wrap">
 
-                        <dl>
+                        <!-- <dl>
                             <dt>
                                 <span>공정선택</span>
                             </dt>
@@ -409,7 +409,7 @@
                                     
                                 </ul>
                             </dd>
-                        </dl>    
+                        </dl>     -->
 
 
                         <!-- <ul>
@@ -1164,7 +1164,7 @@
                         {binding: 'prod_date', header: '생산일', width: 100, align: 'center'},
                         {binding: 'job_state', header: '상태', width: 70, align: 'center'},
                         {binding: 'parent_mat_name', header: '품목', width: 180, align: 'left', visible: false},
-                        {binding: 'work_idx', header: '작업순서', width: 80, align: 'center'},
+                        //{binding: 'work_idx', header: '작업순서', width: 80, align: 'center'},
                         {binding: 'mat_name', header: '품목', width: 180, align: 'left', visible: true},
                         {binding: 'standard', header: '규격', width: 60, align: 'center'},
                         {binding: 'due_date', header: '납기예정일', width: 100, align: 'center'},
@@ -2013,15 +2013,15 @@
                 // 🔹 현재 선택된 작업지시 ID 저장
                 const prevJobId = _this.jobres?.id || null;
 
-                const v = $('#job_proc').val();
+                //const v = $('#job_proc').val();
 
                 let param = {
                     'date_from': $('#date_from').val(),
                     'date_to': $('#date_to').val(),
                     'choMat': $('#choMat').val(),
                     'factory': $('#Factory_id').val(),
-                    'is_include_comp': $('#chxCompYn').is(':checked'),
-                    'job_proc' : v ? parseInt(v, 10) : null
+                    'is_include_comp': $('#chxCompYn').is(':checked')
+                    //'job_proc' : v ? parseInt(v, 10) : null
                 };
 
                 let result = AjaxUtil.getSyncData(this.baseUrl + '/read', param);

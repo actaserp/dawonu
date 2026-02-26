@@ -271,7 +271,7 @@ public class ProductionResultService {
 		this.sqlRunner.execute(sql, dicParam);
 	}
 
-	public List<Map<String, Object>> getProdResult(String dateFrom, String dateTo, String isIncludeComp, String spjangcd, String choMat, Integer cboFactory, Integer job_proc) {
+	public List<Map<String, Object>> getProdResult(String dateFrom, String dateTo, String isIncludeComp, String spjangcd, String choMat, Integer cboFactory) {
 
 		MapSqlParameterSource dicParam = new MapSqlParameterSource();
 		dicParam.addValue("dateFrom", dateFrom);
@@ -280,7 +280,6 @@ public class ProductionResultService {
 		dicParam.addValue("spjangcd", spjangcd);
 		dicParam.addValue("cboFactory", cboFactory);
 		dicParam.addValue("matName", (choMat.isEmpty() || choMat == null) ? "%%": "%" + choMat  +"%");
-        dicParam.addValue("jobProc", job_proc);
 
         String sql = """
                 WITH T AS (
@@ -391,33 +390,6 @@ public class ProductionResultService {
                 			WHERE 1=1
                 			AND F.mat_name like :matName
                 """;
-
-        if(job_proc != null){
-            sql += """
-                    AND (
-                        (:jobProc = 1
-                            AND COALESCE(F.class1,'') <> ''
-                            AND COALESCE(F.class2,'') = ''
-                            AND COALESCE(F.class3,'') = ''
-                        )
-                     OR (:jobProc = 2
-                            AND COALESCE(F.class1,'') <> ''
-                            AND COALESCE(F.class2,'') <> ''
-                            AND COALESCE(F.class3,'') = ''
-                        )
-                     OR (:jobProc = 3
-                            AND COALESCE(F.class1,'') = ''
-                            AND COALESCE(F.class2,'') = ''
-                            AND COALESCE(F.class3,'') <> ''
-                        )
-                     OR (:jobProc = 4
-                            AND COALESCE(F.class1,'') <> ''
-                            AND COALESCE(F.class2,'') <> ''
-                            AND COALESCE(F.class3,'') <> ''
-                        )
-                    )
-                    """;
-        }
 
 		if ("false".equalsIgnoreCase(isIncludeComp)) {
 			// ★ 파생 상태(state) 기준으로 완료 제외
