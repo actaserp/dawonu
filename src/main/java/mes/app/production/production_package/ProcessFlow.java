@@ -35,9 +35,10 @@ public class ProcessFlow {
                 ).filter(s -> s != null && !s.isBlank())
                 .toList();
 
-        if (list.isEmpty()) {
-            throw new CustomException("해당 제품에 대한 등록된 공정이 없습니다.");
-        }
+//        if (list.isEmpty()) {
+//            throw new CustomException("해당 제품에 대한 등록된 공정이 없습니다.");
+//        }
+
 
         return new ProcessFlow(list, c1, c2, c3);
     }
@@ -53,8 +54,18 @@ public class ProcessFlow {
         return hasClass1 || hasClass2;
     }
 
+    public boolean hasProcesses() {
+        // 리스트가 null이 아니고, 비어있지도 않은지 확인
+        return processes != null && !processes.isEmpty();
+    }
+
     /** 전략 선택용 */
     public ProcessType startType() {
+
+        if(!hasProcesses()){
+            return ProcessType.SIMPLE_FLOW;
+        }
+
         if(hasThirdProcess()){
             return ProcessType.FULL_FLOW;
         }
@@ -66,6 +77,13 @@ public class ProcessFlow {
         return processes.size();
     }
 
+    ///전략에 따라 workIndex
+    public int getNextWorkIndex() {
+        return switch (startType()) {
+            case FULL_FLOW   -> cnt() + 1;
+            case SIMPLE_FLOW -> cnt();
+        };
+    }
 
 
 }

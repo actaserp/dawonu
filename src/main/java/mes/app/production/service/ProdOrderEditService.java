@@ -5,12 +5,13 @@ import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import lombok.extern.slf4j.Slf4j;
 import mes.Exception.CustomException;
 import mes.app.definition.service.BomService;
 import mes.app.production.Enum.ProcessType;
+import mes.app.production.dto.BomProcessContext;
 import mes.app.production.production_package.*;
-import mes.app.production.production_package.ProductionStrategy.ProcessStartStrategy;
+import mes.app.production.production_package.ProductionStrategy.Bomprocess.BomProcessor;
+import mes.app.production.production_package.ProductionStrategy.productionStart.ProcessStartStrategy;
 import mes.app.util.JsonUtil;
 import mes.domain.entity.JobRes;
 import mes.domain.entity.JobResProcessTree;
@@ -40,7 +41,10 @@ public class ProdOrderEditService {
     private final JobResProcessTreeRepository jobResProcessTreeRepository;
     private final EntityManager entityManager;
 
-    public ProdOrderEditService(SqlRunner sqlRunner, MaterialRepository materialRepository, JobResRepository jobResRepository, List<ProcessStartStrategy> strategies, BomService bomService, JobResProcessTreeRepository jobResProcessTreeRepository, EntityManager entityManager) {
+    private final BomProcessor activeBomProcessor;
+    private final BomProcessor emptyBomProcessor;
+
+    public ProdOrderEditService(SqlRunner sqlRunner, MaterialRepository materialRepository, JobResRepository jobResRepository, List<ProcessStartStrategy> strategies, BomService bomService, JobResProcessTreeRepository jobResProcessTreeRepository, EntityManager entityManager, BomProcessor activeBomProcessor, BomProcessor emptyBomProcessor) {
         this.sqlRunner = sqlRunner;
         this.materialRepository = materialRepository;
         this.jobResRepository = jobResRepository;
@@ -52,6 +56,8 @@ public class ProdOrderEditService {
         this.bomService = bomService;
         this.jobResProcessTreeRepository = jobResProcessTreeRepository;
         this.entityManager = entityManager;
+        this.activeBomProcessor = activeBomProcessor;
+        this.emptyBomProcessor = emptyBomProcessor;
     }
 
 
@@ -457,14 +463,9 @@ public class ProdOrderEditService {
 
         // 첫 공정 판단 객체 생성 (작지 내려야 하는데 어떤 공정을 첫 작지로 내릴까?)
         ProcessFlow flow = ProcessFlow.from(m);
-
         header.setProcessCount(flow.cnt());
+        header.setWorkIndex(flow.getNextWorkIndex());
 
-        if(flow.startType() == ProcessType.FULL_FLOW){
-            header.setWorkIndex(flow.cnt() + 1); //얘가 마지막 공정이니 얘한테 딸린 공정을 다음이겠지
-        }else{
-            header.setWorkIndex(flow.cnt());
-        }
 
         //전략 선택
         ProcessType type = flow.startType();
@@ -472,88 +473,24 @@ public class ProdOrderEditService {
 
         if(strategy == null) throw new CustomException("공정 시작 전략이 존재하지 않습니다.");
 
-        //전체 bom 조회
+
+        // 1. 실행에 필요한 재료들을 Context로 묶음
         List<Map<String, Object>> bomListByMat = bomService.getBomListByMat(materialId.toString());
+        BomProcessContext context = BomProcessContext.forStart(
+                bomListByMat, flow, header, strategy, user
+        );
 
-        //전체 bom -> json 형태로 보기쉽게 변환
-        BomTreeService bomTreeService = new BomTreeService();
+        // 2. BOM 존재 여부에 따른 프로세서 선택 (다형성 활용)
+        BomProcessor processor = (bomListByMat == null || bomListByMat.isEmpty())
+                ? emptyBomProcessor
+                : activeBomProcessor;
 
-        // 1. bom 트리 생성
-        Map<String, BomNode> bomTree =  bomTreeService.buildTree(bomListByMat);
+        // 3. 실행 위임 (이제 구구절절한 로직이 사라지고 한 줄로 정리됨)
+        processor.createJobRes(context);
 
-        //처음 작업에 대한 품목 판별 및 현재공정판별
-        bomTreeService.markFirstCurrentProcess(flow, bomTree, header.getOrderQty());
+        // Active/Empty 내부에서 이미 refresh된 header를 다루므로 그대로 반환
+        return context.jobRes();
 
-        //부모(마스터 작지) 저장
-        header = jobResRepository.save(header); //트리거가 번호 생성
-        jobResRepository.flush(); //WorkOrderNum을 알아야함. 근데 이거 트리거라서 flush , flush여도 롤백쌉가능
-        entityManager.refresh(header);
-
-        JobRes savedHeader = jobResRepository.findById(header.getId()).orElseThrow(() -> new CustomException("엔티티를 찾을 수 없습니다."));
-
-        //job_res_process_tree에 저장
-        saveJobResProcessTree(savedHeader, JsonUtil.mapToJson(bomTree));
-
-
-        ///  얘는 전략패턴임. 분기 if 제거용이 아니라 도메인 구조에 따라 동적인 코드를 구성하기 위한것
-        /// 호출 클라이언트에서는 상세코드를 몰라도 된다. 그저 어떠한 공정인지만 알아내서 던져주면
-        ///  내부에서 알아서 처리할 수 있게끔.
-        //자식 작업지시 생성 (1차 or 3차 단독이면 3차)
-        Map<ProcessType, BomNode> bomNode = resolveStartBomNodes(bomTree);
-        strategy.start(header, flow, bomNode, user);
-
-        //TODO: 트랜잭션 처리는 문제가 없는지?
-
-        return header;
-    }
-
-    private void saveJobResProcessTree(JobRes jr, String bomTree) {
-
-        JobResProcessTree jpt = new JobResProcessTree();
-
-        jpt.setWorkOrderNo(jr.getWorkOrderNumber());
-        jpt.setProcessTree(bomTree);
-
-        jobResProcessTreeRepository.save(jpt);
-    }
-
-    /**
-     * 첫 작업지시 생성을 위한 시작 BomNode 목록 반환
-     * - 1·2차 메인라인 → 1개
-     * - 3차 공정 포함 시 → 병렬로 추가
-     */
-    private Map<ProcessType, BomNode> resolveStartBomNodes(
-            Map<String, BomNode> bomTree
-    ) {
-        if (bomTree == null || bomTree.isEmpty()) {
-            throw new IllegalArgumentException("BOM tree is empty");
-        }
-
-        Map<ProcessType, BomNode> result = new EnumMap<>(ProcessType.class);
-
-        // 1️⃣ 메인 라인 (1·2차)
-        BomNode main = bomTree.get(ProcessType.SIMPLE_FLOW.name());
-        if (main != null) {
-            result.put(ProcessType.SIMPLE_FLOW, main);
-        }
-
-        // 2️⃣ 3차 병렬 공정
-        BomNode third = bomTree.get(ProcessType.FULL_FLOW.name());
-        if (third != null) {
-            result.put(ProcessType.FULL_FLOW, third);
-        }
-
-        // 3️⃣ fallback: 키가 달라도 하나뿐인 경우
-        if (result.isEmpty() && bomTree.size() == 1) {
-            BomNode only = bomTree.values().iterator().next();
-            result.put(ProcessType.SIMPLE_FLOW, only); // 의미상 메인으로 간주
-        }
-
-        if (result.isEmpty()) {
-            throw new IllegalStateException("Cannot resolve start BomNodes from bomTree");
-        }
-
-        return result;
     }
 
 	public List<Map<String, Object>> searchMatMatch(String keyword, String spjangcd) {
@@ -575,7 +512,7 @@ public class ProdOrderEditService {
 				, uc2."Value" as "class2Name"
 				, m."Class3" as class3 --3차공정
 				, uc3."Value" as "class3Name"
-				, m."WorkCenter_id" 
+				, m."WorkCenter_id"
 				, wc."Name" as workcenter_name
 				, m."StoreHouseLoc" as storehouse_loc
 				from material m
@@ -588,7 +525,7 @@ public class ProdOrderEditService {
 				AND m.spjangcd = :spjangcd
 				AND m."Useyn" = '0'
 				and ( m."Name" ilike concat('%',:keyword,'%') or m."Code" ilike concat('%',:keyword,'%'))
-				and mg."MaterialType" in('semi','product' ); -- 반제품, 제품만 조회
+				and mg."MaterialType" in('semi','product' )
 		""";
 		return sqlRunner.getRows(sql, dicParam);
 		}
@@ -618,28 +555,6 @@ public class ProdOrderEditService {
 			throw new CustomException("매칭 저장 실패(대상 수주가 없거나 사업장코드 불일치).");
 		}
 	}
-
-
-    /*public JobRes makeJobRes(Integer materialId) {
-
-        Material m = materialRepository.getMaterialById(materialId);
-
-        // 첫 공정 판단 객체 생성 (작지 내려야 하는데 어떤 공정을 첫 작지로 내릴까?)
-        ProcessFlow flow = ProcessFlow.from(m);
-
-        ProcessType type = null;
-        if(flow.hasThirdProcess()){
-            type = ProcessType.FULL_FLOW;
-        }else{
-            type = ProcessType.SIMPLE_FLOW;
-        }
-
-
-        if(1==1) throw new CustomException("asda");
-
-        return null;
-    }*/
-
     //endregion
 
 

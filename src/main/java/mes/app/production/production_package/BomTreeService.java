@@ -43,6 +43,7 @@ public class BomTreeService {
         BomNode simpleGrp = new BomNode();
         simpleGrp.matName = ProcessType.SIMPLE_FLOW.name();
 
+
         // 4️⃣ 최상위 공정 분류
         for (BomNode node : nodeMap.values()) {
 

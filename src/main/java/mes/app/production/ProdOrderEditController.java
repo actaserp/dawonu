@@ -217,19 +217,12 @@ public class ProdOrderEditController {
       @RequestParam(value="keyword", required=false) String keyword,
       @RequestParam(value="spjangcd", required=false) String spjangcd
     ){
-        AjaxResult result = new AjaxResult();
 
-        if (keyword == null || keyword.trim().isEmpty()) {
-            result.success = true;
-            result.data = Collections.emptyList();
-            return result;
-        }
+        if (keyword == null || keyword.trim().isEmpty())    return AjaxResult.success(null, Collections.emptyList());
 
         List<Map<String,Object>> rows = prodOrderEditService.searchMatMatch(keyword, spjangcd);
 
-        result.success = true;
-        result.data = rows;
-        return result;
+        return AjaxResult.success(null, rows);
     }
 
 }
