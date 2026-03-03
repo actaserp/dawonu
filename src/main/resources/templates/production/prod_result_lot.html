@@ -1161,6 +1161,7 @@
                     columns: [
                         {binding: 'order_num', header: '작지번호', width: 128, align: 'center'},
                         {binding: 'company_name', header: '판매처', width: 110, align: 'left', isReadOnly: true},
+                        {binding: 'delivery_name', header: '현장명', width: 110, align: 'left', isReadOnly: true},
                         {binding: 'prod_date', header: '생산일', width: 100, align: 'center'},
                         {binding: 'job_state', header: '상태', width: 70, align: 'center'},
                         {binding: 'parent_mat_name', header: '품목', width: 180, align: 'left', visible: false},
@@ -2974,8 +2975,8 @@ showBarcode2() {
             + "          <td colspan='3'>" + select_jr_array[i].mat_name + "</td>"
             + "      </tr>"
             + "      <tr>"
-            + "          <td class='tac'>발주처</td>"
-            + "          <td colspan='3'>" + select_jr_array[i].company_name + "</td>"
+            + "          <td class='tac'>현장명</td>"
+            + "          <td colspan='3'>" + select_jr_array[i].delivery_name + "</td>"
             + "      </tr>"
             + "      <tr>"
             + "          <td class='tac'>수량</td>"

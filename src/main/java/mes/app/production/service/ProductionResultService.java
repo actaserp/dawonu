@@ -358,6 +358,7 @@ public class ProductionResultService {
                 			   , TO_CHAR(C."ProductionDate" + M."ValidDays", 'yyyy-mm-dd') AS "ValidDays" -- (생산일+사용기한)
                 			   , COALESCE(su."Standard", M."Standard1") as standard            -- 규격
                 			   , su."CompanyName" as company_name                              -- 거래처이름
+                			   , sjh."DeliveryName" as delivery_name                            -- 현장명
                 			   , M."Factory_id" AS "Factory_id"                                -- 공장아이디
                 			   , fa."Name" as fac_name                                         -- 공장이름
                 			   , S.memo                                                        -- 메모
@@ -374,6 +375,7 @@ public class ProductionResultService {
                              ON P."WorkOrderNumber" = C."WorkOrderNumber"
                             AND P."Parent_id" IS NULL
                 			left join suju su on su.id = C."SourceDataPk" and C."SourceTableName" = 'suju'
+                			left join suju_head sjh on su."SujuHead_id" = sjh.id
                 			LEFT JOIN work_center WC ON WC.id = C."WorkCenter_id"
                 			LEFT JOIN equ           E  ON E.id  = C."Equipment_id"
                 			LEFT JOIN shift         SH ON SH."Code" = C."ShiftCode"
@@ -2504,7 +2506,7 @@ public class ProductionResultService {
         if(!mpiList.isEmpty()){
             throw new CustomException("생산LOT에 투입요청 중에 있는 LOT가 있어 삭제가 불가능합니다.");
         }
-        //차수 생산으로 발행된 로트가 mat_lot_consu에 존재하는지
+        //차수 생산으로 발행된 로트가 mat_lot_cons에 존재하는지
         if(!mlcList.isEmpty()){
             throw new CustomException("생산LOT에 투입요청 중에 있는 LOT가 있어 삭제가 불가능합니다.");
         }

@@ -304,12 +304,6 @@ public class ShipmentDoBController {
 						result.message = "재고 수량이 부족합니다.";
 						return result;
 					}
-
-					if(orderQty > shipQty){
-						result.success = false;
-						result.message = "LOT가 지시량만큼 지정되지 않은 상세가 있습니다.";
-						return result;
-					}
 				}
 			}
 		}
@@ -329,7 +323,7 @@ public class ShipmentDoBController {
 						Double orderQty = sm.getOrderQty();
 						sm.set_status("a");
 						sm.set_audit(user);
-						//sm.setQty(orderQty);
+						sm.setQty(orderQty);
 
 						this.shipmentRepository.save(sm);
 
