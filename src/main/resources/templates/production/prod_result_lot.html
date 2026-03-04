@@ -1183,65 +1183,64 @@
                         {binding: 'memo', header: '비고', width: 190, align: 'left'},
                         {binding: 'parent', header: '부모', width: 190, align: 'left', visible: false},
                         {binding: 'routing_id', visible: false}
-                    ],
+                            ],
                     itemsSource: new wijmo.collections.CollectionView([]),
                     itemFormatter: function (panel, row, col, cell) {
-                if (panel.cellType === wijmo.grid.CellType.Cell) {
-                    let column = panel.columns[col];
-                    let item = panel.rows[row].dataItem;
+                        if (panel.cellType === wijmo.grid.CellType.Cell) {
+                            let column = panel.columns[col];
+                            let item = panel.rows[row].dataItem;
 
-                    // ===== 기존 초기화 =====
-                    cell.style.backgroundColor = '';
-                    cell.style.color = '';
-                    cell.style.borderBottom = '';
-                    cell.style.borderBottom = '';
-                    cell.style.borderTop = '';
+                            // ===== 기존 초기화 =====
+                            cell.style.backgroundColor = '';
+                            cell.style.color = '';
+                            cell.style.borderBottom = '';
+                            cell.style.borderBottom = '';
+                            cell.style.borderTop = '';
 
-                    // ===== 기존 상태 색상 로직 (그대로) =====
-                    if (column.binding === 'job_state') {
-                        if (item.state === 'working') {
-                            cell.style.backgroundColor = '#00ff21';
-                            cell.style.color = '#000';
-                        } else if (item.state === 'finished') {
-                            cell.style.backgroundColor = '#0026ff';
-                            cell.style.color = '#FFFFFF';
-                            cell.style.borderBottom = '1px solid #FFFFFF';
-                        } else if (item.state === 'stopped') {
-                            cell.style.backgroundColor = '#f8d2cb';
-                            cell.style.color = '#000';
+                            // ===== 기존 상태 색상 로직 (그대로) =====
+                            if (column.binding === 'job_state') {
+                                if (item.state === 'working') {
+                                    cell.style.backgroundColor = '#00ff21';
+                                    cell.style.color = '#000';
+                                } else if (item.state === 'finished') {
+                                    cell.style.backgroundColor = '#0026ff';
+                                    cell.style.color = '#FFFFFF';
+                                    cell.style.borderBottom = '1px solid #FFFFFF';
+                                } else if (item.state === 'stopped') {
+                                    cell.style.backgroundColor = '#f8d2cb';
+                                    cell.style.color = '#000';
+                                }
+                            }
+
+                            if (column.binding === 'order_qty') {
+                                cell.style.backgroundColor = '#00ff21';
+                            }
+                            if (column.binding === 'good_qty') {
+                                cell.style.backgroundColor = '#dcf0f8';
+                            }
+                            if (column.binding === 'defect_qty') {
+                                cell.style.backgroundColor = '#f8d2cb';
+                            }
+
+                            // ===============================
+                            // 🔹 여기부터 "작지번호 테두리" 추가
+                            // ===============================
+                            let rows = panel.rows;
+                            let currOrder = item.order_num;
+                            let prevOrder = row > 0 ? rows[row - 1].dataItem.order_num : null;
+                            let nextOrder = row < rows.length - 1 ? rows[row + 1].dataItem.order_num : null;
+
+                            // // 그룹 시작
+                            // if (row === 0 || currOrder !== prevOrder) {
+                            //     cell.style.borderTop = '2px solid #555';
+                            // }
+                            //
+                            // // 그룹 끝
+                            // if (row === rows.length - 1 || currOrder !== nextOrder) {
+                            //     cell.style.borderBottom = '2px solid #555';
+                            // }
                         }
-                    }
-
-                    if (column.binding === 'order_qty') {
-                        cell.style.backgroundColor = '#00ff21';
-                    }
-                    if (column.binding === 'good_qty') {
-                        cell.style.backgroundColor = '#dcf0f8';
-                    }
-                    if (column.binding === 'defect_qty') {
-                        cell.style.backgroundColor = '#f8d2cb';
-                    }
-
-                    // ===============================
-                    // 🔹 여기부터 "작지번호 테두리" 추가
-                    // ===============================
-                    let rows = panel.rows;
-                    let currOrder = item.order_num;
-                    let prevOrder = row > 0 ? rows[row - 1].dataItem.order_num : null;
-                    let nextOrder = row < rows.length - 1 ? rows[row + 1].dataItem.order_num : null;
-
-                    // 그룹 시작
-                    if (row === 0 || currOrder !== prevOrder) {
-                        cell.style.borderTop = '2px solid #555';
-                    }
-
-                    // 그룹 끝
-                    if (row === rows.length - 1 || currOrder !== nextOrder) {
-                        cell.style.borderBottom = '2px solid #555';
-                    }
-                }
-            },
-
+                    },
                 });
 
                 const $btnJobResPrint = $('#btnJobResPrint');   // 생산지시서 출력
