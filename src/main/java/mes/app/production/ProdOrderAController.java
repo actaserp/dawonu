@@ -112,9 +112,9 @@ public class ProdOrderAController {
 		Integer routingPk = m.getRoutingId();
 		Integer locPk = m.getStoreHouseId();
 
-        if(!StringUtils.hasText(m.getClass1()) && !StringUtils.hasText(m.getClass2()) && !StringUtils.hasText(m.getClass3())){
-            throw new CustomException("원자재는 생산지시 할 수 없습니다.");
-        }
+//        if(!StringUtils.hasText(m.getClass1()) && !StringUtils.hasText(m.getClass2()) && !StringUtils.hasText(m.getClass3())){
+//            throw new CustomException("원자재는 생산지시 할 수 없습니다.");
+//        }
 
 		Timestamp prodDate = CommonUtil.tryTimestamp(productionDate);
 

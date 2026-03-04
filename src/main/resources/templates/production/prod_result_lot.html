@@ -2380,10 +2380,6 @@
                 const previousIndex = _this.selectedIndex;
 
                 // ===== 필수 입력 체크 =====
-                if (!data.prod_date) {
-                    Alert.alert('', '생산일을 선택해주세요.');
-                    return;
-                }
                 if (!data.shift_code) {
                     Alert.alert('', '근무조를 선택해주세요.');
                     return;
@@ -2403,6 +2399,13 @@
                     data.start_time =
                         ('0' + now.getHours()).slice(-2) + ':' + ('0' + now.getMinutes()).slice(-2);
                 }
+
+                // 생산일 기본값(미입력 시 오늘 날짜)
+                const today = new Date();
+                data.prod_date =
+                    today.getFullYear() + '-' +
+                    ('0' + (today.getMonth() + 1)).slice(-2) + '-' +
+                    ('0' + today.getDate()).slice(-2);
 
                 // ===== PLAN/ACTUAL에 따른 id 매핑 =====
                 const mode = (data.consumed_mode || $('#consumed_mode').val() || '').toUpperCase();
