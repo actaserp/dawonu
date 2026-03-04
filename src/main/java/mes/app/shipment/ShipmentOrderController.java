@@ -461,7 +461,8 @@ public class ShipmentOrderController {
 
 			this.transactionTemplate.executeWithoutResult(status->{			
 				try {
-					
+					// 1️⃣ rela_data 삭제
+					relationDataRepository.deleteByTableName2AndDataPk2In("shipment", shipment_ids);
 					this.shipmentRepository.deleteByShipmentHeadId(head_id);
 					this.shipmentHeadRepository.deleteById(head_id);
 				}

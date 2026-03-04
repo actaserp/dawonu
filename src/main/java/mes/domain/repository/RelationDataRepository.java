@@ -24,4 +24,7 @@ public interface RelationDataRepository extends JpaRepository<RelationData, Inte
 
 	List<RelationData> findByDataPk1AndTableName1AndRelationNameAndTableName2(Integer bhId, String string,
 			String string2, String string3);
+
+	// 출하지시 취소(shipment 삭제관련) 추가 로직
+	int deleteByTableName2AndDataPk2In(String tableName2, List<Integer> dataPk2);
 }
