@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>SY폴리텍 PLC 모니터링</title>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #10151c;
+            color: #e6edf3;
+            font-family: "Malgun Gothic", "맑은 고딕", system-ui, sans-serif;
+        }
+        .card {
+            width: 360px;
+            padding: 36px 32px 32px;
+            background: #182029;
+            border: 1px solid #263140;
+            border-radius: 10px;
+        }
+        h1 { margin: 0 0 4px; font-size: 19px; letter-spacing: -0.3px; }
+        .sub { margin: 0 0 26px; font-size: 12px; color: #7d8b9a; }
+        label { display: block; margin-bottom: 6px; font-size: 12px; color: #9fb0c0; }
+        input[type=text], input[type=password] {
+            width: 100%;
+            padding: 10px 12px;
+            margin-bottom: 16px;
+            background: #0f151c;
+            border: 1px solid #2c3947;
+            border-radius: 6px;
+            color: #e6edf3;
+            font-size: 14px;
+        }
+        input:focus { outline: none; border-color: #3d7dd8; }
+        button {
+            width: 100%;
+            padding: 11px;
+            background: #2f6fd0;
+            border: 0;
+            border-radius: 6px;
+            color: #fff;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        button:hover { background: #3b7fe4; }
+        .msg { padding: 9px 11px; margin-bottom: 16px; border-radius: 6px; font-size: 12px; }
+        .msg.error { background: #3a1d20; border: 1px solid #6b2b31; color: #ffb4ba; }
+        .msg.info  { background: #16303a; border: 1px solid #235061; color: #9dd6e8; }
+        .foot { margin-top: 22px; font-size: 11px; color: #5d6c7b; line-height: 1.6; }
+    </style>
+</head>
+<body>
+<div class="card">
+    <h1>SY폴리텍 PLC 모니터링</h1>
+    <p class="sub">생산설비 접점 수집 데이터 조회</p>
+
+    <div class="msg error" th:if="${loginFailed}">아이디 또는 비밀번호가 올바르지 않습니다.</div>
+    <div class="msg info" th:if="${loggedOut}">로그아웃되었습니다.</div>
+
+    <form th:action="@{/plc/login-process}" method="post">
+        <label for="username">아이디</label>
+        <input type="text" id="username" name="username" autocomplete="username" autofocus required>
+
+        <label for="password">비밀번호</label>
+        <input type="password" id="password" name="password" autocomplete="current-password" required>
+
+        <button type="submit">로그인</button>
+    </form>
+
+    <p class="foot">
+        이 계정은 PLC 모니터링 화면 전용입니다.<br>
+        다원유 MES 계정과는 별개이며 서로 통용되지 않습니다.
+    </p>
+</div>
+</body>
+</html>

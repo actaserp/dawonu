@@ -104,6 +104,13 @@
 			<artifactId>postgresql</artifactId>
 			<scope>runtime</scope>
 		</dependency>
+
+		<!-- SY폴리텍 PLC 수집 DB(FactMES_SYP_TEST) 조회 전용. 주 DataSource는 PostgreSQL 그대로다. -->
+		<dependency>
+			<groupId>com.microsoft.sqlserver</groupId>
+			<artifactId>mssql-jdbc</artifactId>
+			<scope>runtime</scope>
+		</dependency>
 	
 		<dependency>
 			<groupId>org.projectlombok</groupId>

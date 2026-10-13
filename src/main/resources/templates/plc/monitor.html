@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>SY폴리텍 현장 모니터링</title>
+    <style>
+        /*
+         * 현장 대형 모니터에서 떨어져 보는 화면이다.
+         * 원형 WinForms 화면도 Tahoma 30pt / 그리드 25pt 를 썼다.
+         * 글자를 키우고 경계·대비를 세게 잡는다.
+         */
+        :root {
+            --bg:        #0e131a;
+            --card:      #1b242f;
+            --card-head: #24313f;
+            --line:      #3f5165;   /* 카드 테두리 - 배경과 확실히 구분되게 */
+            --line-row:  #38485a;   /* 행 구분선 */
+            --text:      #f2f7fb;
+            --muted:     #ccd9e6;   /* 이전 #7d8b9a 는 너무 옅었다 */
+            --muted-2:   #b3c2d1;
+            --accent:    #4a8ee0;
+        }
+
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            background: var(--bg);
+            color: var(--text);
+            font-family: "Malgun Gothic", "맑은 고딕", system-ui, sans-serif;
+            font-size: 17px;
+        }
+        a { color: inherit; }
+
+        header {
+            display: flex; align-items: center; gap: 14px;
+            padding: 12px 20px;
+            background: var(--card-head);
+            border-bottom: 2px solid var(--line);
+            position: sticky; top: 0; z-index: 20;
+        }
+        header .brand { font-size: 17px; font-weight: 700; color: var(--text); letter-spacing: -0.2px; }
+        header .spacer { flex: 1; }
+        header select, header input[type=date], header button {
+            padding: 7px 11px; background: #131b24; color: var(--text);
+            border: 1px solid var(--line); border-radius: 6px; font-size: 15px; cursor: pointer;
+        }
+        header button:hover, header select:hover { border-color: var(--accent); }
+        header label { font-size: 15px; color: var(--muted); font-weight: 600; }
+        header .note { font-size: 15px; color: var(--muted); font-weight: 600; }
+        header button#pauseBtn.paused {
+            background: #7a4a12; border-color: #e0a03a; color: #ffe1ac; font-weight: 700;
+        }
+        header button#pauseBtn:disabled { opacity: .45; cursor: default; }
+        button.link {
+            background: none; border: 0; color: #8cc0ff; text-decoration: underline;
+            cursor: pointer; font-size: 14px; padding: 0;
+        }
+
+        .wrap { padding: 18px 20px 48px; max-width: 1900px; margin: 0 auto; }
+
+        /* 호기 탭 */
+        .tabs { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 16px; }
+        .tab {
+            padding: 9px 15px; border-radius: 7px; font-size: 16px; cursor: pointer;
+            background: var(--card); border: 2px solid var(--line); color: var(--text);
+        }
+        .tab:hover { border-color: var(--accent); }
+        .tab.on { background: #2f6fd0; border-color: #6aa6f0; color: #fff; font-weight: 700; }
+        .tab .cnt {
+            display: inline-block; margin-left: 7px; padding: 1px 8px; border-radius: 10px;
+            background: rgba(0,0,0,.32); font-size: 14px; font-weight: 700;
+        }
+
+        /* 호기 머리 */
+        .machinebar {
+            display: flex; align-items: stretch;
+            background: var(--card);
+            border: 2px solid var(--line); border-bottom: 0;
+            border-radius: 10px 10px 0 0; overflow: hidden;
+        }
+        .machinebar .title { flex: 1; display: flex; align-items: center; gap: 20px; padding: 18px 24px; }
+        .machinebar h1 { margin: 0; font-size: 38px; font-weight: 800; letter-spacing: -1.2px; }
+        .machinebar .sub { font-size: 16px; color: var(--muted); font-weight: 500; line-height: 1.7; }
+        .machinebar .sub b { color: var(--text); font-size: 16px; }
+        .machinebar .state {
+            width: 300px; padding: 18px 24px;
+            border-left: 2px solid var(--line); background: #1f2a36;
+            display: flex; flex-direction: column; justify-content: center; gap: 7px;
+        }
+        .machinebar .state .cap { font-size: 14px; color: var(--muted); font-weight: 600; }
+        .machinebar .state .val { font-size: 26px; font-weight: 800; }
+        .machinebar .state .val.none { font-size: 17px; font-weight: 600; color: var(--muted); line-height: 1.5; }
+        .machinebar .state .val.none small { font-size: 14px; font-weight: 500; color: var(--muted-2); }
+
+        /*
+         * 작업지시 표 — 흰 바탕에 검은 글자.
+         * 현장에서 가장 오래 들여다보는 영역이라 여기만 밝게 뒤집는다.
+         * 나머지(헤더·호기 바)는 어두운 채로 두어 표가 도드라지게 한다.
+         */
+        .panel {
+            background: #ffffff;
+            border: 2px solid var(--line);
+            border-radius: 0 0 10px 10px;
+            overflow-x: auto;
+        }
+        table { width: 100%; border-collapse: collapse; min-width: 1180px; }
+        th, td { padding: 13px 16px; text-align: left; white-space: nowrap; }
+        th {
+            font-size: 15px; color: #16202a; font-weight: 700;
+            background: #e4ebf2;
+            border-bottom: 3px solid #8fa2b4;
+        }
+        /* 행 구분선을 확실하게 */
+        tbody td { border-bottom: 2px solid #bfccd9; font-size: 18px; color: #121c26; }
+        tbody tr:last-child td { border-bottom: 0; }
+        tbody tr:hover td { background: #eaf1fa; }
+
+        td.num { text-align: right; font-variant-numeric: tabular-nums; font-weight: 700; }
+        td.name { white-space: normal; min-width: 210px; }
+        td.name .sub { font-size: 14px; color: #33404d; font-weight: 600; margin-top: 4px; }
+
+        /* 상태별 행 색 + 좌측 액센트 */
+        tbody tr td:first-child { border-left: 6px solid transparent; }
+        tr.done    td { background: #e8f6ed; }
+        tr.done    td:first-child { border-left-color: #2b9455; }
+        tr.running td { background: #e5effd; }
+        tr.running td:first-child { border-left-color: #2f6fd0; }
+        tr.waiting td:first-child { border-left-color: #93a2b1; }
+        tbody tr.done:hover td    { background: #daeee2; }
+        tbody tr.running:hover td { background: #d6e6fa; }
+
+        .pill { display: inline-block; padding: 4px 12px; border-radius: 13px; font-size: 15px; font-weight: 700; }
+        .p-DONE    { background: #cdeddb; color: #10502b; border: 1px solid #2b9455; }
+        .p-RUNNING { background: #d4e5fb; color: #0f3563; border: 1px solid #2f6fd0; }
+        .p-WAITING { background: #e0e6ec; color: #35414d; border: 1px solid #93a2b1; }
+
+        .bar {
+            height: 8px; background: #dde5ed; border: 1px solid #9fb0c0;
+            border-radius: 4px; overflow: hidden; margin-top: 6px; min-width: 90px;
+        }
+        .bar > i { display: block; height: 100%; background: #2f6fd0; }
+
+        .empty { padding: 48px 20px; text-align: center; color: #2b3743; font-size: 18px; line-height: 1.9; }
+        .empty b { color: #121c26; }
+        .err {
+            margin: 14px 0; padding: 14px 18px; border-radius: 8px; font-size: 16px;
+            background: #40201f; border: 2px solid #8c3a3a; color: #ffc9c9;
+        }
+
+        /* 하단 설비 현황 */
+        .section-h { margin: 30px 0 12px; font-size: 20px; font-weight: 700; display: flex; align-items: center; gap: 12px; }
+        .section-h .tag {
+            font-size: 13px; font-weight: 700; padding: 3px 11px; border-radius: 11px;
+            background: #40201f; border: 1px solid #8c3a3a; color: #ff9aa3;
+        }
+        .placeholder {
+            padding: 22px 24px; border: 2px dashed #4a5c6e; border-radius: 10px;
+            color: #cfdbe7; font-size: 17px; line-height: 2; background: #1a232d;
+        }
+        .placeholder b { color: var(--text); }
+        .placeholder a { color: #8cc0ff; }
+
+        /* 선택된 행 */
+        tbody tr.sel td { box-shadow: inset 0 0 0 9999px rgba(47,111,208,.13); }
+        tbody tr.sel td:first-child { border-left-width: 10px; }
+        tbody tr { cursor: pointer; }
+
+        /* 설비 현황 — 표와 같은 밝은 톤으로 맞춘다 */
+        .eq { background: #ffffff; border: 2px solid var(--line); border-radius: 10px; overflow: hidden; }
+        .eq .strip {
+            display: grid; border-bottom: 2px solid #bfccd9;
+        }
+        .eq .strip.r1 { grid-template-columns: 1fr 2fr 1fr; }
+        .eq .strip.r2 { grid-template-columns: repeat(4, 1fr); }
+        .eq .cell { padding: 13px 18px; border-right: 2px solid #bfccd9; }
+        .eq .cell:last-child { border-right: 0; }
+        .eq .cell .k { font-size: 14px; color: #46535f; font-weight: 700; margin-bottom: 5px; }
+        .eq .cell .v { font-size: 21px; font-weight: 800; color: #121c26; }
+        .eq .cell .v.dim { font-size: 16px; font-weight: 600; color: #6b7885; }
+        .eq .cell .v small { font-size: 14px; font-weight: 600; color: #46535f; }
+
+        .eq .lines { padding: 6px 0 0; }
+        .eq .lgrp { padding: 0 0 6px; }
+        .eq .lgrp h3 {
+            margin: 0; padding: 10px 18px; font-size: 15px; font-weight: 800; color: #16202a;
+            background: #eef3f8; border-bottom: 2px solid #cfd9e3; border-top: 2px solid #cfd9e3;
+        }
+        .eq .pts { display: grid; grid-template-columns: repeat(auto-fill, minmax(215px, 1fr)); gap: 0; }
+        .eq .pt { padding: 11px 16px; border-right: 2px solid #dfe6ed; border-bottom: 2px solid #dfe6ed; }
+        .eq .pt .n { font-size: 14px; color: #46535f; font-weight: 600; line-height: 1.4; min-height: 38px; }
+        .eq .pt .val { display: flex; align-items: baseline; gap: 5px; margin-top: 5px; }
+        .eq .pt .val b { font-size: 23px; font-weight: 800; color: #121c26; }
+        .eq .pt .val .u { font-size: 14px; color: #46535f; font-weight: 700; }
+        .eq .pt .meta { margin-top: 5px; font-size: 12px; color: #56646f; }
+        .eq .pt.oor { background: #fdeceb; }
+        .eq .pt.oor .val b { color: #a4231c; }
+
+        .eq .foot {
+            padding: 13px 18px; background: #f2f6fa; border-top: 2px solid #cfd9e3;
+            font-size: 14px; color: #3d4a56; line-height: 1.8;
+        }
+        .eq .foot b { color: #121c26; }
+        .warnbar {
+            padding: 11px 18px; background: #fff4d6; border-bottom: 2px solid #d9b64e;
+            font-size: 15px; color: #5b4506; font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <span class="brand">SY폴리텍 현장 모니터링</span>
+    <label for="dt">지시일자</label>
+    <input type="date" id="dt">
+    <button type="button" id="latestBtn" class="link">최근 지시일로</button>
+    <label for="rot">호기 순환</label>
+    <select id="rot">
+        <option value="0">안 함</option>
+        <option value="30" selected>30초</option>
+        <option value="60">60초</option>
+        <option value="120">120초</option>
+    </select>
+    <button type="button" id="pauseBtn">|| 일시정지</button>
+    <div class="spacer"></div>
+    <span class="note" id="note"></span>
+    <a href="/plc/points"><button type="button">PLC 접점</button></a>
+    <form th:action="@{/plc/logout}" method="post" style="margin:0">
+        <button type="submit">로그아웃</button>
+    </form>
+</header>
+
+<div class="wrap">
+    <div id="error" class="err" style="display:none"></div>
+
+    <div class="tabs" id="tabs"></div>
+
+    <div class="machinebar">
+        <div class="title">
+            <h1 id="mcName">—</h1>
+            <div class="sub" id="mcSub"></div>
+        </div>
+        <div class="state">
+            <span class="cap">설비상태</span>
+            <span class="val none" id="mcState">—</span>
+        </div>
+    </div>
+
+    <div class="panel" id="panel"></div>
+
+    <div class="section-h">
+        설비 현황
+        <span class="tag" id="eqTag">선택된 지시 없음</span>
+        <span style="flex:1"></span>
+        <label for="plcLookback" style="font-size:14px;color:var(--muted);font-weight:600">PLC 조회구간</label>
+        <select id="plcLookback">
+            <option value="24">최근 24시간</option>
+            <option value="175200" selected>전체 (마지막 알려진 값)</option>
+        </select>
+    </div>
+    <div id="equip"></div>
+</div>
+
+<script th:inline="none">
+(function () {
+    'use strict';
+
+    var el = function (id) { return document.getElementById(id); };
+    var state = { machines: [], rows: [], sel: null, selPdir: null, latest: null, paused: false };
+    var rotTimer = null;
+
+    function esc(s) {
+        if (s === null || s === undefined) { return ''; }
+        return String(s).replace(/[&<>"']/g, function (c) {
+            return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+        });
+    }
+
+    // 소수점 뒤 불필요한 0을 떨어내고 천단위 구분을 넣는다.
+    function num(v, dp) {
+        if (v === null || v === undefined || v === '') { return '-'; }
+        var n = Number(v);
+        if (!isFinite(n)) { return '-'; }
+        var s = parseFloat(n.toFixed(dp === undefined ? 3 : dp));
+        return s.toLocaleString('ko-KR', { maximumFractionDigits: 3 });
+    }
+
+    function today() {
+        var d = new Date();
+        return d.getFullYear() + '-' +
+               String(d.getMonth() + 1).padStart(2, '0') + '-' +
+               String(d.getDate()).padStart(2, '0');
+    }
+
+    function get(url) {
+        return fetch(url, { credentials: 'same-origin' }).then(function (r) {
+            if (r.status === 401 || r.redirected) {
+                location.href = '/plc/login';
+                throw new Error('세션이 만료되었습니다.');
+            }
+            return r.json().then(function (body) {
+                if (!r.ok) {
+                    throw new Error(body && body.message ? body.message : ('요청 실패 (' + r.status + ')'));
+                }
+                return body;
+            });
+        });
+    }
+
+    function renderTabs() {
+        el('tabs').innerHTML = state.machines.map(function (m) {
+            var on = (m.equiCd === state.sel) ? ' on' : '';
+            var cnt = m.totalCount ? '<span class="cnt">' + m.totalCount + '</span>' : '';
+            return '<div class="tab' + on + '" data-equi="' + esc(m.equiCd) + '">' +
+                   esc(m.equiNm) + cnt + '</div>';
+        }).join('');
+
+        Array.prototype.forEach.call(el('tabs').querySelectorAll('.tab'), function (t) {
+            t.addEventListener('click', function () {
+                state.sel = t.getAttribute("data-equi");
+                state.selPdir = null;
+                renderAll();
+                loadEquipment();
+            });
+        });
+    }
+
+    function renderHead() {
+        var m = state.machines.filter(function (x) { return x.equiCd === state.sel; })[0];
+        if (!m) {
+            el('mcName').textContent = '—';
+            el('mcSub').textContent = '';
+            return;
+        }
+        el('mcName').textContent = m.equiNm || m.equiCd;
+        el('mcSub').innerHTML =
+            '설비코드 ' + esc(m.equiCd) + (m.laneCd ? ' · 라인 ' + esc(m.laneCd) : '') + '<br>' +
+            '완료 <b>' + m.doneCount + '</b> · 진행중 <b>' + m.runningCount + '</b> · 대기 <b>' + m.waitingCount + '</b>';
+
+        // 설비상태는 판정 근거가 없어 값을 만들지 않는다. 서버가 null 을 준다.
+        var st = el('mcState');
+        if (m.statusName) {
+            st.className = 'val';
+            st.textContent = m.statusName;
+        } else {
+            st.className = 'val none';
+            st.innerHTML = '판정 보류<br><small>가동상태 근거 미확정</small>';
+        }
+    }
+
+    function renderTable() {
+        var rows = state.rows.filter(function (r) { return r.equiCd === state.sel; });
+
+        if (!rows.length) {
+            var hint = '';
+            if (state.latest && state.latest !== el('dt').value) {
+                hint = '<br>가장 최근 지시일자는 <b>' + esc(state.latest) + '</b> 이다.';
+            }
+            el('panel').innerHTML = '<div class="empty">이 호기의 해당 일자 작업지시가 없다.' + hint + '</div>';
+            return;
+        }
+
+        var body = rows.map(function (r) {
+            var cls = r.statusCode === 'DONE' ? 'done'
+                    : (r.statusCode === 'RUNNING' ? 'running' : 'waiting');
+            var pct = (r.progressRate === null || r.progressRate === undefined)
+                    ? null : Math.max(0, Math.min(100, Number(r.progressRate)));
+            var sel = (r.pdirNo === state.selPdir) ? ' sel' : '';
+            return '<tr class="' + cls + sel + '" data-pdir="' + esc(r.pdirNo) + '">' +
+                '<td class="name">' + esc(r.vendNm || '-') + '</td>' +
+                '<td class="name">' + esc(r.itemNm || '-') +
+                    '<div class="sub">' + esc(r.itemCd || '') +
+                    (r.pdirClsNm ? ' · ' + esc(r.pdirClsNm) : '') + '</div></td>' +
+                '<td>' + esc(r.itemSize || '-') + '</td>' +
+                '<td class="num">' + num(r.pdirWt) + '</td>' +
+                '<td class="num">' + num(r.producedWt) +
+                    (pct === null ? '' : '<div class="bar"><i style="width:' + pct + '%"></i></div>') + '</td>' +
+                '<td class="num">' + num(r.batchQty, 0) + '</td>' +
+                '<td class="num">' + num(r.workBatchQty, 0) + '</td>' +
+                '<td><span class="pill p-' + esc(r.statusCode) + '">' + esc(r.statusName) + '</span></td>' +
+                '<td class="name"><span class="sub">' + esc(r.pdirNo || '') + '</span></td>' +
+            '</tr>';
+        }).join('');
+
+        el('panel').innerHTML =
+            '<table><thead><tr>' +
+            '<th>업체명</th><th>제품명</th><th>규격</th>' +
+            '<th style="text-align:right">작업지시량</th>' +
+            '<th style="text-align:right">생산량</th>' +
+            '<th style="text-align:right">지시Batch</th>' +
+            '<th style="text-align:right">작업Batch</th>' +
+            '<th>작업상태</th><th>지시번호</th>' +
+            '</tr></thead><tbody>' + body + '</tbody></table>';
+
+        Array.prototype.forEach.call(el('panel').querySelectorAll('tbody tr'), function (tr) {
+            tr.addEventListener('click', function () {
+                state.selPdir = tr.getAttribute('data-pdir');
+                renderTable();
+                loadEquipment();
+            });
+        });
+    }
+
+    // 한 설비에 진행중 지시가 둘일 수 없으니 진행중을 자동으로 고른다.
+    // 진행중이 없으면 마지막 건으로 떨어뜨린다.
+    function autoSelect() {
+        var rows = state.rows.filter(function (r) { return r.equiCd === state.sel; });
+        if (!rows.length) { state.selPdir = null; return; }
+        if (state.selPdir && rows.some(function (r) { return r.pdirNo === state.selPdir; })) { return; }
+        var run = rows.filter(function (r) { return r.statusCode === 'RUNNING'; })[0];
+        state.selPdir = (run || rows[rows.length - 1]).pdirNo;
+    }
+
+    function hhmm(s) {
+        if (!s) { return '-'; }
+        return String(s).replace('T', ' ').substring(11, 16);
+    }
+
+    function mins(sec) {
+        if (sec === null || sec === undefined) { return '-'; }
+        var m = Math.floor(Number(sec) / 60);
+        if (m < 60) { return m + '분'; }
+        return Math.floor(m / 60) + '시간 ' + (m % 60) + '분';
+    }
+
+    function renderEquipment(d) {
+        var p = d.pdir, b = d.batch, plc = d.plc || {};
+        var pts = plc.points || [];
+
+        if (!p) {
+            el('eqTag').textContent = '선택된 지시 없음';
+            el('equip').innerHTML =
+                '<div class="placeholder">이 호기의 해당 일자 작업지시가 없어 표시할 설비 현황이 없다.</div>';
+            return;
+        }
+        el('eqTag').textContent = p.statusName + ' · ' + p.pdirNo;
+
+        // 1행 — 거래처 / 제품명 / 규격
+        var r1 =
+            '<div class="strip r1">' +
+              '<div class="cell"><div class="k">거래처</div><div class="v">' + esc(p.vendNm || '-') + '</div></div>' +
+              '<div class="cell"><div class="k">제품명</div><div class="v">' + esc(p.itemNm || '-') + '</div></div>' +
+              '<div class="cell"><div class="k">규격</div><div class="v">' + esc(p.itemSize || '-') + '</div></div>' +
+            '</div>';
+
+        // 2행 — 셋팅온도 / 토출온도 / 시작시간 / 믹서시간
+        // 완료시간은 진행중이면 의미가 없어 뺐다.
+        var running = b && b.running;
+        var r2 =
+            '<div class="strip r2">' +
+              '<div class="cell"><div class="k">셋팅 온도</div>' +
+                '<div class="v dim">접점 없음</div></div>' +
+              '<div class="cell"><div class="k">토출온도</div>' +
+                '<div class="v dim">접점 없음</div></div>' +
+              '<div class="cell"><div class="k">작업 시작시간' +
+                (b && b.psq ? ' <small>(' + b.psq + '번째 배치)</small>' : '') + '</div>' +
+                '<div class="v">' + (b ? hhmm(b.startedAt) : '-') + '</div></div>' +
+              '<div class="cell"><div class="k">믹서시간 ' +
+                (running ? '<small>(진행중 · 경과)</small>' : '<small>(소요)</small>') + '</div>' +
+                '<div class="v">' + (b ? mins(b.elapsedSeconds) : '-') + '</div></div>' +
+            '</div>';
+
+        // PLC 접점 — 라인별로 묶는다
+        var byLine = {}, order = [];
+        pts.forEach(function (x) {
+            if (!byLine[x.line]) { byLine[x.line] = []; order.push(x.line); }
+            byLine[x.line].push(x);
+        });
+
+        var lines = order.map(function (ln) {
+            var cells = byLine[ln].map(function (x) {
+                var v = num(x.value);
+                return '<div class="pt' + (x.outOfRange ? ' oor' : '') + '">' +
+                    '<div class="n">' + esc(x.name) + '</div>' +
+                    '<div class="val"><b>' + (v === '-' ? '—' : v) + '</b>' +
+                        (x.unit ? '<span class="u">' + esc(x.unit) + '</span>' : '') + '</div>' +
+                    '<div class="meta">' + esc(x.id) + ' · ' + esc(x.kind) + ' · ' + esc(x.freshness) +
+                        ((x.min !== null && x.max !== null)
+                            ? ' · 임계 ' + num(x.min) + '~' + num(x.max) : '') + '</div>' +
+                '</div>';
+            }).join('');
+            return '<div class="lgrp"><h3>라인 ' + esc(ln) + ' · 접점 ' + byLine[ln].length + '</h3>' +
+                   '<div class="pts">' + cells + '</div></div>';
+        }).join('');
+
+        var warn =
+            '<div class="warnbar">호기 ↔ PLC 라인 매핑이 확정되지 않았다. ' +
+            '접점 명칭의 "' + esc(plc.machineNo) + '호기" 문자열로 잠정 연결한 것이다.</div>';
+
+        var foot =
+            '<div class="foot">' +
+            '<b>셋팅 온도 · 토출온도</b>는 PLC 접점 143점에 존재하지 않는다. 수집되는 건 현재값뿐이고 설정값이 없다.<br>' +
+            '<b>완료시간</b>은 진행중이라 의미가 없어 뺐다.<br>' +
+            (pts.length
+                ? '위 접점은 명칭으로 잠정 연결한 것이라 확정 전까지 참고용이다.'
+                : '이 호기 번호가 이름에 들어간 PLC 접점이 없다. 1·2라인 친환경(1052·1054), 창고·라인 온습도(1100), 생산 진행 확인(1110)은 호기 번호가 없어 잡히지 않는다.') +
+            '</div>';
+
+        el('equip').innerHTML = '<div class="eq">' + (pts.length ? warn : '') + r1 + r2 +
+                                '<div class="lines">' + lines + '</div>' + foot + '</div>';
+    }
+
+    function loadEquipment() {
+        if (!state.sel) { return Promise.resolve(); }
+        var q = '/api/syp/equipment?equiCd=' + encodeURIComponent(state.sel) +
+                '&pdirDt=' + encodeURIComponent(el('dt').value || today()) +
+                '&lookbackHours=' + encodeURIComponent(el('plcLookback').value) +
+                (state.selPdir ? '&pdirNo=' + encodeURIComponent(state.selPdir) : '');
+        return get(q).then(renderEquipment).catch(function (e) {
+            el('equip').innerHTML = '<div class="err">' + esc(e.message || String(e)) + '</div>';
+        });
+    }
+
+    function renderAll() {
+        renderTabs();
+        renderHead();
+        autoSelect();
+        renderTable();
+    }
+
+    function load() {
+        var d = el('dt').value || today();
+        el('note').textContent = '불러오는 중...';
+
+        return get('/api/syp/overview?pdirDt=' + encodeURIComponent(d))
+            .then(function (res) {
+                el('error').style.display = 'none';
+                state.machines = res.machines || [];
+                state.rows = res.rows || [];
+                state.latest = res.latestPdirDt || null;
+
+                if (!state.sel || !state.machines.some(function (m) { return m.equiCd === state.sel; })) {
+                    state.sel = state.machines.length ? state.machines[0].equiCd : null;
+                }
+                renderAll();
+                loadEquipment();
+
+                var total = state.rows.length;
+                el('note').textContent = d + ' 지시 ' + total + '건 · ' +
+                    new Date().toLocaleTimeString('ko-KR');
+            })
+            .catch(function (e) {
+                el('note').textContent = '';
+                var box = el('error');
+                box.style.display = 'block';
+                box.textContent = e.message || String(e);
+            });
+    }
+
+    // 호기 순환. 원형 WinForms 화면이 30초마다 호기를 넘기던 동작을 그대로 가져온다.
+    // 현장에서 특정 호기를 들여다보는 동안 화면이 넘어가면 곤란하니 일시정지를 둔다.
+    function scheduleRotate() {
+        if (rotTimer) { clearInterval(rotTimer); rotTimer = null; }
+        var s = Number(el('rot').value);
+        if (s > 0 && !state.paused) {
+            rotTimer = setInterval(function () {
+                if (!state.machines.length) { return; }
+                var i = state.machines.findIndex(function (m) { return m.equiCd === state.sel; });
+                state.sel = state.machines[(i + 1) % state.machines.length].equiCd;
+                state.selPdir = null;   // 호기가 바뀌면 진행중 지시를 다시 자동선택
+                renderAll();
+                load();
+            }, s * 1000);
+        }
+    }
+
+    el('dt').value = today();
+    el('dt').addEventListener('change', load);
+    el("rot").addEventListener("change", scheduleRotate);
+    el("plcLookback").addEventListener("change", loadEquipment);
+
+    function renderPause() {
+        var b = el('pauseBtn');
+        b.textContent = state.paused ? '▶ 순환 재개' : '|| 일시정지';
+        b.className = state.paused ? 'paused' : '';
+        // 순환이 꺼져 있으면 일시정지 자체가 의미 없다.
+        b.disabled = Number(el('rot').value) === 0;
+    }
+
+    el('pauseBtn').addEventListener('click', function () {
+        state.paused = !state.paused;
+        renderPause();
+        scheduleRotate();
+    });
+    el('rot').addEventListener('change', renderPause);
+    renderPause();
+    el('latestBtn').addEventListener('click', function () {
+        if (state.latest) { el('dt').value = state.latest; load(); }
+    });
+
+    load();
+    scheduleRotate();
+})();
+</script>
+
+</body>
+</html>

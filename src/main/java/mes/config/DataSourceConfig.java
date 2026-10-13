@@ -11,10 +11,12 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.jdbc.DataSourceBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Primary;
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.orm.jpa.JpaTransactionManager;
 import org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean;
 import org.springframework.orm.jpa.vendor.HibernateJpaVendorAdapter;
@@ -35,8 +37,25 @@ public class DataSourceConfig {
 	@Bean("jdbcTemplate")
     JdbcTemplate jdbcTemplate(DataSource dataSource) {
         return new JdbcTemplate(dataSource);
-    }	
+    }
+
+	// SqlRunner(SqlRunQueryImpl)가 주입받는 NamedParameterJdbcTemplate.
+	// 여태 스프링 부트 자동설정이 주 DataSource(PostgreSQL)로 만들어 줬지만,
+	// PlcDataSourceConfig 의 plcJdbcTemplate(MS SQL Server) 빈이 생기면서
+	// NamedParameterJdbcTemplateAutoConfiguration 의 @ConditionalOnMissingBean 이
+	// 물러나 버렸다. 그러면 컨텍스트에 PLC(SQL Server)용 하나만 남아
+	// 다원유 MES 쿼리가 전부 SY폴리텍 SQL Server 로 날아간다.
+	// 다원유 PostgreSQL 용을 명시적으로 @Primary 로 만들어 둔다.
+	@Bean(name = "namedParameterJdbcTemplate")
+	@Primary
+	NamedParameterJdbcTemplate namedParameterJdbcTemplate(@Qualifier("dataSource") DataSource dataSource) {
+		return new NamedParameterJdbcTemplate(dataSource);
+	}
 	
+	// PLC용 두 번째 DataSource가 추가되어 DataSource 후보가 2개가 된다.
+	// @Primary가 없으면 JdbcTemplateAutoConfiguration(@ConditionalOnSingleCandidate)이
+	// 물러나면서 NamedParameterJdbcTemplate 빈이 사라지고 SqlRunQueryImpl 주입이 깨진다.
+	@Primary
 	@ConfigurationProperties(prefix="spring.datasource.hikari")
 	@Bean(name="dataSource")	
 	DataSource dataSource() {
