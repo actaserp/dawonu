@@ -9,7 +9,12 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
+
+import javax.annotation.PostConstruct;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -85,6 +90,40 @@ public class PlcMonitorService {
 
 	private final Map<Integer, Cached<Map<String, Map<String, Object>>>> latestCache =
 			new LinkedHashMap<>();
+
+	/** 화면 셀렉트의 "전체 (마지막 알려진 값)" 값. 워밍업 대상이라 여기서도 안다. */
+	private static final int UI_WIDE_LOOKBACK_HOURS = 175200;
+
+	/**
+	 * 기동 직후 캐시를 미리 채운다.
+	 *
+	 * DG2000M/DG2010M 은 인덱스가 없어 콜드 조회가 운영 실측 기준 wide 4초 / 임계값 6초 /
+	 * health 2초다. 워밍업이 없으면 첫 화면 클릭이 이걸 직렬로 전부 뒤집어쓴다(12초+).
+	 * 기동을 막지 않도록 데몬 스레드에서 돌리고, 가드가 잠겨 있으면 건드리지 않는다.
+	 */
+	@PostConstruct
+	void warmUpAsync() {
+		Thread t = new Thread(() -> {
+			if (!this.guard.isOpen()) {
+				log.info("[PLC] 가드가 잠겨 있어 캐시 워밍업을 건너뛴다.");
+				return;
+			}
+			long t0 = System.currentTimeMillis();
+			try {
+				this.metaCache.get();
+				this.collectorCache.get();
+				this.healthCache.get();
+				this.thresholdCache.get();
+				latest(UI_WIDE_LOOKBACK_HOURS);
+				latest(24);
+				log.info("[PLC] 캐시 워밍업 완료 ({}초)", (System.currentTimeMillis() - t0) / 1000.0);
+			} catch (Exception e) {
+				log.warn("[PLC] 캐시 워밍업 실패. 첫 조회가 느릴 수 있다. ({})", e.getMessage());
+			}
+		}, "plc-cache-warmup");
+		t.setDaemon(true);
+		t.start();
+	}
 
 	// ------------------------------------------------------------------
 	// 공개 API
@@ -549,13 +588,33 @@ public class PlcMonitorService {
 		return (o instanceof LocalDateTime d) ? d : null;
 	}
 
-	/** TTL 캐시. 만료되면 첫 호출자만 다시 읽는다. */
+	/**
+	 * TTL 캐시 — stale-while-revalidate.
+	 *
+	 * 만료되어도 호출자를 기다리게 하지 않는다. 이전 값을 즉시 돌려주고 갱신은 백그라운드
+	 * 스레드 하나가 한다. DG2000M/DG2010M 조회가 2~6초짜리 풀스캔이라(운영 실측),
+	 * 만료 시점에 걸린 사용자가 그 스캔을 통째로 기다리던 것이 화면이 수십 초 밀리던 원인이다.
+	 *
+	 * 값이 아예 없을 때(기동 직후 워밍업 전)만 동기로 읽는다. 백그라운드 갱신이 실패하면
+	 * 이전 값을 유지한다 — PLC 모니터링에서 몇 초 묵은 값이 빈 화면보다 낫다.
+	 * 갱신 스레드를 하나로 묶어 커넥션 풀(최대 4)을 캐시 갱신이 점령하지 못하게 한다.
+	 */
 	private static final class Cached<T> {
+
+		private static final Logger cacheLog = LoggerFactory.getLogger(Cached.class);
+
+		/** 모든 캐시가 공유하는 갱신 스레드. 데몬이라 종료를 막지 않는다. */
+		private static final ExecutorService REFRESHER = Executors.newSingleThreadExecutor(r -> {
+			Thread t = new Thread(r, "plc-cache-refresh");
+			t.setDaemon(true);
+			return t;
+		});
 
 		private final long ttlMillis;
 		private final Supplier<T> loader;
 		private volatile T value;
 		private volatile long loadedAt = 0L;
+		private final AtomicBoolean refreshing = new AtomicBoolean(false);
 
 		Cached(long ttlMillis, Supplier<T> loader) {
 			this.ttlMillis = ttlMillis;
@@ -564,17 +623,37 @@ public class PlcMonitorService {
 
 		T get() {
 			T v = this.value;
-			if (v != null && System.currentTimeMillis() - this.loadedAt < this.ttlMillis) {
-				return v;
+			if (v != null) {
+				if (System.currentTimeMillis() - this.loadedAt >= this.ttlMillis) {
+					refreshAsync();
+				}
+				return v;   // 만료됐어도 일단 이전 값. 갱신은 백그라운드가 한다.
 			}
 			synchronized (this) {
-				if (this.value != null && System.currentTimeMillis() - this.loadedAt < this.ttlMillis) {
-					return this.value;
+				if (this.value == null) {
+					this.value = this.loader.get();
+					this.loadedAt = System.currentTimeMillis();
 				}
-				this.value = this.loader.get();
-				this.loadedAt = System.currentTimeMillis();
 				return this.value;
 			}
+		}
+
+		private void refreshAsync() {
+			if (!this.refreshing.compareAndSet(false, true)) {
+				return;   // 이미 갱신 중
+			}
+			REFRESHER.submit(() -> {
+				try {
+					T fresh = this.loader.get();
+					this.value = fresh;
+					this.loadedAt = System.currentTimeMillis();
+				} catch (Exception e) {
+					// 이전 값을 유지한다. 다음 get() 이 다시 갱신을 건다.
+					cacheLog.warn("[PLC] 캐시 백그라운드 갱신 실패. 이전 값을 유지한다. ({})", e.getMessage());
+				} finally {
+					this.refreshing.set(false);
+				}
+			});
 		}
 	}
 }
