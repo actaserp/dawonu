@@ -33,13 +33,4 @@ public class PlcViewController {
 	public ModelAndView monitor() {
 		return new ModelAndView("plc/monitor");
 	}
-
-	/**
-	 * PLC 접점 진단 화면. 143개 접점의 최신값과 수집기 상태를 본다.
-	 * 수집이 멈춰 있는 동안 "왜 값이 없나"를 확인할 곳이 여기뿐이라 남겨 둔다.
-	 */
-	@GetMapping("/points")
-	public ModelAndView points() {
-		return new ModelAndView("plc/points");
-	}
 }

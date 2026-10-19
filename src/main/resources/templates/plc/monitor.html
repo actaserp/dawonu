@@ -7,186 +7,229 @@
     <style>
         /*
          * 현장 대형 모니터에서 떨어져 보는 화면이다.
-         * 원형 WinForms 화면도 Tahoma 30pt / 그리드 25pt 를 썼다.
-         * 글자를 키우고 경계·대비를 세게 잡는다.
+         * 색은 기존 WinForms 현장화면(sample.png)을 따른다 —
+         * 회색 바탕 / 흰 칸 + 검은 테두리 / 검정 머리글에 흰 글자 /
+         * 네이비 라벨 / 검정 바탕에 초록 값 / 상태는 빨강·초록.
+         * 모서리는 둥글리지 않는다. 원본이 각진 격자다.
          */
         :root {
-            --bg:        #0e131a;
-            --card:      #1b242f;
-            --card-head: #24313f;
-            --line:      #3f5165;   /* 카드 테두리 - 배경과 확실히 구분되게 */
-            --line-row:  #38485a;   /* 행 구분선 */
-            --text:      #f2f7fb;
-            --muted:     #ccd9e6;   /* 이전 #7d8b9a 는 너무 옅었다 */
-            --muted-2:   #b3c2d1;
-            --accent:    #4a8ee0;
+            --bg:     #808080;   /* 바탕 회색 */
+            --paper:  #ffffff;   /* 칸 */
+            --ink:    #000000;   /* 테두리·글자 */
+            --ink-2:  #333333;   /* 보조 글자 */
+            --muted:  #666666;
+            --navy:   #000080;   /* 라벨 띠 */
+            --green:  #00e000;   /* 검정 바탕 위 계측값 */
+            --green-d:#008000;   /* 완료 */
+            --red:    #ff0000;   /* 정지·오류 */
+            --cyan:   #00c8ff;
         }
 
         * { box-sizing: border-box; }
+        /*
+         * 현장은 대형 모니터에 F11 전체화면으로 띄운다.
+         * 화면 전체를 세로로 한 번에 담고 페이지 스크롤은 만들지 않는다.
+         * 창이 작아 다 못 담을 때만 본문(.wrap)이 안에서 스크롤한다.
+         */
+        html, body { height: 100%; }
         body {
             margin: 0;
             background: var(--bg);
-            color: var(--text);
+            color: var(--ink);
             font-family: "Malgun Gothic", "맑은 고딕", system-ui, sans-serif;
             font-size: 17px;
+            display: flex; flex-direction: column; overflow: hidden;
         }
         a { color: inherit; }
 
         header {
             display: flex; align-items: center; gap: 14px;
             padding: 12px 20px;
-            background: var(--card-head);
-            border-bottom: 2px solid var(--line);
-            position: sticky; top: 0; z-index: 20;
+            background: var(--ink);
+            border-bottom: 2px solid var(--ink);
+            flex: 0 0 auto; z-index: 20;
         }
-        header .brand { font-size: 17px; font-weight: 700; color: var(--text); letter-spacing: -0.2px; }
-        header .spacer { flex: 1; }
         header select, header input[type=date], header button {
-            padding: 7px 11px; background: #131b24; color: var(--text);
-            border: 1px solid var(--line); border-radius: 6px; font-size: 15px; cursor: pointer;
+            padding: 7px 11px; background: var(--paper); color: var(--ink);
+            border: 2px solid var(--ink); border-radius: 0; font-size: 15px; cursor: pointer;
         }
-        header button:hover, header select:hover { border-color: var(--accent); }
-        header label { font-size: 15px; color: var(--muted); font-weight: 600; }
-        header .note { font-size: 15px; color: var(--muted); font-weight: 600; }
+        header button:hover, header select:hover { background: #d9d9d9; }
+        header label { font-size: 15px; color: #ffffff; font-weight: 600; }
         header button#pauseBtn.paused {
-            background: #7a4a12; border-color: #e0a03a; color: #ffe1ac; font-weight: 700;
+            background: var(--red); border-color: var(--ink); color: #ffffff; font-weight: 700;
         }
         header button#pauseBtn:disabled { opacity: .45; cursor: default; }
         button.link {
-            background: none; border: 0; color: #8cc0ff; text-decoration: underline;
+            background: none; border: 0; color: var(--cyan); text-decoration: underline;
             cursor: pointer; font-size: 14px; padding: 0;
         }
 
-        .wrap { padding: 18px 20px 48px; max-width: 1900px; margin: 0 auto; }
+        .wrap {
+            padding: 14px 20px 16px; max-width: 1900px; margin: 0 auto; width: 100%;
+            flex: 1 1 auto; min-height: 0;
+            display: flex; flex-direction: column;
+            overflow: auto;   /* 다 못 담는 작은 창에서만 여기서 스크롤한다 */
+        }
+        .machinebar, .section-h, #equip, #error { flex: 0 0 auto; }
 
-        /* 호기 탭 */
-        .tabs { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 16px; }
+        /*
+         * 호기 탭 — 헤더 줄에 얹는다. 본문에서 한 줄(약 60px)을 빼기 위해서다.
+         * 호기가 12개라 줄바꿈하면 헤더가 두 줄이 되어 효과가 없다.
+         * 남는 폭을 전부 차지하되 모자라면 가로로만 스크롤한다.
+         */
+        .tabs {
+            display: flex; gap: 5px; margin: 0;
+            flex: 1 1 auto; min-width: 0; overflow-x: auto; overflow-y: hidden;
+            padding-bottom: 6px;          /* 스크롤바가 탭을 가리지 않게 */
+            scrollbar-width: thin;
+            scrollbar-color: #ffffff #3a3a3a;
+        }
+        /* 검정 헤더 위라 스크롤바를 흰색으로 둬야 보인다. 기본값은 거의 안 보인다. */
+        .tabs::-webkit-scrollbar { height: 8px; }
+        .tabs::-webkit-scrollbar-track { background: #3a3a3a; }
+        .tabs::-webkit-scrollbar-thumb { background: #ffffff; }
+        .tabs::-webkit-scrollbar-thumb:hover { background: #d9d9d9; }
         .tab {
-            padding: 9px 15px; border-radius: 7px; font-size: 16px; cursor: pointer;
-            background: var(--card); border: 2px solid var(--line); color: var(--text);
+            padding: 6px 10px; border-radius: 0; font-size: 15px; cursor: pointer;
+            background: var(--paper); border: 2px solid var(--ink); color: var(--ink);
+            white-space: nowrap; flex: 0 0 auto;
         }
-        .tab:hover { border-color: var(--accent); }
-        .tab.on { background: #2f6fd0; border-color: #6aa6f0; color: #fff; font-weight: 700; }
+        .tab:hover { background: #d9d9d9; }
+        .tab.on { background: var(--navy); border-color: var(--ink); color: #fff; font-weight: 700; }
         .tab .cnt {
-            display: inline-block; margin-left: 7px; padding: 1px 8px; border-radius: 10px;
-            background: rgba(0,0,0,.32); font-size: 14px; font-weight: 700;
+            display: inline-block; margin-left: 5px; padding: 0 6px; border-radius: 0;
+            background: var(--ink); color: #fff; font-size: 13px; font-weight: 700;
         }
+        .tab.on .cnt { background: rgba(255,255,255,.26); }
 
         /*
          * 호기 머리 — 레이아웃 목업(20261019) 배치다.
          * 호기명은 바 폭의 가운데, 설비상태는 우상단에 라벨/값 두 줄 박스.
-         * 설비상태 박스를 absolute 로 띄워야 호기명이 '진짜' 가운데에 온다.
+         * 설비상태 박스를 absolute 로 띄워야 호기명이 바 폭의 가운데에 온다.
          * flex 로 나란히 두면 박스 폭의 절반만큼 호기명이 왼쪽으로 밀린다.
          */
         .machinebar {
             position: relative;
-            background: var(--card);
-            border: 2px solid var(--line); border-bottom: 0;
-            border-radius: 10px 10px 0 0;
+            background: var(--paper);
+            border: 2px solid var(--ink); border-bottom: 0;
+            border-radius: 0;
             padding: 16px 24px 14px;
             text-align: center;
         }
-        .machinebar h1 { margin: 0; font-size: 38px; font-weight: 800; letter-spacing: -1.2px; }
-        .machinebar .sub { margin-top: 7px; font-size: 16px; color: var(--muted); font-weight: 500; }
-        .machinebar .sub b { color: var(--text); }
+        .machinebar h1 { margin: 0; font-size: 38px; font-weight: 800; letter-spacing: -1.2px; color: var(--ink); }
+        /*
+         * 호기 바의 오른쪽 위 모서리에 붙인다.
+         * 띄워 두면 위·오른쪽에 회색 바탕이 비쳐 칸이 덜 그려진 것처럼 보인다.
+         * 바깥 테두리는 호기 바의 테두리를 그대로 쓰고 안쪽 두 면만 긋는다.
+         */
         .machinebar .state {
-            position: absolute; top: 12px; right: 20px;
+            position: absolute; top: 0; right: 0;
             min-width: 240px; max-width: 340px;
-            border: 2px solid var(--line); border-radius: 8px;
-            background: #1f2a36; overflow: hidden;
+            border: 0;
+            border-left: 2px solid var(--ink);
+            border-bottom: 2px solid var(--ink);
+            border-radius: 0;
+            background: var(--paper); overflow: hidden;
         }
         .machinebar .state .cap {
             display: block; padding: 5px 12px;
-            font-size: 14px; font-weight: 700; color: var(--muted);
-            background: #24313f; border-bottom: 2px solid var(--line);
+            font-size: 14px; font-weight: 700; color: #ffffff;
+            background: var(--ink); border-bottom: 2px solid var(--ink);
         }
         .machinebar .state .val { display: block; padding: 8px 12px; font-size: 22px; font-weight: 800; }
         .machinebar .state .val.none { font-size: 16px; font-weight: 600; color: var(--muted); }
-        .machinebar .state .val.none small { font-size: 13px; font-weight: 500; color: var(--muted-2); }
+        .machinebar .state .val.none small { font-size: 13px; font-weight: 500; color: var(--muted); }
+        /* 판정이 정해지면 쓸 상태색. 원본 화면도 정지를 빨강으로 채웠다. */
+        .machinebar .state .val.st-run  { background: var(--green-d); color: #fff; }
+        .machinebar .state .val.st-stop { background: var(--red);     color: #fff; }
+        .machinebar .state .val.st-fix  { background: #ffd200;        color: var(--ink); }
 
-        /*
-         * 작업지시 표 — 흰 바탕에 검은 글자.
-         * 현장에서 가장 오래 들여다보는 영역이라 여기만 밝게 뒤집는다.
-         * 나머지(헤더·호기 바)는 어두운 채로 두어 표가 도드라지게 한다.
-         */
+        /* 작업지시 표 — 흰 칸에 검은 글자, 머리글은 검정에 흰 글자. */
         .panel {
-            background: #ffffff;
-            border: 2px solid var(--line);
-            border-radius: 0 0 10px 10px;
-            /* 5행까지만 보이고 그 이상은 스크롤이다. maxHeight 는 렌더 후 JS 가 잰다 — clampRows 참조. */
+            background: var(--paper);
+            border: 2px solid var(--ink);
+            border-radius: 0;
+            /* 행 수를 5행으로 잘라 그리므로(windowRows) 세로 스크롤은 생기지 않는다.
+               가로는 컬럼이 많아 좁은 창에서 필요할 수 있어 열어 둔다. */
             overflow: auto;
+            /* 세로가 모자라면 이 표가 먼저 줄어든다. 늘어나지는 않는다. */
+            flex: 0 1 auto; min-height: 0;
         }
         table { width: 100%; border-collapse: collapse; min-width: 1180px; }
         th, td { padding: 13px 16px; text-align: left; white-space: nowrap; }
         th {
-            font-size: 15px; color: #16202a; font-weight: 700;
-            background: #e4ebf2;
-            border-bottom: 3px solid #8fa2b4;
+            font-size: 15px; color: #ffffff; font-weight: 700;
+            background: var(--ink);
+            border-bottom: 2px solid var(--ink);
             /* 표가 세로로 스크롤되므로 머리글은 붙여 둔다.
                sticky 셀은 border 가 같이 스크롤돼 사라져서 그림자로 한 번 더 긋는다. */
             position: sticky; top: 0; z-index: 2;
-            /* 칸 구분선도 그림자로 긋는다. collapse + sticky 조합에서 border 가 사라진다. */
-            box-shadow: inset -2px 0 0 #8fa2b4, inset 0 -3px 0 #8fa2b4;
+            /* 검정 머리글이라 칸 구분선은 흰색으로 긋는다. */
+            box-shadow: inset -2px 0 0 #ffffff, inset 0 -2px 0 var(--ink);
         }
-        th:last-child { box-shadow: inset 0 -3px 0 #8fa2b4; }
+        th:last-child { box-shadow: inset 0 -2px 0 var(--ink); }
         /* 행·칸 구분선을 확실하게. 목업처럼 세로선까지 그어 칸을 나눈다. */
         tbody td {
-            border-bottom: 2px solid #bfccd9; border-right: 2px solid #bfccd9;
-            font-size: 18px; color: #121c26;
+            border-bottom: 2px solid var(--ink); border-right: 2px solid var(--ink);
+            font-size: 18px; color: var(--ink);
         }
         tbody td:last-child { border-right: 0; }
         tbody tr:last-child td { border-bottom: 0; }
-        tbody tr:hover td { background: #eaf1fa; }
+        tbody tr:hover td { background: #e6e6e6; }
 
         td.num { text-align: right; font-variant-numeric: tabular-nums; font-weight: 700; }
         td.tm { font-variant-numeric: tabular-nums; font-weight: 700; }
-        td.tm.off { color: #6b7885; font-weight: 500; }
+        td.tm.off { color: var(--muted); font-weight: 500; }
         td.name { white-space: normal; min-width: 210px; }
-        td.name .sub { font-size: 14px; color: #33404d; font-weight: 600; margin-top: 4px; }
+        td.name .sub { font-size: 14px; color: var(--ink-2); font-weight: 600; margin-top: 4px; }
 
-        /* 상태별 행 색 + 좌측 액센트 */
+        /* 상태는 좌측 액센트로만 준다. 칸 바탕은 원본처럼 흰색으로 둔다. */
         tbody tr td:first-child { border-left: 6px solid transparent; }
-        tr.done    td { background: #e8f6ed; }
-        tr.done    td:first-child { border-left-color: #2b9455; }
-        tr.running td { background: #e5effd; }
-        tr.running td:first-child { border-left-color: #2f6fd0; }
-        tr.waiting td:first-child { border-left-color: #93a2b1; }
-        tbody tr.done:hover td    { background: #daeee2; }
-        tbody tr.running:hover td { background: #d6e6fa; }
+        tr.done    td:first-child { border-left-color: var(--green-d); }
+        tr.running td:first-child { border-left-color: var(--navy); }
+        tr.waiting td:first-child { border-left-color: #808080; }
 
-        .pill { display: inline-block; padding: 4px 12px; border-radius: 13px; font-size: 15px; font-weight: 700; }
-        .p-DONE    { background: #cdeddb; color: #10502b; border: 1px solid #2b9455; }
-        .p-RUNNING { background: #d4e5fb; color: #0f3563; border: 1px solid #2f6fd0; }
-        .p-WAITING { background: #e0e6ec; color: #35414d; border: 1px solid #93a2b1; }
+        /* 작업상태는 글자만. 박스로 감싸지 않는다. */
+        td.st { font-weight: 800; }
+        td.s-DONE    { color: var(--green-d); }
+        td.s-RUNNING { color: var(--navy); }
+        td.s-WAITING { color: var(--ink); }
 
         .bar {
-            height: 8px; background: #dde5ed; border: 1px solid #9fb0c0;
-            border-radius: 4px; overflow: hidden; margin-top: 6px; min-width: 90px;
+            height: 8px; background: var(--paper); border: 1px solid var(--ink);
+            border-radius: 0; overflow: hidden; margin-top: 6px; min-width: 90px;
         }
-        .bar > i { display: block; height: 100%; background: #2f6fd0; }
+        .bar > i { display: block; height: 100%; background: var(--navy); }
 
-        .empty { padding: 48px 20px; text-align: center; color: #2b3743; font-size: 18px; line-height: 1.9; }
-        .empty b { color: #121c26; }
+        .empty { padding: 48px 20px; text-align: center; color: var(--ink-2); font-size: 18px; line-height: 1.9; }
+        .empty b { color: var(--ink); }
         .err {
-            margin: 14px 0; padding: 14px 18px; border-radius: 8px; font-size: 16px;
-            background: #40201f; border: 2px solid #8c3a3a; color: #ffc9c9;
+            margin: 14px 0; padding: 14px 18px; border-radius: 0; font-size: 16px; font-weight: 700;
+            background: var(--red); border: 2px solid var(--ink); color: #ffffff;
         }
 
         /* 하단 설비 현황 */
-        .section-h { margin: 30px 0 12px; font-size: 20px; font-weight: 700; display: flex; align-items: center; gap: 12px; }
+        .section-h {
+            margin: 16px 0 10px; font-size: 20px; font-weight: 800; color: var(--ink);
+            display: flex; align-items: center; gap: 12px;
+        }
+        /* PLC 최신값을 언제 받은 것인지. 값이 언제 것인지 모르면 숫자를 믿을 수 없다. */
         .section-h .tag {
-            font-size: 13px; font-weight: 700; padding: 3px 11px; border-radius: 11px;
-            background: #40201f; border: 1px solid #8c3a3a; color: #ff9aa3;
+            font-size: 14px; font-weight: 700; padding: 3px 11px; border-radius: 0;
+            background: var(--ink); border: 2px solid var(--ink); color: var(--green);
+            font-variant-numeric: tabular-nums;
         }
+        .section-h .tag:empty { display: none; }
+        .section-h .tag.dead { color: #ff6b6b; }
+        .section-h label { color: var(--ink); }
         .placeholder {
-            padding: 22px 24px; border: 2px dashed #4a5c6e; border-radius: 10px;
-            color: #cfdbe7; font-size: 17px; line-height: 2; background: #1a232d;
+            padding: 22px 24px; border: 2px solid var(--ink); border-radius: 0;
+            color: var(--ink); font-size: 17px; line-height: 2; background: var(--paper);
         }
-        .placeholder b { color: var(--text); }
-        .placeholder a { color: #8cc0ff; }
+        .placeholder b { color: var(--ink); }
 
         /* 선택된 행 */
-        tbody tr.sel td { box-shadow: inset 0 0 0 9999px rgba(47,111,208,.13); }
+        tbody tr.sel td { box-shadow: inset 0 0 0 9999px rgba(0,0,128,.12); }
         tbody tr.sel td:first-child { border-left-width: 10px; }
         tbody tr { cursor: pointer; }
 
@@ -194,32 +237,42 @@
          * 설비 현황 — 레이아웃 목업(20261019) 그대로다.
          * 1행 거래처/품목명/규격, 2행 믹서(시간·온도), 3행 압출(구역별 온도 + RPM).
          * 접점 식별자·kind·freshness·임계값은 현장에서 볼 것이 아니라 전부 뺐다.
-         * (필요하면 /plc/points 화면에서 본다.)
+         * (원값이 필요하면 /api/plc/points 로 조회한다.)
          */
-        .eq { background: #ffffff; border: 2px solid var(--line); border-radius: 10px; overflow: hidden; }
-        .eq .strip { display: grid; border-bottom: 2px solid #bfccd9; }
+        .eq { background: var(--paper); border: 2px solid var(--ink); border-radius: 0; overflow: hidden; }
+        .eq .strip { display: grid; border-bottom: 2px solid var(--ink); }
         .eq .strip.r1 { grid-template-columns: 1fr 2fr 1fr; }
-        .eq .cell { padding: 11px 18px; border-right: 2px solid #bfccd9; text-align: center; }
+        .eq .cell { padding: 0 0 11px; border-right: 2px solid var(--ink); text-align: center; }
         .eq .cell:last-child { border-right: 0; }
-        .eq .cell .k { font-size: 13px; color: #46535f; font-weight: 700; margin-bottom: 4px; }
-        .eq .cell .v { font-size: 21px; font-weight: 800; color: #121c26; }
+        /* 라벨은 원본처럼 검정 띠로 깐다. */
+        .eq .cell .k {
+            display: block; padding: 6px 10px; margin-bottom: 10px;
+            font-size: 15px; color: #ffffff; font-weight: 700;
+            background: var(--ink);
+        }
+        /* 멀리서 가장 먼저 읽는 줄이라 크게 뽑는다. 길면 줄바꿈해서 내려간다. */
+        .eq .cell .v {
+            font-size: 32px; font-weight: 800; color: var(--ink);
+            padding: 0 12px; line-height: 1.25; white-space: normal;
+        }
 
         /* 믹서·압출 블록은 목업이 격자표라 표로 짠다. 칸 경계가 전부 보여야 한다. */
         .eq table.blk { width: 100%; border-collapse: collapse; table-layout: fixed; }
         .eq table.blk th, .eq table.blk td {
-            border: 2px solid #bfccd9; padding: 10px 8px;
+            border: 2px solid var(--ink); padding: 10px 8px;
             text-align: center; white-space: nowrap;
         }
-        .eq table.blk th { background: #eef3f8; font-size: 15px; font-weight: 700; color: #16202a; }
-        .eq table.blk td { font-size: 21px; font-weight: 800; color: #121c26; }
-        /* 좌측 '믹서' / '압출' 라벨 칸 */
-        .eq table.blk th.side { width: 92px; background: #e4ebf2; font-size: 19px; font-weight: 800; }
-        /* 행 머리(구역 / 셋팅온도 / 현재온도) */
-        .eq table.blk th.rowh { width: 112px; background: #f4f7fa; }
-        .eq table.blk td.rpm { font-size: 27px; }
+        .eq table.blk th { background: var(--ink); font-size: 15px; font-weight: 700; color: #ffffff; }
+        .eq table.blk td { background: var(--paper); font-size: 21px; font-weight: 800; color: var(--ink); }
+        /* 좌측 믹서 / 압출 라벨 칸 */
+        .eq table.blk th.side { width: 92px; background: var(--ink); font-size: 19px; font-weight: 800; }
+        /* 행 머리(구역 / 셋팅온도 / 현재온도) — 원본 하단 타일의 네이비 라벨이다. */
+        .eq table.blk th.rowh { width: 112px; background: var(--navy); }
+        /* 계측값 한 칸은 원본처럼 검정 바탕에 초록 글자로 띄운다. */
+        .eq table.blk td.rpm { background: var(--ink); color: var(--green); font-size: 27px; }
         /* 접점이 없어 채울 수 없는 칸. 0 과 헷갈리지 않게 — 로 둔다. */
-        .eq table.blk td.none { color: #97a3ae; font-size: 17px; font-weight: 600; }
-        .eq table.blk tr.hd th { background: #e4ebf2; }
+        .eq table.blk td.none { color: #808080; font-size: 17px; font-weight: 600; }
+        .eq table.blk tr.hd th { background: var(--ink); }
         .eq .blkwrap { overflow-x: auto; }
 
     </style>
@@ -227,7 +280,6 @@
 <body>
 
 <header>
-    <span class="brand">SY폴리텍 현장 모니터링</span>
     <label for="dt">지시일자</label>
     <input type="date" id="dt">
     <button type="button" id="latestBtn" class="link">최근 지시일로</button>
@@ -239,9 +291,8 @@
         <option value="120">120초</option>
     </select>
     <button type="button" id="pauseBtn">|| 일시정지</button>
-    <div class="spacer"></div>
-    <span class="note" id="note"></span>
-    <a href="/plc/points"><button type="button">PLC 접점</button></a>
+    <!-- 호기 탭은 헤더에 둔다. 본문 세로를 한 줄이라도 더 쓰려는 것이다. -->
+    <div class="tabs" id="tabs"></div>
     <form th:action="@{/plc/logout}" method="post" style="margin:0">
         <button type="submit">로그아웃</button>
     </form>
@@ -250,11 +301,8 @@
 <div class="wrap">
     <div id="error" class="err" style="display:none"></div>
 
-    <div class="tabs" id="tabs"></div>
-
     <div class="machinebar">
         <h1 id="mcName">—</h1>
-        <div class="sub" id="mcSub"></div>
         <div class="state">
             <span class="cap">설비상태</span>
             <span class="val none" id="mcState">—</span>
@@ -265,9 +313,9 @@
 
     <div class="section-h">
         설비 현황
-        <span class="tag" id="eqTag">선택된 지시 없음</span>
+        <span class="tag" id="plcAt"></span>
         <span style="flex:1"></span>
-        <label for="plcLookback" style="font-size:14px;color:var(--muted);font-weight:600">PLC 조회구간</label>
+        <label for="plcLookback" style="font-size:14px;font-weight:600">PLC 조회구간</label>
         <select id="plcLookback">
             <option value="24">최근 24시간</option>
             <option value="175200" selected>전체 (마지막 알려진 값)</option>
@@ -323,12 +371,31 @@
     }
 
     function renderTabs() {
+        // 헤더 한 줄에 12개가 들어가야 해서 "믹서7호기(XLPE)" 대신 "7호기"로 줄인다.
+        // 전체 이름은 선택하면 호기 바에 크게 나오고, 여기서는 title 로만 남긴다.
         el('tabs').innerHTML = state.machines.map(function (m) {
             var on = (m.equiCd === state.sel) ? ' on' : '';
             var cnt = m.totalCount ? '<span class="cnt">' + m.totalCount + '</span>' : '';
-            return '<div class="tab' + on + '" data-equi="' + esc(m.equiCd) + '">' +
-                   esc(m.equiNm) + cnt + '</div>';
+            var label = m.machineNo ? (m.machineNo + '호기') : (m.equiNm || m.equiCd);
+            return '<div class="tab' + on + '" data-equi="' + esc(m.equiCd) + '"' +
+                   ' title="' + esc(m.equiNm || '') + '">' +
+                   esc(label) + cnt + '</div>';
         }).join('');
+
+        // 설비가 늘어 탭이 가로로 넘치면 선택된 호기가 화면 밖에 있을 수 있다.
+        // 특히 호기 순환이 돌 때 그렇다. 보이는 자리로 끌어온다.
+        // scrollIntoView 는 조상까지 스크롤해서 쓰지 않고 scrollLeft 만 건드린다.
+        var box = el('tabs');
+        var onTab = box.querySelector('.tab.on');
+        if (onTab) {
+            var l = onTab.offsetLeft;
+            var r = l + onTab.offsetWidth;
+            if (l < box.scrollLeft) {
+                box.scrollLeft = l - 8;
+            } else if (r > box.scrollLeft + box.clientWidth) {
+                box.scrollLeft = r - box.clientWidth + 8;
+            }
+        }
 
         Array.prototype.forEach.call(el('tabs').querySelectorAll('.tab'), function (t) {
             t.addEventListener('click', function () {
@@ -344,20 +411,16 @@
         var m = state.machines.filter(function (x) { return x.equiCd === state.sel; })[0];
         if (!m) {
             el('mcName').textContent = '—';
-            el('mcSub').textContent = '';
             return;
         }
         el('mcName').textContent = m.equiNm || m.equiCd;
-        // 호기명 아래 한 줄. 두 줄로 늘리면 우상단 설비상태 박스와 높이가 어긋난다.
-        el("mcSub").innerHTML =
-            "설비코드 " + esc(m.equiCd) + (m.laneCd ? " · 라인 " + esc(m.laneCd) : "") +
-            " · 완료 <b>" + m.doneCount + "</b> · 진행중 <b>" + m.runningCount +
-            "</b> · 대기 <b>" + m.waitingCount + "</b>";
 
         // 설비상태는 판정 근거가 없어 값을 만들지 않는다. 서버가 null 을 준다.
         var st = el('mcState');
         if (m.statusName) {
-            st.className = 'val';
+            // 원본 화면의 상태색 — 가동중 초록 / 수리 노랑 / 정지 빨강.
+            var sc = { "가동중": " st-run", "수리": " st-fix", "정지": " st-stop" }[m.statusName] || "";
+            st.className = "val" + sc;
             st.textContent = m.statusName;
         } else {
             st.className = 'val none';
@@ -381,32 +444,79 @@
     }
 
     /*
-     * 표는 5행까지만 보이고 그 이상은 스크롤한다.
-     * 행 높이가 제품명 줄바꿈·진척바 때문에 들쭉날쭉해서 고정 px 로는 못 자른다.
-     * 렌더 뒤 실제 높이를 재서 머리글 + 5행 만큼만 남긴다.
+     * 표는 5행까지만 그린다. 스크롤하지 않는다.
+     * 넘치는 지시를 숨겨도 된다는 것은 확인받았고, 호기 탭의 건수 배지에
+     * 그 호기의 전체 지시 건수가 그대로 나와 있어 몇 건이 있는지는 보인다.
      */
     var VISIBLE_ROWS = 5;
 
-    function clampRows() {
-        var panel = el('panel');
-        panel.style.maxHeight = '';
-        var trs = panel.querySelectorAll('tbody tr');
-        if (trs.length <= VISIBLE_ROWS) { return; }
-        var head = panel.querySelector('thead');
-        var h = head ? head.offsetHeight : 0;
-        for (var i = 0; i < VISIBLE_ROWS; i++) { h += trs[i].offsetHeight; }
-        panel.style.maxHeight = (h + 4) + 'px';   // +4 = 상하 테두리
+    /*
+     * 표의 행 순서 — 시간축이다. 위가 미래, 아래가 과거.
+     *
+     *   위   대기   (아직 안 한 것. 맨 위가 가장 나중 것)
+     *   중간 진행중 (지금 돌고 있는 것)
+     *   아래 완료   (끝난 것. 바로 아래가 가장 최근에 끝난 것)
+     *
+     * 대기는 '다음에 할 것'이 진행중 바로 위에 붙도록 역순으로 쌓고,
+     * 완료는 '방금 끝난 것'이 진행중 바로 아래에 붙도록 최신순으로 쌓는다.
+     * 그래야 진행중 행을 기준으로 위아래가 시간 순서대로 읽힌다.
+     */
+    function seqKey(r) {
+        return String(r.pdirNo || '') + '-' + String(r.pdirSq === null || r.pdirSq === undefined ? '' : r.pdirSq);
+    }
+
+    function orderRows(rows) {
+        var wait = rows.filter(function (r) { return r.statusCode === 'WAITING'; });
+        var run  = rows.filter(function (r) { return r.statusCode === 'RUNNING'; });
+        var done = rows.filter(function (r) { return r.statusCode === 'DONE'; });
+
+        // 지시번호 역순 — 가장 나중에 할 것이 맨 위로 간다.
+        wait.sort(function (a, b) { return seqKey(b).localeCompare(seqKey(a)); });
+        run.sort(function (a, b) { return seqKey(a).localeCompare(seqKey(b)); });
+        // 완료시각이 없는 건(선언만 완료)은 지시번호로 떨어뜨린다.
+        done.sort(function (a, b) {
+            var x = a.finishedAt || '', y = b.finishedAt || '';
+            if (x !== y) { return y.localeCompare(x); }
+            return seqKey(b).localeCompare(seqKey(a));
+        });
+
+        return wait.concat(run, done);
+    }
+
+    /*
+     * 진행중 행을 가운데 두고 위아래로 n 행만 잘라낸다.
+     * 스크롤 대신 아예 안 그리는 쪽이다.
+     *
+     * 한쪽이 모자라면 반대쪽에서 채워 항상 n 행을 채운다.
+     * 예) 1호기처럼 완료가 하나도 없으면(진행중 1 + 대기 6)
+     *     진행중이 맨 아래에 오고 그 위로 대기 4건이 보인다.
+     * 진행중이 없으면 맨 위(가장 나중에 할 대기)부터 n 행이다.
+     */
+    function windowRows(rows, n) {
+        if (rows.length <= n) { return rows; }
+
+        var i = -1;
+        for (var k = 0; k < rows.length; k++) {
+            if (rows[k].statusCode === 'RUNNING') { i = k; break; }
+        }
+        if (i < 0) { return rows.slice(0, n); }
+
+        var start = i - Math.floor((n - 1) / 2);
+        if (start + n > rows.length) { start = rows.length - n; }
+        if (start < 0) { start = 0; }
+        return rows.slice(start, start + n);
     }
 
     function renderTable() {
-        var rows = state.rows.filter(function (r) { return r.equiCd === state.sel; });
+        var rows = windowRows(
+                orderRows(state.rows.filter(function (r) { return r.equiCd === state.sel; })),
+                VISIBLE_ROWS);
 
         if (!rows.length) {
             var hint = '';
             if (state.latest && state.latest !== el('dt').value) {
                 hint = '<br>가장 최근 지시일자는 <b>' + esc(state.latest) + '</b> 이다.';
             }
-            el('panel').style.maxHeight = '';
             el('panel').innerHTML = '<div class="empty">이 호기의 해당 일자 작업지시가 없다.' + hint + '</div>';
             return;
         }
@@ -429,7 +539,7 @@
                     (pct === null ? '' : '<div class="bar"><i style="width:' + pct + '%"></i></div>') + '</td>' +
                 '<td class="num">' + num(r.batchQty, 0) + '</td>' +
                 '<td class="num">' + num(r.workBatchQty, 0) + '</td>' +
-                '<td><span class="pill p-' + esc(r.statusCode) + '">' + esc(r.statusName) + '</span></td>' +
+                '<td class="st s-' + esc(r.statusCode) + '">' + esc(r.statusName) + '</td>' +
                 '<td class="tm' + done + '">' + ymd(r.finishedAt) + '</td>' +
                 '<td class="tm' + done + '">' + span(r) + '</td>' +
             '</tr>';
@@ -445,8 +555,6 @@
             '<th>작업상태</th><th>완료일자</th><th>시간</th>' +
             '</tr></thead><tbody>' + body + '</tbody></table>';
 
-        clampRows();
-
         Array.prototype.forEach.call(el('panel').querySelectorAll('tbody tr'), function (tr) {
             tr.addEventListener('click', function () {
                 state.selPdir = tr.getAttribute('data-pdir');
@@ -459,16 +567,42 @@
     // 한 설비에 진행중 지시가 둘일 수 없으니 진행중을 자동으로 고른다.
     // 진행중이 없으면 마지막 건으로 떨어뜨린다.
     function autoSelect() {
-        var rows = state.rows.filter(function (r) { return r.equiCd === state.sel; });
+        var rows = orderRows(state.rows.filter(function (r) { return r.equiCd === state.sel; }));
         if (!rows.length) { state.selPdir = null; return; }
         if (state.selPdir && rows.some(function (r) { return r.pdirNo === state.selPdir; })) { return; }
         var run = rows.filter(function (r) { return r.statusCode === 'RUNNING'; })[0];
-        state.selPdir = (run || rows[rows.length - 1]).pdirNo;
+        // 진행중이 없으면 가장 최근에 끝난 건(완료 블록의 맨 위)을 고른다.
+        var done = rows.filter(function (r) { return r.statusCode === 'DONE'; })[0];
+        state.selPdir = (run || done || rows[rows.length - 1]).pdirNo;
     }
 
     function hhmm(s) {
         if (!s) { return '-'; }
         return String(s).replace('T', ' ').substring(11, 16);
+    }
+
+    /*
+     * 설비 현황 옆에 PLC 최신값을 언제 받은 것인지 적는다.
+     * 수집이 멈춰도 마지막 값이 그대로 보이기 때문에(인수인계서 F7),
+     * 숫자 옆에 시각이 없으면 옛날 값을 현재값으로 읽게 된다.
+     * 접점마다 수집시각이 미세하게 다를 수 있어 가장 최근 것을 쓴다.
+     */
+    function plcStamp(pts) {
+        var tag = el('plcAt');
+        var newest = null, dead = false;
+        (pts || []).forEach(function (x) {
+            if (!x.collectedAt) { return; }
+            if (newest === null || x.collectedAt > newest) { newest = x.collectedAt; }
+            if (x.freshness === 'DEAD') { dead = true; }
+        });
+        if (newest === null) {
+            tag.className = 'tag dead';
+            tag.textContent = 'PLC 수집값 없음';
+            return;
+        }
+        tag.className = dead ? 'tag dead' : 'tag';
+        tag.textContent = 'PLC 최신값 ' + String(newest).replace('T', ' ').substring(0, 16) +
+                          (dead ? ' (수집 끊김)' : '');
     }
 
     // 접점 명칭에서 구역 번호를 뽑는다. "1호기 생산라인 온도 3구역" -> 3
@@ -499,13 +633,13 @@
         var p = d.pdir, b = d.batch, plc = d.plc || {};
         var pts = plc.points || [];
 
+        plcStamp(pts);
+
         if (!p) {
-            el('eqTag').textContent = '선택된 지시 없음';
             el('equip').innerHTML =
                 '<div class="placeholder">이 호기의 해당 일자 작업지시가 없어 표시할 설비 현황이 없다.</div>';
             return;
         }
-        el('eqTag').textContent = p.statusName + ' · ' + p.pdirNo;
 
         // 온도 구역 — 구역 번호 순. 1·2호기 7구역, 3호기 8구역이고 4·5호기는 온도 접점이 없다.
         var temps = pts.filter(function (x) {
@@ -602,7 +736,6 @@
 
     function load() {
         var d = el('dt').value || today();
-        el('note').textContent = '불러오는 중...';
 
         return get('/api/syp/overview?pdirDt=' + encodeURIComponent(d))
             .then(function (res) {
@@ -616,13 +749,8 @@
                 }
                 renderAll();
                 loadEquipment();
-
-                var total = state.rows.length;
-                el('note').textContent = d + ' 지시 ' + total + '건 · ' +
-                    new Date().toLocaleTimeString('ko-KR');
             })
             .catch(function (e) {
-                el('note').textContent = '';
                 var box = el('error');
                 box.style.display = 'block';
                 box.textContent = e.message || String(e);
@@ -645,6 +773,13 @@
             }, s * 1000);
         }
     }
+
+    // 현장 마우스는 가로 휠이 없다. 탭 위에서는 세로 휠을 가로 스크롤로 돌린다.
+    el('tabs').addEventListener('wheel', function (e) {
+        if (!e.deltaY || this.scrollWidth <= this.clientWidth) { return; }
+        e.preventDefault();
+        this.scrollLeft += e.deltaY;
+    }, { passive: false });
 
     el('dt').value = today();
     el('dt').addEventListener('change', load);

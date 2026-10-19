@@ -35,10 +35,11 @@ import mes.config.PlcDataSourceConfig.PlcGuard;
  *
  * 적재는 수집기(ActasPLC.exe)와 USP_DG110120L10_A10 전담이므로 여기서 쓰지 않는다.
  *
- * 읽는 테이블은 세 개다.
+ * 읽는 테이블은 두 개다.
  *   DG2000M  수집 원장(append-only, 약 1,590만 행). 인덱스는 PK 하나뿐이라 조회는 전부 스캔이다.
- *   CD1400M  CD_CLS='DG1010' 접점 마스터 143점 / CD_CLS='DG0900' PLC 접속정보 2행
- *   DG2010M  접점별 임계값. PK도 인덱스도 없는 힙에 약 489만 행이 이력처럼 쌓여 있다.
+ *   CD1400M  CD_CLS='DG1010' 접점 마스터 / CD_CLS='DG0900' PLC 접속정보
+ *
+ * 임계값(DG2010M)은 읽지 않는다. 쓰는 곳이 없어 2026-10-19 에 뺐다. PlcPoint 주석 참조.
  */
 @Service
 public class PlcMonitorService {
@@ -50,9 +51,6 @@ public class PlcMonitorService {
 
 	/** 접점 마스터 143점은 거의 안 바뀐다. */
 	private static final long META_TTL_MS = 10 * 60 * 1000L;
-
-	/** 임계값 조회는 489만 행 힙 스캔이라 5초 넘게 걸린다. 매 요청마다 돌릴 수 없다. */
-	private static final long THRESHOLD_TTL_MS = 10 * 60 * 1000L;
 
 	/** 적재 현황 집계는 1590만 행 스캔이라 2.5초쯤 걸린다. */
 	private static final long HEALTH_TTL_MS = 30 * 1000L;
@@ -82,9 +80,6 @@ public class PlcMonitorService {
 	private final Cached<List<Map<String, Object>>> collectorCache =
 			new Cached<>(META_TTL_MS, this::loadCollectors);
 
-	private final Cached<Map<String, BigDecimal[]>> thresholdCache =
-			new Cached<>(THRESHOLD_TTL_MS, this::loadThresholds);
-
 	private final Cached<List<Map<String, Object>>> healthCache =
 			new Cached<>(HEALTH_TTL_MS, this::loadHealthRollup);
 
@@ -97,8 +92,8 @@ public class PlcMonitorService {
 	/**
 	 * 기동 직후 캐시를 미리 채운다.
 	 *
-	 * DG2000M/DG2010M 은 인덱스가 없어 콜드 조회가 운영 실측 기준 wide 4초 / 임계값 6초 /
-	 * health 2초다. 워밍업이 없으면 첫 화면 클릭이 이걸 직렬로 전부 뒤집어쓴다(12초+).
+	 * DG2000M 은 인덱스가 없어 콜드 조회가 운영 실측 기준 wide 4초 / health 2초다.
+	 * 워밍업이 없으면 첫 화면 클릭이 이걸 직렬로 전부 뒤집어쓴다.
 	 * 기동을 막지 않도록 데몬 스레드에서 돌리고, 가드가 잠겨 있으면 건드리지 않는다.
 	 */
 	@PostConstruct
@@ -113,7 +108,6 @@ public class PlcMonitorService {
 				this.metaCache.get();
 				this.collectorCache.get();
 				this.healthCache.get();
-				this.thresholdCache.get();
 				latest(UI_WIDE_LOOKBACK_HOURS);
 				latest(24);
 				log.info("[PLC] 캐시 워밍업 완료 ({}초)", (System.currentTimeMillis() - t0) / 1000.0);
@@ -204,7 +198,6 @@ public class PlcMonitorService {
 
 		LocalDateTime now = LocalDateTime.now();
 		Map<String, Map<String, Object>> latest = latest(lookbackHours);
-		Map<String, BigDecimal[]> thresholds = this.thresholdCache.get();
 		Map<String, Long> periodByGroup = periodByGroup();
 		Map<String, String> groupByLine = groupByLine();
 
@@ -227,12 +220,6 @@ public class PlcMonitorService {
 			p.kind = PlcKind.fromName(name);
 			p.unit = p.kind.getUnit();
 
-			BigDecimal[] mm = thresholds.get(id);
-			if (mm != null) {
-				p.min = mm[0];
-				p.max = mm[1];
-			}
-
 			Map<String, Object> row = latest.get(id);
 			if (row != null) {
 				p.value = toDecimal(row.get("GATH_VAL"));
@@ -247,7 +234,7 @@ public class PlcMonitorService {
 			p.cyclePeriodSeconds = periodByGroup.get(p.collectorGroup);
 			p.ageSeconds = ageSeconds(p.collectedAt, now);
 			p.freshness = PlcFreshness.of(p.ageSeconds, p.cyclePeriodSeconds);
-			p.outOfRange = outOfRange(p.value, p.min, p.max);
+			// min/max/outOfRange 는 채우지 않는다(항상 null). PlcPoint 주석 참조.
 
 			out.add(p);
 		}
@@ -362,40 +349,6 @@ public class PlcMonitorService {
 			r.put("period_seconds", periodFromCron(str(r.get("cron"))));
 		}
 		return rows;
-	}
-
-	/**
-	 * 접점별 최신 임계값.
-	 *
-	 * 정렬 키가 DG2000M 과 반대라는 점이 중요하다. 여기서는 DATA_REGDT DESC 를 쓴다.
-	 *
-	 * IDX DESC 로 정렬하면 그룹 '20' 의 35개 접점이 전부 의미 없는 0~2 로 수렴한다.
-	 * 실측하면 DATA_REGDT DESC 쪽이 물리적으로 타당한 값을 준다.
-	 * 예) 1100002 재고창고 습도 30~34, 1090005 4호기 재료온도2 130~134, 전원 접점 0~3.
-	 * 143점 모두 최신 DATA_REGDT 를 가진 행이 하나뿐이라 동률 문제도 없다.
-	 *
-	 * DG2000M 에 DATA_REGDT 정렬을 쓰면 안 되는 것과 헷갈리지 말 것.
-	 * 그쪽은 smalldatetime(분 해상도)이라 같은 분의 행이 동률이 되지만,
-	 * 이 테이블의 DATA_REGDT 는 datetime 이라 초까지 있다.
-	 */
-	private Map<String, BigDecimal[]> loadThresholds() {
-		String sql = """
-				SELECT GATH_ID, MIN_VAL, MAX_VAL
-				FROM (
-				    SELECT GATH_ID, MIN_VAL, MAX_VAL,
-				           ROW_NUMBER() OVER (PARTITION BY GATH_ID ORDER BY DATA_REGDT DESC) AS rn
-				    FROM   DG2010M
-				    WHERE  CORP_CD = :corpCd
-				) T
-				WHERE rn = 1
-				""";
-
-		Map<String, BigDecimal[]> out = new LinkedHashMap<>();
-		for (Map<String, Object> r : this.plcJdbc.queryForList(sql, new MapSqlParameterSource("corpCd", CORP_CD))) {
-			out.put(str(r.get("GATH_ID")),
-					new BigDecimal[] { toDecimal(r.get("MIN_VAL")), toDecimal(r.get("MAX_VAL")) });
-		}
-		return out;
 	}
 
 	/**
@@ -539,13 +492,6 @@ public class PlcMonitorService {
 		return Math.max(0, Duration.between(collectedAt, now).getSeconds());
 	}
 
-	private static Boolean outOfRange(BigDecimal value, BigDecimal min, BigDecimal max) {
-		if (value == null || min == null || max == null) {
-			return null;
-		}
-		return value.compareTo(min) < 0 || value.compareTo(max) > 0;
-	}
-
 	// ------------------------------------------------------------------
 	// 변환 도우미
 	// ------------------------------------------------------------------
@@ -592,7 +538,7 @@ public class PlcMonitorService {
 	 * TTL 캐시 — stale-while-revalidate.
 	 *
 	 * 만료되어도 호출자를 기다리게 하지 않는다. 이전 값을 즉시 돌려주고 갱신은 백그라운드
-	 * 스레드 하나가 한다. DG2000M/DG2010M 조회가 2~6초짜리 풀스캔이라(운영 실측),
+	 * 스레드 하나가 한다. DG2000M 조회가 2~4초짜리 풀스캔이라(운영 실측),
 	 * 만료 시점에 걸린 사용자가 그 스캔을 통째로 기다리던 것이 화면이 수십 초 밀리던 원인이다.
 	 *
 	 * 값이 아예 없을 때(기동 직후 워밍업 전)만 동기로 읽는다. 백그라운드 갱신이 실패하면
