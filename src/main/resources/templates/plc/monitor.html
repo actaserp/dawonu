@@ -72,26 +72,37 @@
             background: rgba(0,0,0,.32); font-size: 14px; font-weight: 700;
         }
 
-        /* 호기 머리 */
+        /*
+         * 호기 머리 — 레이아웃 목업(20261019) 배치다.
+         * 호기명은 바 폭의 가운데, 설비상태는 우상단에 라벨/값 두 줄 박스.
+         * 설비상태 박스를 absolute 로 띄워야 호기명이 '진짜' 가운데에 온다.
+         * flex 로 나란히 두면 박스 폭의 절반만큼 호기명이 왼쪽으로 밀린다.
+         */
         .machinebar {
-            display: flex; align-items: stretch;
+            position: relative;
             background: var(--card);
             border: 2px solid var(--line); border-bottom: 0;
-            border-radius: 10px 10px 0 0; overflow: hidden;
+            border-radius: 10px 10px 0 0;
+            padding: 16px 24px 14px;
+            text-align: center;
         }
-        .machinebar .title { flex: 1; display: flex; align-items: center; gap: 20px; padding: 18px 24px; }
         .machinebar h1 { margin: 0; font-size: 38px; font-weight: 800; letter-spacing: -1.2px; }
-        .machinebar .sub { font-size: 16px; color: var(--muted); font-weight: 500; line-height: 1.7; }
-        .machinebar .sub b { color: var(--text); font-size: 16px; }
+        .machinebar .sub { margin-top: 7px; font-size: 16px; color: var(--muted); font-weight: 500; }
+        .machinebar .sub b { color: var(--text); }
         .machinebar .state {
-            width: 300px; padding: 18px 24px;
-            border-left: 2px solid var(--line); background: #1f2a36;
-            display: flex; flex-direction: column; justify-content: center; gap: 7px;
+            position: absolute; top: 12px; right: 20px;
+            min-width: 240px; max-width: 340px;
+            border: 2px solid var(--line); border-radius: 8px;
+            background: #1f2a36; overflow: hidden;
         }
-        .machinebar .state .cap { font-size: 14px; color: var(--muted); font-weight: 600; }
-        .machinebar .state .val { font-size: 26px; font-weight: 800; }
-        .machinebar .state .val.none { font-size: 17px; font-weight: 600; color: var(--muted); line-height: 1.5; }
-        .machinebar .state .val.none small { font-size: 14px; font-weight: 500; color: var(--muted-2); }
+        .machinebar .state .cap {
+            display: block; padding: 5px 12px;
+            font-size: 14px; font-weight: 700; color: var(--muted);
+            background: #24313f; border-bottom: 2px solid var(--line);
+        }
+        .machinebar .state .val { display: block; padding: 8px 12px; font-size: 22px; font-weight: 800; }
+        .machinebar .state .val.none { font-size: 16px; font-weight: 600; color: var(--muted); }
+        .machinebar .state .val.none small { font-size: 13px; font-weight: 500; color: var(--muted-2); }
 
         /*
          * 작업지시 표 — 흰 바탕에 검은 글자.
@@ -102,7 +113,8 @@
             background: #ffffff;
             border: 2px solid var(--line);
             border-radius: 0 0 10px 10px;
-            overflow-x: auto;
+            /* 5행까지만 보이고 그 이상은 스크롤이다. maxHeight 는 렌더 후 JS 가 잰다 — clampRows 참조. */
+            overflow: auto;
         }
         table { width: 100%; border-collapse: collapse; min-width: 1180px; }
         th, td { padding: 13px 16px; text-align: left; white-space: nowrap; }
@@ -110,13 +122,25 @@
             font-size: 15px; color: #16202a; font-weight: 700;
             background: #e4ebf2;
             border-bottom: 3px solid #8fa2b4;
+            /* 표가 세로로 스크롤되므로 머리글은 붙여 둔다.
+               sticky 셀은 border 가 같이 스크롤돼 사라져서 그림자로 한 번 더 긋는다. */
+            position: sticky; top: 0; z-index: 2;
+            /* 칸 구분선도 그림자로 긋는다. collapse + sticky 조합에서 border 가 사라진다. */
+            box-shadow: inset -2px 0 0 #8fa2b4, inset 0 -3px 0 #8fa2b4;
         }
-        /* 행 구분선을 확실하게 */
-        tbody td { border-bottom: 2px solid #bfccd9; font-size: 18px; color: #121c26; }
+        th:last-child { box-shadow: inset 0 -3px 0 #8fa2b4; }
+        /* 행·칸 구분선을 확실하게. 목업처럼 세로선까지 그어 칸을 나눈다. */
+        tbody td {
+            border-bottom: 2px solid #bfccd9; border-right: 2px solid #bfccd9;
+            font-size: 18px; color: #121c26;
+        }
+        tbody td:last-child { border-right: 0; }
         tbody tr:last-child td { border-bottom: 0; }
         tbody tr:hover td { background: #eaf1fa; }
 
         td.num { text-align: right; font-variant-numeric: tabular-nums; font-weight: 700; }
+        td.tm { font-variant-numeric: tabular-nums; font-weight: 700; }
+        td.tm.off { color: #6b7885; font-weight: 500; }
         td.name { white-space: normal; min-width: 210px; }
         td.name .sub { font-size: 14px; color: #33404d; font-weight: 600; margin-top: 4px; }
 
@@ -166,45 +190,38 @@
         tbody tr.sel td:first-child { border-left-width: 10px; }
         tbody tr { cursor: pointer; }
 
-        /* 설비 현황 — 표와 같은 밝은 톤으로 맞춘다 */
+        /*
+         * 설비 현황 — 레이아웃 목업(20261019) 그대로다.
+         * 1행 거래처/품목명/규격, 2행 믹서(시간·온도), 3행 압출(구역별 온도 + RPM).
+         * 접점 식별자·kind·freshness·임계값은 현장에서 볼 것이 아니라 전부 뺐다.
+         * (필요하면 /plc/points 화면에서 본다.)
+         */
         .eq { background: #ffffff; border: 2px solid var(--line); border-radius: 10px; overflow: hidden; }
-        .eq .strip {
-            display: grid; border-bottom: 2px solid #bfccd9;
-        }
+        .eq .strip { display: grid; border-bottom: 2px solid #bfccd9; }
         .eq .strip.r1 { grid-template-columns: 1fr 2fr 1fr; }
-        .eq .strip.r2 { grid-template-columns: repeat(4, 1fr); }
-        .eq .cell { padding: 13px 18px; border-right: 2px solid #bfccd9; }
+        .eq .cell { padding: 11px 18px; border-right: 2px solid #bfccd9; text-align: center; }
         .eq .cell:last-child { border-right: 0; }
-        .eq .cell .k { font-size: 14px; color: #46535f; font-weight: 700; margin-bottom: 5px; }
+        .eq .cell .k { font-size: 13px; color: #46535f; font-weight: 700; margin-bottom: 4px; }
         .eq .cell .v { font-size: 21px; font-weight: 800; color: #121c26; }
-        .eq .cell .v.dim { font-size: 16px; font-weight: 600; color: #6b7885; }
-        .eq .cell .v small { font-size: 14px; font-weight: 600; color: #46535f; }
 
-        .eq .lines { padding: 6px 0 0; }
-        .eq .lgrp { padding: 0 0 6px; }
-        .eq .lgrp h3 {
-            margin: 0; padding: 10px 18px; font-size: 15px; font-weight: 800; color: #16202a;
-            background: #eef3f8; border-bottom: 2px solid #cfd9e3; border-top: 2px solid #cfd9e3;
+        /* 믹서·압출 블록은 목업이 격자표라 표로 짠다. 칸 경계가 전부 보여야 한다. */
+        .eq table.blk { width: 100%; border-collapse: collapse; table-layout: fixed; }
+        .eq table.blk th, .eq table.blk td {
+            border: 2px solid #bfccd9; padding: 10px 8px;
+            text-align: center; white-space: nowrap;
         }
-        .eq .pts { display: grid; grid-template-columns: repeat(auto-fill, minmax(215px, 1fr)); gap: 0; }
-        .eq .pt { padding: 11px 16px; border-right: 2px solid #dfe6ed; border-bottom: 2px solid #dfe6ed; }
-        .eq .pt .n { font-size: 14px; color: #46535f; font-weight: 600; line-height: 1.4; min-height: 38px; }
-        .eq .pt .val { display: flex; align-items: baseline; gap: 5px; margin-top: 5px; }
-        .eq .pt .val b { font-size: 23px; font-weight: 800; color: #121c26; }
-        .eq .pt .val .u { font-size: 14px; color: #46535f; font-weight: 700; }
-        .eq .pt .meta { margin-top: 5px; font-size: 12px; color: #56646f; }
-        .eq .pt.oor { background: #fdeceb; }
-        .eq .pt.oor .val b { color: #a4231c; }
+        .eq table.blk th { background: #eef3f8; font-size: 15px; font-weight: 700; color: #16202a; }
+        .eq table.blk td { font-size: 21px; font-weight: 800; color: #121c26; }
+        /* 좌측 '믹서' / '압출' 라벨 칸 */
+        .eq table.blk th.side { width: 92px; background: #e4ebf2; font-size: 19px; font-weight: 800; }
+        /* 행 머리(구역 / 셋팅온도 / 현재온도) */
+        .eq table.blk th.rowh { width: 112px; background: #f4f7fa; }
+        .eq table.blk td.rpm { font-size: 27px; }
+        /* 접점이 없어 채울 수 없는 칸. 0 과 헷갈리지 않게 — 로 둔다. */
+        .eq table.blk td.none { color: #97a3ae; font-size: 17px; font-weight: 600; }
+        .eq table.blk tr.hd th { background: #e4ebf2; }
+        .eq .blkwrap { overflow-x: auto; }
 
-        .eq .foot {
-            padding: 13px 18px; background: #f2f6fa; border-top: 2px solid #cfd9e3;
-            font-size: 14px; color: #3d4a56; line-height: 1.8;
-        }
-        .eq .foot b { color: #121c26; }
-        .warnbar {
-            padding: 11px 18px; background: #fff4d6; border-bottom: 2px solid #d9b64e;
-            font-size: 15px; color: #5b4506; font-weight: 600;
-        }
     </style>
 </head>
 <body>
@@ -236,10 +253,8 @@
     <div class="tabs" id="tabs"></div>
 
     <div class="machinebar">
-        <div class="title">
-            <h1 id="mcName">—</h1>
-            <div class="sub" id="mcSub"></div>
-        </div>
+        <h1 id="mcName">—</h1>
+        <div class="sub" id="mcSub"></div>
         <div class="state">
             <span class="cap">설비상태</span>
             <span class="val none" id="mcState">—</span>
@@ -333,9 +348,11 @@
             return;
         }
         el('mcName').textContent = m.equiNm || m.equiCd;
-        el('mcSub').innerHTML =
-            '설비코드 ' + esc(m.equiCd) + (m.laneCd ? ' · 라인 ' + esc(m.laneCd) : '') + '<br>' +
-            '완료 <b>' + m.doneCount + '</b> · 진행중 <b>' + m.runningCount + '</b> · 대기 <b>' + m.waitingCount + '</b>';
+        // 호기명 아래 한 줄. 두 줄로 늘리면 우상단 설비상태 박스와 높이가 어긋난다.
+        el("mcSub").innerHTML =
+            "설비코드 " + esc(m.equiCd) + (m.laneCd ? " · 라인 " + esc(m.laneCd) : "") +
+            " · 완료 <b>" + m.doneCount + "</b> · 진행중 <b>" + m.runningCount +
+            "</b> · 대기 <b>" + m.waitingCount + "</b>";
 
         // 설비상태는 판정 근거가 없어 값을 만들지 않는다. 서버가 null 을 준다.
         var st = el('mcState');
@@ -344,8 +361,41 @@
             st.textContent = m.statusName;
         } else {
             st.className = 'val none';
-            st.innerHTML = '판정 보류<br><small>가동상태 근거 미확정</small>';
+            st.innerHTML = "판정 보류 <small>· 가동상태 근거 미확정</small>";
         }
+    }
+
+    // 'yyyy-MM-ddTHH:mm:ss' -> 'yy/MM/dd'. 목업(20261019) 의 완료일자 표기다.
+    function ymd(s) {
+        if (!s) { return '-'; }
+        var p = String(s).substring(0, 10).split('-');
+        return (p.length === 3) ? p[0].substring(2) + '/' + p[1] + '/' + p[2] : '-';
+    }
+
+    // 목업의 "시간" 칸은 작업 시작~완료 구간이다.
+    // 아직 도는 지시는 완료시각이 없으므로 '12:00 ~' 처럼 열어 둔다.
+    function span(r) {
+        if (!r.startedAt) { return '-'; }
+        return r.finishedAt ? (hhmm(r.startedAt) + ' ~ ' + hhmm(r.finishedAt))
+                            : (hhmm(r.startedAt) + ' ~');
+    }
+
+    /*
+     * 표는 5행까지만 보이고 그 이상은 스크롤한다.
+     * 행 높이가 제품명 줄바꿈·진척바 때문에 들쭉날쭉해서 고정 px 로는 못 자른다.
+     * 렌더 뒤 실제 높이를 재서 머리글 + 5행 만큼만 남긴다.
+     */
+    var VISIBLE_ROWS = 5;
+
+    function clampRows() {
+        var panel = el('panel');
+        panel.style.maxHeight = '';
+        var trs = panel.querySelectorAll('tbody tr');
+        if (trs.length <= VISIBLE_ROWS) { return; }
+        var head = panel.querySelector('thead');
+        var h = head ? head.offsetHeight : 0;
+        for (var i = 0; i < VISIBLE_ROWS; i++) { h += trs[i].offsetHeight; }
+        panel.style.maxHeight = (h + 4) + 'px';   // +4 = 상하 테두리
     }
 
     function renderTable() {
@@ -356,6 +406,7 @@
             if (state.latest && state.latest !== el('dt').value) {
                 hint = '<br>가장 최근 지시일자는 <b>' + esc(state.latest) + '</b> 이다.';
             }
+            el('panel').style.maxHeight = '';
             el('panel').innerHTML = '<div class="empty">이 호기의 해당 일자 작업지시가 없다.' + hint + '</div>';
             return;
         }
@@ -366,6 +417,7 @@
             var pct = (r.progressRate === null || r.progressRate === undefined)
                     ? null : Math.max(0, Math.min(100, Number(r.progressRate)));
             var sel = (r.pdirNo === state.selPdir) ? ' sel' : '';
+            var done = r.finishedAt ? '' : ' off';
             return '<tr class="' + cls + sel + '" data-pdir="' + esc(r.pdirNo) + '">' +
                 '<td class="name">' + esc(r.vendNm || '-') + '</td>' +
                 '<td class="name">' + esc(r.itemNm || '-') +
@@ -378,7 +430,8 @@
                 '<td class="num">' + num(r.batchQty, 0) + '</td>' +
                 '<td class="num">' + num(r.workBatchQty, 0) + '</td>' +
                 '<td><span class="pill p-' + esc(r.statusCode) + '">' + esc(r.statusName) + '</span></td>' +
-                '<td class="name"><span class="sub">' + esc(r.pdirNo || '') + '</span></td>' +
+                '<td class="tm' + done + '">' + ymd(r.finishedAt) + '</td>' +
+                '<td class="tm' + done + '">' + span(r) + '</td>' +
             '</tr>';
         }).join('');
 
@@ -389,8 +442,10 @@
             '<th style="text-align:right">생산량</th>' +
             '<th style="text-align:right">지시Batch</th>' +
             '<th style="text-align:right">작업Batch</th>' +
-            '<th>작업상태</th><th>지시번호</th>' +
+            '<th>작업상태</th><th>완료일자</th><th>시간</th>' +
             '</tr></thead><tbody>' + body + '</tbody></table>';
+
+        clampRows();
 
         Array.prototype.forEach.call(el('panel').querySelectorAll('tbody tr'), function (tr) {
             tr.addEventListener('click', function () {
@@ -416,13 +471,30 @@
         return String(s).replace('T', ' ').substring(11, 16);
     }
 
-    function mins(sec) {
-        if (sec === null || sec === undefined) { return '-'; }
-        var m = Math.floor(Number(sec) / 60);
-        if (m < 60) { return m + '분'; }
-        return Math.floor(m / 60) + '시간 ' + (m % 60) + '분';
+    // 접점 명칭에서 구역 번호를 뽑는다. "1호기 생산라인 온도 3구역" -> 3
+    function zoneNo(name) {
+        var m = /(\d+)\s*구역/.exec(name || '');
+        return m ? Number(m[1]) : null;
     }
 
+    // 값 한 칸. 접점이 없거나 수집값이 없으면 0 과 헷갈리지 않게 — 로 둔다.
+    function cellVal(v, dp) {
+        var s = num(v, dp);
+        return (s === '-') ? '<td class="none">—</td>' : '<td>' + s + '</td>';
+    }
+
+    /*
+     * 설비 현황 — 레이아웃 목업(20261019) 구조 그대로 그린다.
+     *
+     * 1행  거래처 / 품목명 / 규격        — 선택된 작업지시에서
+     * 2행  믹서  셋팅온도 토출온도 시작시간 완료시간 믹서시간(분)
+     * 3행  압출  구역 A1..An / 셋팅온도 / 현재온도 + 현재 RPM
+     *
+     * 접점은 명칭으로만 고른다(계약 §4-3). 컬럼명·순번으로 분류하지 않는다.
+     * - 구역 현재온도 : kind=TEMP 인 "온도 N구역" 접점을 N 순으로
+     * - 현재 RPM     : kind=RPM 접점
+     * - 셋팅온도     : 수집 대상 레지스터가 아니다. 칸만 두고 비운다.
+     */
     function renderEquipment(d) {
         var p = d.pdir, b = d.batch, plc = d.plc || {};
         var pts = plc.points || [];
@@ -435,69 +507,79 @@
         }
         el('eqTag').textContent = p.statusName + ' · ' + p.pdirNo;
 
-        // 1행 — 거래처 / 제품명 / 규격
+        // 온도 구역 — 구역 번호 순. 1·2호기 7구역, 3호기 8구역이고 4·5호기는 온도 접점이 없다.
+        var temps = pts.filter(function (x) {
+            return x.kind === 'TEMP' && zoneNo(x.name) !== null;
+        }).sort(function (a, b2) { return zoneNo(a.name) - zoneNo(b2.name); });
+
+        var rpm = pts.filter(function (x) { return x.kind === 'RPM'; })[0] || null;
+
+        // 토출온도 — 전용 접점이 없다. 압출 끝단으로 보고 마지막 온도 구역을 쓴다(확인 필요).
+        var discharge = temps.length ? temps[temps.length - 1] : null;
+
+        var cols = temps.length;
+
+        // 1행 — 거래처 / 품목명 / 규격
         var r1 =
             '<div class="strip r1">' +
               '<div class="cell"><div class="k">거래처</div><div class="v">' + esc(p.vendNm || '-') + '</div></div>' +
-              '<div class="cell"><div class="k">제품명</div><div class="v">' + esc(p.itemNm || '-') + '</div></div>' +
+              '<div class="cell"><div class="k">품목명</div><div class="v">' + esc(p.itemNm || '-') + '</div></div>' +
               '<div class="cell"><div class="k">규격</div><div class="v">' + esc(p.itemSize || '-') + '</div></div>' +
             '</div>';
 
-        // 2행 — 셋팅온도 / 토출온도 / 시작시간 / 믹서시간
-        // 완료시간은 진행중이면 의미가 없어 뺐다.
-        var running = b && b.running;
-        var r2 =
-            '<div class="strip r2">' +
-              '<div class="cell"><div class="k">셋팅 온도</div>' +
-                '<div class="v dim">접점 없음</div></div>' +
-              '<div class="cell"><div class="k">토출온도</div>' +
-                '<div class="v dim">접점 없음</div></div>' +
-              '<div class="cell"><div class="k">작업 시작시간' +
-                (b && b.psq ? ' <small>(' + b.psq + '번째 배치)</small>' : '') + '</div>' +
-                '<div class="v">' + (b ? hhmm(b.startedAt) : '-') + '</div></div>' +
-              '<div class="cell"><div class="k">믹서시간 ' +
-                (running ? '<small>(진행중 · 경과)</small>' : '<small>(소요)</small>') + '</div>' +
-                '<div class="v">' + (b ? mins(b.elapsedSeconds) : '-') + '</div></div>' +
-            '</div>';
+        // 2행 — 믹서. 시간은 PM1200M 최신 배치에서 온다.
+        // 완료시간은 그 배치가 돌고 있으면 아직 없다.
+        var mixTime = (b && b.elapsedSeconds !== null && b.elapsedSeconds !== undefined)
+                ? Math.floor(Number(b.elapsedSeconds) / 60) : null;
+        var mixer =
+            '<table class="blk"><tbody>' +
+              '<tr class="hd">' +
+                '<th class="side" rowspan="2">믹서</th>' +
+                '<th>셋팅 온도</th><th>토출온도</th><th>시작시간</th><th>완료시간</th><th>믹서시간(분)</th>' +
+              '</tr>' +
+              '<tr>' +
+                '<td class="none">—</td>' +
+                (discharge && discharge.value !== null && discharge.value !== undefined
+                    ? '<td>' + num(discharge.value) + '</td>' : '<td class="none">—</td>') +
+                (b && b.startedAt ? '<td>' + hhmm(b.startedAt) + '</td>' : '<td class="none">—</td>') +
+                (b && b.finishedAt ? '<td>' + hhmm(b.finishedAt) + '</td>' : '<td class="none">—</td>') +
+                (mixTime === null ? '<td class="none">—</td>' : '<td>' + mixTime + '</td>') +
+              '</tr>' +
+            '</tbody></table>';
 
-        // PLC 접점 — 라인별로 묶는다
-        var byLine = {}, order = [];
-        pts.forEach(function (x) {
-            if (!byLine[x.line]) { byLine[x.line] = []; order.push(x.line); }
-            byLine[x.line].push(x);
-        });
+        // 3행 — 압출. 구역 수는 그 호기가 실제로 가진 온도 접점 수다.
+        var extrude;
+        if (!cols) {
+            extrude =
+                '<table class="blk"><tbody><tr class="hd">' +
+                  '<th class="side">압출</th><th class="rowh">구역</th>' +
+                  '<th style="font-weight:600">이 호기에는 구역 온도 접점이 없다</th>' +
+                '</tr></tbody></table>';
+        } else {
+            var hd = '', setr = '', curr = '';
+            temps.forEach(function (x, i) {
+                hd += '<th>A' + (i + 1) + '</th>';
+                setr += '<td class="none">—</td>';
+                curr += cellVal(x.value, 1);
+            });
+            extrude =
+                '<table class="blk"><tbody>' +
+                  '<tr class="hd">' +
+                    '<th class="side" rowspan="3">압출</th>' +
+                    '<th class="rowh">구역</th>' + hd +
+                    '<th class="rowh">현재 RPM</th>' +
+                  '</tr>' +
+                  '<tr><th class="rowh">셋팅온도</th>' + setr +
+                    (rpm && rpm.value !== null && rpm.value !== undefined
+                        ? '<td class="rpm" rowspan="2">' + num(rpm.value, 0) + '</td>'
+                        : '<td class="none" rowspan="2">—</td>') +
+                  '</tr>' +
+                  '<tr><th class="rowh">현재온도</th>' + curr + '</tr>' +
+                '</tbody></table>';
+        }
 
-        var lines = order.map(function (ln) {
-            var cells = byLine[ln].map(function (x) {
-                var v = num(x.value);
-                return '<div class="pt' + (x.outOfRange ? ' oor' : '') + '">' +
-                    '<div class="n">' + esc(x.name) + '</div>' +
-                    '<div class="val"><b>' + (v === '-' ? '—' : v) + '</b>' +
-                        (x.unit ? '<span class="u">' + esc(x.unit) + '</span>' : '') + '</div>' +
-                    '<div class="meta">' + esc(x.id) + ' · ' + esc(x.kind) + ' · ' + esc(x.freshness) +
-                        ((x.min !== null && x.max !== null)
-                            ? ' · 임계 ' + num(x.min) + '~' + num(x.max) : '') + '</div>' +
-                '</div>';
-            }).join('');
-            return '<div class="lgrp"><h3>라인 ' + esc(ln) + ' · 접점 ' + byLine[ln].length + '</h3>' +
-                   '<div class="pts">' + cells + '</div></div>';
-        }).join('');
-
-        var warn =
-            '<div class="warnbar">호기 ↔ PLC 라인 매핑이 확정되지 않았다. ' +
-            '접점 명칭의 "' + esc(plc.machineNo) + '호기" 문자열로 잠정 연결한 것이다.</div>';
-
-        var foot =
-            '<div class="foot">' +
-            '<b>셋팅 온도 · 토출온도</b>는 PLC 접점 143점에 존재하지 않는다. 수집되는 건 현재값뿐이고 설정값이 없다.<br>' +
-            '<b>완료시간</b>은 진행중이라 의미가 없어 뺐다.<br>' +
-            (pts.length
-                ? '위 접점은 명칭으로 잠정 연결한 것이라 확정 전까지 참고용이다.'
-                : '이 호기 번호가 이름에 들어간 PLC 접점이 없다. 1·2라인 친환경(1052·1054), 창고·라인 온습도(1100), 생산 진행 확인(1110)은 호기 번호가 없어 잡히지 않는다.') +
-            '</div>';
-
-        el('equip').innerHTML = '<div class="eq">' + (pts.length ? warn : '') + r1 + r2 +
-                                '<div class="lines">' + lines + '</div>' + foot + '</div>';
+        el("equip").innerHTML = '<div class="eq">' + r1 +
+                                '<div class="blkwrap">' + mixer + extrude + '</div></div>';
     }
 
     function loadEquipment() {

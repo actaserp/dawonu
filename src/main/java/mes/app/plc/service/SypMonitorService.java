@@ -138,10 +138,14 @@ public class SypMonitorService {
 				        p.COM_YN, p.PDIR_CLS, p.ALS_YN,
 				        v.VEND_NM, d.ITEM_NM, d.ITEM_SIZE,
 				        cls.CD_NM AS PDIR_CLS_NM,
-				        ISNULL(b.BATCH_CNT, 0) AS WORK_BATCH_QTY
+				        ISNULL(b.BATCH_CNT, 0) AS WORK_BATCH_QTY,
+				        b.FIRST_TM, b.LAST_RUN, ISNULL(b.OPEN_CNT, 0) AS OPEN_CNT
 				FROM    PM1100M p
 				LEFT JOIN (
-				        SELECT   PDIR_NO, COUNT(1) AS BATCH_CNT
+				        SELECT   PDIR_NO, COUNT(1) AS BATCH_CNT,
+				                 MIN(WORK_TM)  AS FIRST_TM,
+				                 MAX(WORK_RUN) AS LAST_RUN,
+				                 SUM(CASE WHEN WORK_RUN IS NULL THEN 1 ELSE 0 END) AS OPEN_CNT
 				        FROM     PM1200M
 				        WHERE    CORP_CD  = :corpCd
 				        AND      CORP_CLS = :corpCls
@@ -298,6 +302,11 @@ public class SypMonitorService {
 		p.pdirClsNm = str(r.get("PDIR_CLS_NM"));
 		p.alsYn = str(r.get("ALS_YN"));
 
+		// 시작·완료 시각은 PM1100M 에 없다. 배치(PM1200M) 집계에서 가져온다.
+		p.startedAt = dt(r.get("FIRST_TM"));
+		LocalDateTime lastRun = dt(r.get("LAST_RUN"));
+		Integer openCnt = toInt(r.get("OPEN_CNT"));
+
 		// 생산량 = 작업Batch × 배치당 중량
 		if (p.workBatchQty != null && p.batchWt != null) {
 			p.producedWt = p.workBatchQty.multiply(p.batchWt);
@@ -321,6 +330,11 @@ public class SypMonitorService {
 		} else {
 			p.statusCode = "WAITING";
 			p.statusName = "대기";
+		}
+
+		// 완료시각 — 미완료 배치가 남아 있으면 비워 둔다. SypPdirRow.finishedAt 주석 참조.
+		if (lastRun != null && (done || (openCnt != null && openCnt == 0))) {
+			p.finishedAt = lastRun;
 		}
 
 		return p;

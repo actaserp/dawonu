@@ -1,6 +1,7 @@
 package mes.app.plc.dto;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 
 /**
  * 작업지시 현황 표의 한 행. 레이아웃(현장모니터링_레이아웃.xlsx Sheet1) 상단 표에 대응한다.
@@ -89,4 +90,20 @@ public class SypPdirRow {
 
 	/** 확정여부 — PM1100M.ALS_YN. 자동화 여부가 아니다. 현재 화면에서는 거르지 않고 그대로 내보낸다. */
 	public String alsYn;
+
+	/**
+	 * 작업 시작시각 — 이 지시 첫 배치의 WORK_TM (PM1200M MIN).
+	 * PM1100M 에는 작업 시각 컬럼이 없다. 시각은 배치에서만 나온다.
+	 */
+	public LocalDateTime startedAt;
+
+	/**
+	 * 완료시각 — 마지막 배치의 WORK_RUN (PM1200M MAX).
+	 *
+	 * ★ 미완료 배치(WORK_RUN IS NULL)가 남아 있으면 null 이다.
+	 * 아직 도는 지시의 '직전 배치가 끝난 시각'을 완료일자 칸에 찍으면
+	 * 끝나지 않은 지시가 완료된 것처럼 보인다.
+	 * 다만 COM_YN='Y' 로 완료 선언된 건은 마지막 완료 배치 시각을 완료시각으로 본다.
+	 */
+	public LocalDateTime finishedAt;
 }
