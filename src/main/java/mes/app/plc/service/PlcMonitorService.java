@@ -86,13 +86,10 @@ public class PlcMonitorService {
 	private final Map<Integer, Cached<Map<String, Map<String, Object>>>> latestCache =
 			new LinkedHashMap<>();
 
-	/** 화면 셀렉트의 "전체 (마지막 알려진 값)" 값. 워밍업 대상이라 여기서도 안다. */
-	private static final int UI_WIDE_LOOKBACK_HOURS = 175200;
-
 	/**
 	 * 기동 직후 캐시를 미리 채운다.
 	 *
-	 * DG2000M 은 인덱스가 없어 콜드 조회가 운영 실측 기준 wide 4초 / health 2초다.
+	 * DG2000M 은 인덱스가 없어 콜드 조회가 운영 실측 기준 최신값 4초 / health 2초다.
 	 * 워밍업이 없으면 첫 화면 클릭이 이걸 직렬로 전부 뒤집어쓴다.
 	 * 기동을 막지 않도록 데몬 스레드에서 돌리고, 가드가 잠겨 있으면 건드리지 않는다.
 	 */
@@ -108,7 +105,8 @@ public class PlcMonitorService {
 				this.metaCache.get();
 				this.collectorCache.get();
 				this.healthCache.get();
-				latest(UI_WIDE_LOOKBACK_HOURS);
+				// 화면이 쓰는 구간은 24시간뿐이다. 넓은 구간(옛 "전체" 옵션)은 더 이상 워밍업하지 않는다 —
+				// 부르는 곳이 없는데 1,590만 행 스캔을 기동마다 선지불하게 된다.
 				latest(24);
 				log.info("[PLC] 캐시 워밍업 완료 ({}초)", (System.currentTimeMillis() - t0) / 1000.0);
 			} catch (Exception e) {

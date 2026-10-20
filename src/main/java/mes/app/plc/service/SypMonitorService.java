@@ -19,6 +19,7 @@ import org.springframework.stereotype.Service;
 
 import mes.app.plc.dto.SypMachine;
 import mes.app.plc.dto.SypPdirRow;
+import mes.app.plc.dto.SypZoneTemp;
 import mes.config.PlcDataSourceConfig.PlcGuard;
 
 /**
@@ -43,6 +44,12 @@ public class SypMonitorService {
 
 	/** 믹서 공정. 호기 판별과 작업배치 집계가 모두 이 공정 기준이다. */
 	private static final String PROC_MIXER = "1000";
+
+	/**
+	 * 압출·포장 공정. 셋팅온도·현재온도 접점이 걸려 있는 쪽이다.
+	 * 믹서와는 EM1000M.LANE_CD(S1~S12)로 1:1 로 짝지어진다 — 설비명 문자열로 잇지 않는다.
+	 */
+	private static final String PROC_EXTRUDE = "2000";
 
 	/**
 	 * 지시구분 코드그룹.
@@ -245,6 +252,104 @@ public class SypMonitorService {
 		out.put("elapsedSeconds",
 				(start == null) ? null : Math.max(0, Duration.between(start, until).getSeconds()));
 
+		return out;
+	}
+
+	// ------------------------------------------------------------------
+	// 셋팅온도 (PD1016M 배선 + PD1016D 품목별 기준)
+	// ------------------------------------------------------------------
+
+	/**
+	 * 한 호기의 셋팅온도 전체 — 믹서 1행(ZONE_NO=0) + 압출 구역 n행.
+	 *
+	 * ★ 셋팅온도는 PLC 에서 못 읽는다. 수집기는 계측값 레지스터만 읽고 설정값 레지스터는
+	 *   수집 대상이 아니다. 그래서 MES 기준정보(PD1016D)에 사람이 입력한 값을 쓴다.
+	 *   현재온도(PLC 실시간)와 출처가 다르다.
+	 *
+	 * 믹서 설비코드 하나를 받아 같은 라인의 압출 설비까지 함께 돌려준다.
+	 * ★ 두 공정을 잇는 키는 EM1000M.LANE_CD(S1~S12)다. 12쌍이 1:1 로 맞는다(실측).
+	 *   설비명의 "N호기" 문자열로 잇지 마라 — EQUI_CD 순서가 호기 번호 순서와 다르다
+	 *   (50000014=8호기, 50000015=6호기).
+	 *
+	 * 기준 선택은 계약 §4 의 우선순위를 그대로 따른다.
+	 * ① 그 품목 전용 → ② ITEM_CD='' 기본값 → ③ 없으면 null("기준없음").
+	 * ③ 을 0 으로 내보내면 0℃ 기준과 구분이 안 된다(결함 F4). null 로 둔다.
+	 *
+	 * @param mixerEquiCd 화면이 쓰는 믹서 설비코드(EM1000M PROC_CD='1000')
+	 * @param itemCd      지금 돌고 있는 품목. null 이면 ① 이 안 걸리고 기본값으로 떨어진다
+	 */
+	public List<SypZoneTemp> setTemps(String mixerEquiCd, String itemCd) {
+		this.guard.check();
+
+		// PD1016D 를 두 번 LEFT JOIN 한다. d = 품목 전용, f = 기본값.
+		// 우선순위를 SQL 의 COALESCE 로 처리해 행 수가 늘지 않게 한다.
+		String sql = """
+				WITH TGT AS (
+				        SELECT e2.EQUI_CD, e2.EQUI_NM, e2.PROC_CD
+				        FROM   EM1000M e1
+				        JOIN   EM1000M e2
+				               ON  e2.CORP_CD  = e1.CORP_CD
+				               AND e2.CORP_CLS = e1.CORP_CLS
+				               AND e2.LANE_CD  = e1.LANE_CD
+				               AND e2.PROC_CD IN (:procMixer, :procExtrude)
+				               AND e2.USE_YN   = 'Y'
+				               AND ISNULL(e2.DEL_YN, 'N') <> 'Y'
+				        WHERE  e1.CORP_CD = :corpCd
+				        AND    e1.EQUI_CD = :equiCd
+				)
+				SELECT  t.PROC_CD, t.EQUI_CD, t.EQUI_NM,
+				        m.ZONE_NO, m.ZONE_NM, m.GATH_ID,
+				        COALESCE(d.SET_TEMP, f.SET_TEMP) AS SET_TEMP,
+				        CASE WHEN d.ITEM_CD IS NOT NULL THEN 'ITEM'
+				             WHEN f.ITEM_CD IS NOT NULL THEN 'DEFAULT'
+				             ELSE 'NONE' END             AS SRC
+				FROM    TGT t
+				JOIN    PD1016M m
+				        ON  m.CORP_CD  = :corpCd
+				        AND m.CORP_CLS = :corpCls
+				        AND m.EQUI_CD  = t.EQUI_CD
+				        AND m.USE_YN   = 'Y'
+				LEFT JOIN PD1016D d
+				        ON  d.CORP_CD  = :corpCd
+				        AND d.CORP_CLS = :corpCls
+				        AND d.EQUI_CD  = m.EQUI_CD
+				        AND d.ZONE_NO  = m.ZONE_NO
+				        AND d.ITEM_CD  = :itemCd
+				        AND d.USE_YN   = 'Y'
+				LEFT JOIN PD1016D f
+				        ON  f.CORP_CD  = :corpCd
+				        AND f.CORP_CLS = :corpCls
+				        AND f.EQUI_CD  = m.EQUI_CD
+				        AND f.ZONE_NO  = m.ZONE_NO
+				        AND f.ITEM_CD  = ''
+				        AND f.USE_YN   = 'Y'
+				ORDER BY t.PROC_CD, m.ZONE_NO
+				""";
+
+		MapSqlParameterSource param = new MapSqlParameterSource()
+				.addValue("corpCd", CORP_CD)
+				.addValue("corpCls", CORP_CLS)
+				.addValue("procMixer", PROC_MIXER)
+				.addValue("procExtrude", PROC_EXTRUDE)
+				.addValue("equiCd", mixerEquiCd)
+				// 널이면 d 조인이 안 걸려 기본값(f)으로 떨어진다. 타입은 명시해야 한다.
+				.addValue("itemCd", (itemCd == null || itemCd.isBlank()) ? null : itemCd.trim(),
+						Types.NVARCHAR);
+
+		List<SypZoneTemp> out = new ArrayList<>();
+		for (Map<String, Object> r : this.jdbc.queryForList(sql, param)) {
+			SypZoneTemp z = new SypZoneTemp();
+			z.procCd = str(r.get("PROC_CD"));
+			z.equiCd = str(r.get("EQUI_CD"));
+			z.equiNm = str(r.get("EQUI_NM"));
+			z.zoneNo = toInt(r.get("ZONE_NO"));
+			z.zoneNm = str(r.get("ZONE_NM"));
+			// 믹서는 빈 문자열로 들어 있다. str() 이 빈 문자열을 null 로 바꿔 준다.
+			z.gathId = str(r.get("GATH_ID"));
+			z.setTemp = dec(r.get("SET_TEMP"));
+			z.source = str(r.get("SRC"));
+			out.add(z);
+		}
 		return out;
 	}
 

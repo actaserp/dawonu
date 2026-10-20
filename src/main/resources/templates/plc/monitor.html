@@ -314,12 +314,6 @@
     <div class="section-h">
         설비 현황
         <span class="tag" id="plcAt"></span>
-        <span style="flex:1"></span>
-        <label for="plcLookback" style="font-size:14px;font-weight:600">PLC 조회구간</label>
-        <select id="plcLookback">
-            <option value="24">최근 24시간</option>
-            <option value="175200" selected>전체 (마지막 알려진 값)</option>
-        </select>
     </div>
     <div id="equip"></div>
 </div>
@@ -624,14 +618,23 @@
      * 2행  믹서  셋팅온도 토출온도 시작시간 완료시간 믹서시간(분)
      * 3행  압출  구역 A1..An / 셋팅온도 / 현재온도 + 현재 RPM
      *
-     * 접점은 명칭으로만 고른다(계약 §4-3). 컬럼명·순번으로 분류하지 않는다.
-     * - 구역 현재온도 : kind=TEMP 인 "온도 N구역" 접점을 N 순으로
-     * - 현재 RPM     : kind=RPM 접점
-     * - 셋팅온도     : 수집 대상 레지스터가 아니다. 칸만 두고 비운다.
+     * ★ 출처가 둘이다. 섞어 읽지 마라.
+     *   - 현재온도 / 현재 RPM : PLC 실시간 수집값(DG2000M). 1분 주기로 들어온다.
+     *   - 셋팅온도            : MES 기준정보(PD1016M 배선 + PD1016D 품목별 기준).
+     *                           사람이 PD1016A10 화면에서 입력한 값이다.
+     *                           PLC 수집기는 계측값 레지스터만 읽고 설정값은 수집 대상이 아니다.
+     *
+     * 구역 축은 PD1016M(압출 설비 × ZONE_NO)이 정식이다. 현재온도는 GATH_ID 로 맞춘다.
+     * ★ 구역 순번으로 접점을 유추하지 마라 — 배선이 바뀌면 조용히 틀린 칸에 값이 들어간다.
+     * PD1016M 에 배선이 아직 없는 호기는 PLC 접점 명칭 순으로 떨어뜨린다(셋팅온도는 빈칸).
+     *
+     * 셋팅온도가 null 이면 "기준없음"이고 0℃ 와 다르다. 0 으로 표시하면 안 된다(결함 F4).
      */
     function renderEquipment(d) {
         var p = d.pdir, b = d.batch, plc = d.plc || {};
         var pts = plc.points || [];
+        var st = d.setTemp || {};
+        var zones = st.zones || [];
 
         plcStamp(pts);
 
@@ -641,17 +644,47 @@
             return;
         }
 
-        // 온도 구역 — 구역 번호 순. 1·2호기 7구역, 3호기 8구역이고 4·5호기는 온도 접점이 없다.
+        // PLC 접점을 GATH_ID 로 찾을 수 있게 색인한다.
+        var byId = {};
+        pts.forEach(function (x) { if (x.id) { byId[x.id] = x; } });
+
+        // PLC 온도 접점 — 구역 번호 순. 1·2호기 7구역, 3호기 8구역이고 4·5호기는 온도 접점이 없다.
         var temps = pts.filter(function (x) {
             return x.kind === 'TEMP' && zoneNo(x.name) !== null;
         }).sort(function (a, b2) { return zoneNo(a.name) - zoneNo(b2.name); });
 
         var rpm = pts.filter(function (x) { return x.kind === 'RPM'; })[0] || null;
 
-        // 토출온도 — 전용 접점이 없다. 압출 끝단으로 보고 마지막 온도 구역을 쓴다(확인 필요).
-        var discharge = temps.length ? temps[temps.length - 1] : null;
+        /*
+         * 구역 칸 — [셋팅온도, 현재온도] 한 쌍씩.
+         * PD1016M 배선이 있으면 그걸 축으로 쓰고(현재온도는 GATH_ID 로 맞춤),
+         * 없으면 기존처럼 PLC 접점만 늘어놓는다(셋팅온도 칸은 "기준없음").
+         */
+        var cells;
+        if (zones.length) {
+            cells = zones.map(function (z) {
+                var pt = z.gathId ? byId[z.gathId] : null;
+                return {
+                    zoneNo: z.zoneNo,
+                    label: 'A' + z.zoneNo,
+                    title: z.zoneNm || '',
+                    set: z.setTemp,
+                    cur: pt ? pt.value : null
+                };
+            });
+        } else {
+            cells = temps.map(function (x, i) {
+                return {
+                    zoneNo: i + 1,
+                    label: 'A' + (i + 1),
+                    title: x.name || '',
+                    set: null,
+                    cur: x.value
+                };
+            });
+        }
 
-        var cols = temps.length;
+        var cols = cells.length;
 
         // 1행 — 거래처 / 품목명 / 규격
         var r1 =
@@ -661,10 +694,13 @@
               '<div class="cell"><div class="k">규격</div><div class="v">' + esc(p.itemSize || '-') + '</div></div>' +
             '</div>';
 
-        // 2행 — 믹서. 시간은 PM1200M 최신 배치에서 온다.
-        // 완료시간은 그 배치가 돌고 있으면 아직 없다.
+        // 2행 — 믹서.
+        // 셋팅온도는 MES 기준정보(ZONE_NO=0 한 행). 믹서는 PLC 온도 접점이 없어 현재온도가 없다.
+        // 시간은 PM1200M 최신 배치에서 온다. 완료시간은 그 배치가 돌고 있으면 아직 없다.
         var mixTime = (b && b.elapsedSeconds !== null && b.elapsedSeconds !== undefined)
                 ? Math.floor(Number(b.elapsedSeconds) / 60) : null;
+        var mixSet = (st.mixer && st.mixer.setTemp !== null && st.mixer.setTemp !== undefined)
+                ? st.mixer.setTemp : null;
         var mixer =
             '<table class="blk"><tbody>' +
               '<tr class="hd">' +
@@ -672,16 +708,21 @@
                 '<th>셋팅 온도</th><th>토출온도</th><th>시작시간</th><th>완료시간</th><th>믹서시간(분)</th>' +
               '</tr>' +
               '<tr>' +
-                '<td class="none">—</td>' +
-                (discharge && discharge.value !== null && discharge.value !== undefined
-                    ? '<td>' + num(discharge.value) + '</td>' : '<td class="none">—</td>') +
+                (mixSet === null ? '<td class="none" title="기준없음 — PD1016D 에 이 품목·설비의 셋팅온도가 없다">—</td>'
+                                 : '<td>' + num(mixSet, 1) + '</td>') +
+                // 토출온도 — 근거가 없어 비워 둔다.
+                // "토출"이라는 접점이 70점에도, 명세서 118점에도 없다. PD1016D 에도 자리가 없다.
+                // 압출 마지막 온도 구역을 갖다 꽂아 봤으나(목업 82℃ 자리에 155℃ 대가 찍힘)
+                // 근거 없는 대입이라 뺐다 — _EC_VALUE 컬럼에 RPM 담아둔 것과 같은 종류의 오류다.
+                // 어느 접점이 토출인지, 아니면 셋팅온도처럼 MES 입력값으로 받을지 미정이다.
+                '<td class="none" title="토출온도 접점이 없다 — 어느 값으로 볼지 미정">—</td>' +
                 (b && b.startedAt ? '<td>' + hhmm(b.startedAt) + '</td>' : '<td class="none">—</td>') +
                 (b && b.finishedAt ? '<td>' + hhmm(b.finishedAt) + '</td>' : '<td class="none">—</td>') +
                 (mixTime === null ? '<td class="none">—</td>' : '<td>' + mixTime + '</td>') +
               '</tr>' +
             '</tbody></table>';
 
-        // 3행 — 압출. 구역 수는 그 호기가 실제로 가진 온도 접점 수다.
+        // 3행 — 압출. 구역 수는 PD1016M 배선(없으면 PLC 온도 접점) 개수다.
         var extrude;
         if (!cols) {
             extrude =
@@ -691,10 +732,12 @@
                 '</tr></tbody></table>';
         } else {
             var hd = '', setr = '', curr = '';
-            temps.forEach(function (x, i) {
-                hd += '<th>A' + (i + 1) + '</th>';
-                setr += '<td class="none">—</td>';
-                curr += cellVal(x.value, 1);
+            cells.forEach(function (c) {
+                hd += '<th' + (c.title ? ' title="' + esc(c.title) + '"' : '') + '>' + c.label + '</th>';
+                setr += (c.set === null || c.set === undefined)
+                        ? '<td class="none" title="기준없음 — PD1016D 에 이 품목·구역의 셋팅온도가 없다">—</td>'
+                        : '<td>' + num(c.set, 1) + '</td>';
+                curr += cellVal(c.cur, 1);
             });
             extrude =
                 '<table class="blk"><tbody>' +
@@ -720,7 +763,6 @@
         if (!state.sel) { return Promise.resolve(); }
         var q = '/api/syp/equipment?equiCd=' + encodeURIComponent(state.sel) +
                 '&pdirDt=' + encodeURIComponent(el('dt').value || today()) +
-                '&lookbackHours=' + encodeURIComponent(el('plcLookback').value) +
                 (state.selPdir ? '&pdirNo=' + encodeURIComponent(state.selPdir) : '');
         return get(q).then(renderEquipment).catch(function (e) {
             el('equip').innerHTML = '<div class="err">' + esc(e.message || String(e)) + '</div>';
@@ -757,6 +799,71 @@
             });
     }
 
+
+    /*
+     * 선택된 호기만 주기적으로 다시 읽는다. ★ 이게 이 화면의 실시간성이다.
+     *
+     * 주기를 1분으로 잡은 근거: PLC 수집이 1분 주기다(DATA_REGDT 가 smalldatetime,
+     * 즉 분 해상도라 더 잘게 들어올 수도 없다). 그보다 자주 불러도 새 값이 없고
+     * DG2000M 은 인덱스가 PK 하나뿐이라 조회가 전부 스캔이다.
+     *
+     * ★ 호기 순환·일시정지와 분리한다.
+     *   전에는 갱신이 순환 타이머에 얹혀 있어서, 현장에서 한 호기를 들여다보려고
+     *   일시정지를 누르면 숫자까지 같이 멈췄다. 일시정지는 화면이 넘어가지 않게 하는 것이고
+     *   값은 계속 돌아야 한다.
+     *
+     * ★ 전 호기 overview 를 다시 부르지 않는다. 12호기 × 지시 전건이라 비싸다.
+     *   선택된 호기의 지시만 갈아끼우고 탭 배지 건수를 다시 센다.
+     */
+    var POLL_MS = 60 * 1000;
+    var pollTimer = null;
+    var polling = false;
+
+    function refreshSelected() {
+        // 앞 요청이 아직 안 끝났거나 화면이 안 보이면 건너뛴다(스캔 쿼리라 겹치면 손해다).
+        if (!state.sel || polling || document.hidden) { return Promise.resolve(); }
+        polling = true;
+
+        var sel = state.sel;
+        var d = el('dt').value || today();
+
+        return get('/api/syp/pdir?equiCd=' + encodeURIComponent(sel) +
+                   '&pdirDt=' + encodeURIComponent(d))
+            .then(function (res) {
+                // 응답이 늦게 와서 그 사이 호기나 일자가 바뀌었으면 버린다.
+                if (state.sel !== sel || (el('dt').value || today()) !== d) { return; }
+
+                var fresh = res.rows || [];
+                state.rows = state.rows
+                        .filter(function (r) { return r.equiCd !== sel; })
+                        .concat(fresh);
+
+                // 탭 배지 건수는 overview 가 서버에서 세어 준 값이라 여기서 다시 센다.
+                var m = state.machines.filter(function (x) { return x.equiCd === sel; })[0];
+                if (m) { m.totalCount = fresh.length; }
+
+                el('error').style.display = 'none';
+                renderAll();
+            })
+            .then(loadEquipment)
+            .catch(function (e) {
+                var box = el('error');
+                box.style.display = 'block';
+                box.textContent = e.message || String(e);
+            })
+            .then(function () { polling = false; });
+    }
+
+    function schedulePoll() {
+        if (pollTimer) { clearInterval(pollTimer); }
+        pollTimer = setInterval(refreshSelected, POLL_MS);
+    }
+
+    // 탭을 가렸다 다시 보면 묵은 값이 떠 있다. 돌아온 즉시 한 번 받는다.
+    document.addEventListener('visibilitychange', function () {
+        if (!document.hidden) { refreshSelected(); }
+    });
+
     // 호기 순환. 원형 WinForms 화면이 30초마다 호기를 넘기던 동작을 그대로 가져온다.
     // 현장에서 특정 호기를 들여다보는 동안 화면이 넘어가면 곤란하니 일시정지를 둔다.
     function scheduleRotate() {
@@ -784,7 +891,6 @@
     el('dt').value = today();
     el('dt').addEventListener('change', load);
     el("rot").addEventListener("change", scheduleRotate);
-    el("plcLookback").addEventListener("change", loadEquipment);
 
     function renderPause() {
         var b = el('pauseBtn');
@@ -807,6 +913,7 @@
 
     load();
     scheduleRotate();
+    schedulePoll();
 })();
 </script>
 

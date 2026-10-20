@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import mes.app.plc.dto.SypMachine;
 import mes.app.plc.dto.SypPdirRow;
+import mes.app.plc.dto.SypZoneTemp;
 import mes.app.plc.service.PlcMonitorService;
 import mes.app.plc.service.SypMonitorService;
 
@@ -129,6 +130,29 @@ public class SypApiController {
 				? List.of()
 				: this.plcMonitorService.pointsForMachineNo(no, lookback(lookbackHours)));
 		out.put("plc", plc);
+
+		// 셋팅온도 — MES 기준정보(PD1016M 배선 + PD1016D 품목별 기준)에서 온다.
+		// ★ PLC 가 아니다. 설정값 레지스터는 수집 대상이 아니라서 사람이 입력한 값을 읽는다.
+		//    같은 블록의 현재온도는 PLC 실시간값이고, 둘은 출처가 완전히 다르다.
+		//
+		// 품목은 화면이 이미 고른 지시(지정 > 진행중 > 마지막)의 ITEM_CD 를 쓴다.
+		// 계약 §6 "한 설비에 미완료 지시가 2건 이상일 때 어느 것인가" 를 화면 쪽 선택 규칙으로
+		// 해소한 것이다. 지시가 없으면 null 이고, 그러면 기준은 기본값(ITEM_CD='')으로 떨어진다.
+		String itemCd = (picked == null) ? null : picked.itemCd;
+
+		List<SypZoneTemp> zones = this.sypMonitorService.setTemps(equiCd, itemCd);
+
+		Map<String, Object> setTemp = new LinkedHashMap<>();
+		setTemp.put("itemCd", itemCd);
+		// 믹서는 ZONE_NO=0 한 행뿐이고 비교할 PLC 접점이 없다(셋팅온도만 표시).
+		setTemp.put("mixer", zones.stream()
+				.filter(z -> Integer.valueOf(0).equals(z.zoneNo))
+				.findFirst().orElse(null));
+		// 압출 구역. 구역 축은 PD1016M 이 정식이다 — 접점 순번으로 유추하지 않는다.
+		setTemp.put("zones", zones.stream()
+				.filter(z -> z.zoneNo != null && z.zoneNo > 0)
+				.toList());
+		out.put("setTemp", setTemp);
 
 		return out;
 	}
